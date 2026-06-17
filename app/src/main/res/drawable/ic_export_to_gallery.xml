@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Photo (gallery) frame -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M21,19V5H3v14h18zM5,7h14v10H5V7z"/>
+
+    <!-- Mountains / image hint -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M7.5,14.5l2.5,-3 2.5,3 1.75,-2.25L18,17H6l1.5,-2.5z"/>
+
+    <!-- Download arrow (export) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,3c0.55,0 1,0.45 1,1v6.59l1.29,-1.3c0.39,-0.39 1.02,-0.39 1.41,0c0.39,0.39 0.39,1.02 0,1.41l-3,3c-0.39,0.39 -1.02,0.39 -1.41,0l-3,-3c-0.39,-0.39 -0.39,-1.02 0,-1.41c0.39,-0.39 1.02,-0.39 1.41,0L11,10.59V4c0,-0.55 0.45,-1 1,-1z"/>
+</vector>

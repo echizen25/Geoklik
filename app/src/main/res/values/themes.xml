@@ -1,0 +1,50 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base application theme -->
+    <style name="Theme.GeoCamera" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Brand colors -->
+        <item name="colorPrimary">#004b24</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+
+        <item name="colorSecondary">#004b24</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+
+        <!-- Surface / background -->
+        <item name="android:colorBackground">#fffcf2</item>
+        <item name="colorSurface">#fffcf2</item>
+        <item name="colorOnSurface">#1A1A1A</item>
+
+        <!-- Status bar (optional: keeps it clean) -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Material components tinting -->
+        <item name="colorControlActivated">#004b24</item>
+        <item name="colorControlHighlight">#1A004b24</item> <!-- subtle ripple with alpha -->
+        <item name="colorAccent">#004b24</item>
+
+        <!-- This helps spinners / dropdowns tint in many devices -->
+        <item name="android:spinnerStyle">@style/Widget.GeoCamera.Spinner</item>
+    </style>
+
+    <!-- Optional: spinner style (helps tint + padding consistency) -->
+    <style name="Widget.GeoCamera.Spinner" parent="@android:style/Widget.Holo.Light.Spinner">
+        <item name="android:popupBackground">@android:color/white</item>
+    </style>
+
+    <!-- Splash theme -->
+    <style name="Theme.GeoCamera.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#01361A</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/geoklik_splash_safe_512</item>
+        <item name="windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.GeoCamera</item>
+    </style>
+    <!-- DIALOG theme -->
+    <style name="Theme.GeoCamera.DialogActivity" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
+
+</resources>

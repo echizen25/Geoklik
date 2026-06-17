@@ -1,0 +1,12 @@
+CREATE TABLE admin_points (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    province TEXT,
+    city_munic TEXT,
+    lat REAL,
+    lng REAL,
+    g6 TEXT,
+    g5 TEXT
+);
+
+CREATE INDEX idx_admin_g6 ON admin_points(g6);
+CREATE INDEX idx_admin_g5 ON admin_points(g5);

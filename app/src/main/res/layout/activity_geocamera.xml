@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:ignore="MissingClass">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ph.gov.geocamera.presentation.geocamera.BoundingBoxOverlay
+        android:id="@+id/boxOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false" />
+
+    <View
+        android:id="@+id/viewShutterFlash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="@android:color/white"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- ================= GPS INFO (Top Left) ================= -->
+        <LinearLayout
+            android:id="@+id/gpsOverlay"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gc_screen_margin"
+            android:layout_marginTop="@dimen/gc_screen_margin"
+            android:layout_marginEnd="@dimen/gc_small_gap"
+            android:background="@drawable/bg_overlay_card"
+            android:orientation="vertical"
+            android:padding="@dimen/gc_card_padding"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_default="wrap"
+            app:layout_constraintWidth_max="@dimen/gc_top_card_max_width">
+
+            <TextView
+                android:id="@+id/tvLatLng"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="2"
+                android:text="Lat: --, Lng: --"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/gc_text_body" />
+
+            <TextView
+                android:id="@+id/tvAccuracy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:text="Accuracy: -- m"
+                android:textColor="#E8FFF5"
+                android:textSize="@dimen/gc_text_small" />
+
+            <TextView
+                android:id="@+id/tvGpsMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif"
+                android:maxLines="1"
+                android:text="Lock: ≤3m | SATS: --"
+                android:textColor="#BDEBDA"
+                android:textSize="@dimen/gc_text_xsmall" />
+        </LinearLayout>
+
+        <!-- ================= GPS BADGE (Top Right) ================= -->
+        <LinearLayout
+            android:id="@+id/gpsBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/gc_screen_margin"
+            android:layout_marginEnd="@dimen/gc_screen_margin"
+            android:background="@drawable/bg_badge_round"
+            android:gravity="center_vertical"
+            android:minHeight="@dimen/gc_badge_min_height"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/gc_badge_pad_h"
+            android:paddingTop="@dimen/gc_badge_pad_v"
+            android:paddingEnd="@dimen/gc_badge_pad_h"
+            android:paddingBottom="@dimen/gc_badge_pad_v"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <View
+                android:id="@+id/viewAccuracyIndicator"
+                android:layout_width="@dimen/gc_indicator_size"
+                android:layout_height="@dimen/gc_indicator_size"
+                android:layout_marginEnd="@dimen/gc_small_gap"
+                android:background="@drawable/bg_badge_dot" />
+
+            <TextView
+                android:id="@+id/tvAccuracyBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="GPS --"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/gc_text_body"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- ================= RIGHT CAMERA CONTROL STRIP ================= -->
+        <LinearLayout
+            android:id="@+id/controlPanel"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/gc_screen_margin"
+            android:layout_marginEnd="@dimen/gc_screen_margin"
+            android:layout_marginBottom="@dimen/gc_screen_margin"
+            android:background="@drawable/bg_control_pill"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="@dimen/gc_control_panel_padding"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageButton
+                android:id="@+id/btnHome"
+                android:layout_width="@dimen/gc_btn_normal"
+                android:layout_height="@dimen/gc_btn_normal"
+                android:background="@drawable/bg_round_button"
+                android:contentDescription="Home"
+                android:padding="@dimen/gc_btn_inner_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_home_24"
+                app:tint="@android:color/white" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/gc_btn_gap" />
+
+            <ImageButton
+                android:id="@+id/btnCamSettings"
+                android:layout_width="@dimen/gc_btn_normal"
+                android:layout_height="@dimen/gc_btn_normal"
+                android:background="@drawable/bg_round_button"
+                android:contentDescription="Camera Settings"
+                android:padding="@dimen/gc_btn_inner_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_settings_24"
+                app:tint="@android:color/white" />
+
+            <View
+                android:layout_width="@dimen/gc_divider_width"
+                android:layout_height="1dp"
+                android:layout_marginTop="@dimen/gc_divider_margin"
+                android:layout_marginBottom="@dimen/gc_divider_margin"
+                android:background="#33FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/btnCapture"
+                android:layout_width="@dimen/gc_btn_capture"
+                android:layout_height="@dimen/gc_btn_capture"
+                android:background="@drawable/bg_capture_button"
+                android:contentDescription="Capture"
+                android:padding="@dimen/gc_capture_inner_padding"
+                android:scaleType="centerInside" />
+
+            <TextView
+                android:id="@+id/tvCaptureHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/gc_hint_margin_top"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.10"
+                android:text="CAPTURE"
+                android:textColor="#E8FFF5"
+                android:textSize="@dimen/gc_text_xsmall"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCaptureStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif"
+                android:letterSpacing="0.06"
+                android:maxLines="1"
+                android:text="READY"
+                android:textColor="#BDEBDA"
+                android:textSize="@dimen/gc_text_xsmall" />
+
+            <View
+                android:layout_width="@dimen/gc_divider_width"
+                android:layout_height="1dp"
+                android:layout_marginTop="@dimen/gc_divider_margin"
+                android:layout_marginBottom="@dimen/gc_divider_margin"
+                android:background="#33FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/btnGalleryShortcut"
+                android:layout_width="@dimen/gc_btn_large"
+                android:layout_height="@dimen/gc_btn_large"
+                android:background="@drawable/bg_round_button"
+                android:contentDescription="Gallery"
+                android:padding="@dimen/gc_btn_inner_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_photo_library_24"
+                app:tint="@android:color/white" />
+        </LinearLayout>
+
+        <!-- ================= BOTTOM WATERMARK ================= -->
+        <LinearLayout
+            android:id="@+id/watermarkLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/gc_watermark_side_margin"
+            android:layout_marginEnd="@dimen/gc_watermark_side_margin"
+            android:layout_marginBottom="@dimen/gc_watermark_bottom_margin"
+            android:background="#66000000"
+            android:gravity="center_vertical"
+            android:minHeight="@dimen/gc_watermark_min_height"
+            android:orientation="horizontal"
+            android:padding="@dimen/wm_padding"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <ImageView
+                android:id="@+id/imgLogo"
+                android:layout_width="@dimen/wm_logo_size"
+                android:layout_height="@dimen/wm_logo_size"
+                android:layout_marginEnd="@dimen/wm_gap"
+                android:adjustViewBounds="true"
+                android:contentDescription="Logo"
+                android:scaleType="fitCenter"
+                android:src="@mipmap/company_logo" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvProject"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Project: RCEF"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/wm_text_title"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvDesc"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:letterSpacing="0.03"
+                    android:maxLines="1"
+                    android:textColor="#E8FFF5"
+                    android:textSize="@dimen/wm_text_small"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tvDate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="February 24, 2026"
+                    android:textColor="#E8FFF5"
+                    android:textSize="@dimen/wm_text_small" />
+
+                <TextView
+                    android:id="@+id/tvWatermarkLatLng"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:text="Lat: -- | Lng: --"
+                    android:textColor="#E8FFF5"
+                    android:textSize="@dimen/wm_text_small" />
+
+                <TextView
+                    android:id="@+id/tvAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="2dp"
+                    android:maxLines="3"
+                    android:text="Province, City"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/wm_text_small"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

@@ -1,0 +1,36 @@
+<resources>
+    <dimen name="gc_screen_margin">16dp</dimen>
+    <dimen name="gc_small_gap">10dp</dimen>
+    <dimen name="gc_card_padding">12dp</dimen>
+    <dimen name="gc_top_card_max_width">250dp</dimen>
+
+    <dimen name="gc_text_body">14sp</dimen>
+    <dimen name="gc_text_small">12sp</dimen>
+    <dimen name="gc_text_xsmall">11sp</dimen>
+
+    <dimen name="gc_badge_min_height">40dp</dimen>
+    <dimen name="gc_badge_pad_h">14dp</dimen>
+    <dimen name="gc_badge_pad_v">8dp</dimen>
+    <dimen name="gc_indicator_size">10dp</dimen>
+
+    <dimen name="gc_control_panel_padding">12dp</dimen>
+    <dimen name="gc_btn_normal">50dp</dimen>
+    <dimen name="gc_btn_large">56dp</dimen>
+    <dimen name="gc_btn_capture">86dp</dimen>
+    <dimen name="gc_btn_inner_padding">11dp</dimen>
+    <dimen name="gc_capture_inner_padding">15dp</dimen>
+    <dimen name="gc_btn_gap">12dp</dimen>
+    <dimen name="gc_divider_width">36dp</dimen>
+    <dimen name="gc_divider_margin">16dp</dimen>
+    <dimen name="gc_hint_margin_top">8dp</dimen>
+
+    <dimen name="gc_watermark_side_margin">0dp</dimen>
+    <dimen name="gc_watermark_bottom_margin">0dp</dimen>
+    <dimen name="gc_watermark_min_height">80dp</dimen>
+
+    <dimen name="wm_padding">12dp</dimen>
+    <dimen name="wm_logo_size">48dp</dimen>
+    <dimen name="wm_gap">12dp</dimen>
+    <dimen name="wm_text_title">15sp</dimen>
+    <dimen name="wm_text_small">12sp</dimen>
+</resources>

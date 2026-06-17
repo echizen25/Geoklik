@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="ph.gov.geocamera">
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only if you truly use it -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- Only if you read images outside app-scoped storage -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- For Android 8 export -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <!-- checking ng internet if available -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <application
+        android:allowBackup="true"
+        android:label="GeoKlik"
+        android:icon="@mipmap/icons"
+        android:roundIcon="@mipmap/icons_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GeoCamera">
+
+        <activity
+            android:name=".presentation.firstlaunch.FirstLaunchActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.splash.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.GeoCamera.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".presentation.home.HomeActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.geocamera.GeoCameraActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".presentation.settings.SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.library.LibraryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.permissions.PermissionActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.site.SetSiteActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.GeoCamera" />
+
+        <activity
+            android:name=".presentation.gallery.GalleryActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity android:name=".presentation.gallery.PreviewImagesActivity" />
+        <activity android:name=".presentation.gallery.SiteDatesActivity" />
+
+        <activity android:name=".presentation.gallery.GroupImagesActivity" />
+
+
+    </application>
+
+</manifest>

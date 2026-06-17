@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_search"
+        android:title="Search"
+        android:icon="@drawable/searchw"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_geocam"
+        android:title="GeoCam"
+        android:icon="@drawable/logow"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_home"
+        android:title="Home"
+        android:icon="@drawable/ic_home_24"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_sync"
+        android:title="Sync"
+        android:icon="@drawable/ic_sync_24"
+        app:showAsAction="always"/>
+</menu>

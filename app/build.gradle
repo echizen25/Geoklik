@@ -1,0 +1,88 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace = "ph.gov.geocamera"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = "ph.gov.geocamera"
+        minSdk = 24
+        targetSdk = 36
+        versionCode = 2
+        versionName = "2.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            shrinkResources = false
+            proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    implementation libs.appcompat
+    implementation libs.material
+    implementation libs.activity
+    implementation libs.constraintlayout
+    implementation libs.androidx.swiperefreshlayout
+    implementation libs.core.splashscreen
+    implementation libs.gridlayout
+    implementation libs.lottie
+
+    // CameraX
+    implementation libs.camera.core
+    implementation libs.camera.camera2
+    implementation libs.androidx.camera.lifecycle
+    implementation libs.androidx.camera.video
+    implementation libs.androidx.camera.view
+
+    // Photo / Image
+    implementation libs.photoview
+    implementation libs.com.github.bumptech.glide.glide
+    annotationProcessor libs.github.compiler
+    implementation libs.recyclerview.integration
+
+    // Location
+    implementation libs.play.services.location
+
+    // QR
+    implementation libs.zxing.android.embedded
+    implementation libs.core
+
+    // UI
+    implementation libs.shimmer
+
+    // Sync / Network
+    implementation libs.androidx.work.runtime
+    implementation libs.retrofit
+    implementation libs.converter.gson
+    implementation libs.okhttp
+    implementation libs.logging.interceptor
+
+    // EXIF
+    implementation libs.androidx.exifinterface
+
+    // ML Kit
+    implementation libs.object1.detection
+
+    // Map
+    implementation libs.osmdroid.android.v6118
+
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="splash_bg">#0B1220</color>
+    <color name="status_pending_bg">#FFF3E0</color>
+    <color name="status_pending_text">#F57C00</color>
+    <color name="splash_green">#01361A</color>
+    <color name="status_synced_bg">#E8F5E9</color>
+    <color name="status_synced_text">#2E7D32</color>
+    <color name="brand_green">#004b24</color>
+    <color name="outline_variant">#E0E0E0</color>
+</resources>

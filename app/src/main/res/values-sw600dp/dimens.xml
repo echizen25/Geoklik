@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="wm_padding">18dp</dimen>
+    <dimen name="wm_gap">16dp</dimen>
+    <dimen name="wm_logo_size">72dp</dimen>
+
+    <dimen name="wm_text_title">16sp</dimen>
+    <dimen name="wm_text_small">14sp</dimen>
+</resources>

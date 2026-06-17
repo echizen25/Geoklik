@@ -1,0 +1,19 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_geocam"
+        android:title="GeoCam"
+        android:icon="@drawable/logow"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_filter"
+        android:title="Filter"
+        android:icon="@drawable/ic_filter_list_24"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_home"
+        android:title="Home"
+        android:icon="@drawable/ic_home_24"
+        app:showAsAction="always" />
+</menu>

@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <!-- ================= MAIN AREA ================= -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- MAIN CONTENT (behind toolbar) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/contentRoot"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#fffcf2">
+
+            <!-- ================= HEADER (TABLET) ================= -->
+            <FrameLayout
+                android:id="@+id/headerContainer"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:layout_constraintHeight_percent="0.28"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <ImageView
+                    android:id="@+id/imgHeaderBg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/home_header_icon"
+                    android:scaleType="fitXY"
+                    android:contentDescription="Header Background"/>
+
+                <ImageView
+                    android:id="@+id/imgHeaderLogo"
+                    android:layout_width="160dp"
+                    android:layout_height="120dp"
+                    android:layout_gravity="start|top"
+                    android:layout_marginStart="48dp"
+                    android:layout_marginTop="40dp"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/geoklik"
+                    android:contentDescription="GeoKlik Logo" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start|top"
+                    android:layout_marginStart="52dp"
+                    android:layout_marginTop="145dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvHeaderSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="GEO TAGGING TOOL FOR IMAGE CAPTURE"
+                        android:textColor="#DFF5EB"
+                        android:textStyle="bold"
+                        android:textSize="13sp"
+                        android:letterSpacing="0.08"/>
+
+                    <TextView
+                        android:id="@+id/tvHeaderVersion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Version 1.0.0"
+                        android:textColor="#BFE9D8"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.1"/>
+                </LinearLayout>
+
+            </FrameLayout>
+
+            <!-- ================= ICON GRID ================= -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/iconSection"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:paddingStart="80dp"
+                android:paddingEnd="80dp"
+                android:paddingTop="36dp"
+                android:paddingBottom="36dp"
+                app:layout_constraintTop_toBottomOf="@id/headerContainer"
+                app:layout_constraintBottom_toTopOf="@id/imgFooter"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <GridLayout
+                    android:id="@+id/gridMenu"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:alignmentMode="alignMargins"
+                    android:columnCount="2"
+                    android:rowCount="2"
+                    android:useDefaultMargins="true"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <!-- CAPTURE -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_row="0"
+                        android:layout_column="0"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageButton
+                            android:id="@+id/btnCapture"
+                            android:layout_width="160dp"
+                            android:layout_height="160dp"
+                            android:background="@android:color/transparent"
+                            android:src="@drawable/camera"
+                            android:scaleType="centerInside"
+                            android:padding="18dp"
+                            android:contentDescription="Capture"/>
+
+                        <TextView
+                            android:id="@+id/txtCapture"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:text="CAPTURE"
+                            android:textStyle="bold"
+                            android:textSize="15sp"
+                            android:textColor="#111111"/>
+                    </LinearLayout>
+
+                    <!-- GALLERY -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_row="0"
+                        android:layout_column="1"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageButton
+                            android:id="@+id/btnGallery"
+                            android:layout_width="160dp"
+                            android:layout_height="160dp"
+                            android:background="@android:color/transparent"
+                            android:src="@drawable/list"
+                            android:scaleType="centerInside"
+                            android:padding="18dp"
+                            android:contentDescription="Gallery"/>
+
+                        <TextView
+                            android:id="@+id/txtGallery"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:text="GALLERY"
+                            android:textStyle="bold"
+                            android:textSize="15sp"
+                            android:textColor="#111111"/>
+                    </LinearLayout>
+
+                    <!-- LIBRARY -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_row="1"
+                        android:layout_column="0"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageButton
+                            android:id="@+id/btnLibrary"
+                            android:layout_width="160dp"
+                            android:layout_height="160dp"
+                            android:background="@android:color/transparent"
+                            android:src="@drawable/library"
+                            android:scaleType="centerInside"
+                            android:padding="18dp"
+                            android:contentDescription="Library"/>
+
+                        <TextView
+                            android:id="@+id/txtLibrary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:text="LIBRARY"
+                            android:textStyle="bold"
+                            android:textSize="15sp"
+                            android:textColor="#111111"/>
+                    </LinearLayout>
+
+                    <!-- SETTINGS -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_row="1"
+                        android:layout_column="1"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageButton
+                            android:id="@+id/btnSettings"
+                            android:layout_width="160dp"
+                            android:layout_height="160dp"
+                            android:background="@android:color/transparent"
+                            android:src="@drawable/settings"
+                            android:scaleType="centerInside"
+                            android:padding="18dp"
+                            android:contentDescription="Settings"/>
+
+                        <TextView
+                            android:id="@+id/txtSettings"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:text="SETTINGS"
+                            android:textStyle="bold"
+                            android:textSize="15sp"
+                            android:textColor="#111111"/>
+                    </LinearLayout>
+
+                </GridLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- ================= FOOTER ================= -->
+            <ImageView
+                android:id="@+id/imgFooter"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:src="@drawable/footer"
+                android:scaleType="fitXY"
+                android:contentDescription="Footer"
+                app:layout_constraintHeight_percent="0.18"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"/>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- SCRIM BEHIND TOOLBAR (now on top of content) -->
+        <View
+            android:id="@+id/toolbarScrim"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_gravity="top"
+            />
+
+        <!-- TOOLBAR ON TOP (hamburger visible) -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_gravity="top"
+            android:backgroundTint="@android:color/transparent"
+            app:navigationIcon="@drawable/ic_menu_24"
+            app:navigationIconTint="#FFFFFF"
+            android:elevation="0dp"
+            app:elevation="0dp"
+            android:stateListAnimator="@null"
+            app:title=""/>
+
+    </FrameLayout>
+
+    <!-- ================= SIDENAV ================= -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/navView"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:fitsSystemWindows="true"
+        app:headerLayout="@layout/drawer_header_home"
+        app:menu="@menu/drawer_menu"/>
+</androidx.drawerlayout.widget.DrawerLayout>

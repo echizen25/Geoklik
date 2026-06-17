@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Always visible -->
+    <item
+        android:id="@+id/action_export_gallery"
+        android:title="Export to Gallery"
+        android:icon="@drawable/ic_export_to_gallery"
+        app:showAsAction="ifRoom"
+        app:iconTint="@android:color/white" />
+
+    <!-- Only visible when selection > 0 (controlled in code) -->
+    <item
+        android:id="@+id/action_bulk_sync"
+        android:title="Sync Selected"
+        app:showAsAction="ifRoom"
+        app:iconTint="@android:color/white"
+        android:visible="false" />
+
+    <item
+        android:id="@+id/action_clear_selection"
+        android:title="Clear Selection"
+        android:icon="@drawable/ic_close_24"
+        app:showAsAction="ifRoom"
+        app:iconTint="@android:color/white"
+        android:visible="false" />
+</menu>

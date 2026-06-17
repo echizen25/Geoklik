@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardSite"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="2dp"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardCornerRadius="14dp"
+    app:cardUseCompatPadding="false"
+    app:cardElevation="1dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="#14000000"
+    app:cardBackgroundColor="?attr/colorSurface">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp">
+
+        <!-- Thumbnail container para pwede overlay-an -->
+        <FrameLayout
+            android:id="@+id/thumbContainer"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/imgLatest"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/app_name"
+                android:scaleType="centerCrop" />
+
+            <!-- UNSYNCED badge overlay sa thumbnail -->
+            <TextView
+                android:id="@+id/tvUnsyncedBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="4dp"
+                android:includeFontPadding="false"
+                android:text="3"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:minWidth="18dp"
+                android:gravity="center"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="@drawable/bg_badge_unsynced"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+        <!-- Status chip -->
+        <TextView
+            android:id="@+id/tvStatusChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="SYNCED"
+            android:textAllCaps="true"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#2E7D32"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:background="@drawable/bg_chip_outline_green"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <!-- Camera button -->
+        <ImageButton
+            android:id="@+id/btnGeoCamera"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="2dp"
+            android:src="@drawable/ic_camera_alt_24"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="fitXY"
+            android:contentDescription="Open Camera"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="10dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:tint="?attr/colorPrimary" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvSite"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="8dp"
+            android:includeFontPadding="false"
+            android:text="LZN-WHS-017-25-467192"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="?attr/colorOnSurface"
+            app:layout_constraintStart_toEndOf="@id/thumbContainer"
+            app:layout_constraintEnd_toStartOf="@id/tvStatusChip"
+            app:layout_constraintTop_toTopOf="@id/tvStatusChip"
+            app:layout_constraintBottom_toBottomOf="@id/tvStatusChip"/>
+
+        <!-- Project -->
+        <TextView
+            android:id="@+id/tvProjectLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="8dp"
+            android:includeFontPadding="false"
+            android:text="Project: RCEF"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurface"
+            android:alpha="0.90"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toEndOf="@id/thumbContainer"
+            app:layout_constraintEnd_toStartOf="@id/btnGeoCamera"
+            app:layout_constraintTop_toBottomOf="@id/tvSite"/>
+
+        <!-- Location -->
+        <TextView
+            android:id="@+id/tvLocationLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="1dp"
+            android:layout_marginEnd="8dp"
+            android:includeFontPadding="false"
+            android:text="Location: Province, City"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurface"
+            android:alpha="0.88"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toEndOf="@id/thumbContainer"
+            app:layout_constraintEnd_toStartOf="@id/btnGeoCamera"
+            app:layout_constraintTop_toBottomOf="@id/tvProjectLabel"/>
+
+        <!-- Meta -->
+        <TextView
+            android:id="@+id/tvMeta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="1dp"
+            android:layout_marginEnd="8dp"
+            android:includeFontPadding="false"
+            android:text="6 photos • Mar 03, 2026"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurface"
+            android:alpha="0.72"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toEndOf="@id/thumbContainer"
+            app:layout_constraintEnd_toStartOf="@id/btnGeoCamera"
+            app:layout_constraintTop_toBottomOf="@id/tvLocationLabel"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <!-- Selection overlay -->
+        <View
+            android:id="@+id/viewSelectedOverlay"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:background="@drawable/bg_selected_overlay_green"
+            android:clickable="false"
+            android:focusable="false"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>
