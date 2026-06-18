@@ -30,6 +30,7 @@ shimmer = "0.5.0"
 workRuntime = "2.11.1"
 zxingAndroidEmbedded = "4.3.0"
 swiperefreshlayout = "1.2.0"
+googleCore = "1.10.3"
 
 [libraries]
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCamera2" }
@@ -70,6 +71,7 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 shimmer = { module = "com.facebook.shimmer:shimmer", version.ref = "shimmer" }
 zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
+play-core = { group = "com.google.android.play", name = "core", version.ref = "googleCore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

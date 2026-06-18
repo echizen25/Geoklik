@@ -31,6 +31,7 @@ public class ImageMetaRepository {
     public static final int STATUS_UPLOADING = 3;
 
     public static final String ERR_NO_PROJECT_FOUND = "NO_PROJECT_FOUND";
+    public static final int MAX_SYNC_ATTEMPTS = 3;
 
     // ============================================================
     // INSERT
@@ -154,11 +155,16 @@ public class ImageMetaRepository {
                 "SELECT COUNT(*) " +
                         "FROM tbl_imagemeta " +
                         "WHERE status = ? " +
-                        "   OR (status = ? AND COALESCE(last_sync_error,'') <> ?)",
+                        "   OR (" +
+                        "       status = ? " +
+                        "       AND COALESCE(last_sync_error,'') <> ? " +
+                        "       AND COALESCE(sync_attempts,0) < ?" +
+                        "   )",
                 new String[]{
                         String.valueOf(STATUS_PENDING),
                         String.valueOf(STATUS_FAILED),
-                        ERR_NO_PROJECT_FOUND
+                        ERR_NO_PROJECT_FOUND,
+                        String.valueOf(MAX_SYNC_ATTEMPTS)
                 }
         );
         try {
@@ -753,13 +759,20 @@ public class ImageMetaRepository {
                         "FROM tbl_imagemeta im " +
                         "JOIN tbl_groups g ON g.groupid = im.groupid " +
                         "WHERE im.status = ? " +
-                        "   OR (im.status = ? AND COALESCE(im.last_sync_error,'') <> ?) " +
-                        "ORDER BY im.timestamp ASC " +
+                        "   OR (" +
+                        "       im.status = ? " +
+                        "       AND COALESCE(im.last_sync_error,'') <> ? " +
+                        "       AND COALESCE(im.sync_attempts,0) < ?" +
+                        "   ) " +
+                        "ORDER BY " +
+                        "   CASE WHEN im.status = " + STATUS_PENDING + " THEN 0 ELSE 1 END, " +
+                        "   im.timestamp ASC " +
                         "LIMIT ?",
                 new String[]{
                         String.valueOf(STATUS_PENDING),
                         String.valueOf(STATUS_FAILED),
                         ERR_NO_PROJECT_FOUND,
+                        String.valueOf(MAX_SYNC_ATTEMPTS),
                         String.valueOf(limit)
                 }
         );
@@ -833,6 +846,31 @@ public class ImageMetaRepository {
         if (groupId == null || groupId.trim().isEmpty()) return 0;
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         return db.delete(GeoDbHelper.TABLE_IMAGEMETA, "groupid=?", new String[]{groupId.trim()});
+    }
+
+
+    /**
+     * Retry old NO_PROJECT_FOUND items.
+     * Useful after API/project resolver is fixed or after refreshing masterlist.
+     */
+    public int retryNoProjectFound() {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        ContentValues cv = new ContentValues();
+        cv.put("status", STATUS_PENDING);
+        cv.putNull("last_sync_error");
+        cv.put("sync_attempts", 0);
+        cv.put("last_sync_at", now());
+
+        return db.update(
+                "tbl_imagemeta",
+                cv,
+                "status = ? AND COALESCE(last_sync_error,'') = ?",
+                new String[]{
+                        String.valueOf(STATUS_FAILED),
+                        ERR_NO_PROJECT_FOUND
+                }
+        );
     }
 
     private String now() {

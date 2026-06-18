@@ -95,6 +95,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 item.pendingCount = safeInt(c, 10);
                 item.uploadingCount = safeInt(c, 11);
                 item.failedCount = safeInt(c, 12);
+                item.projectCode = safeString(c, 13);
 
                 // ✅ detect if may NO_PROJECT_FOUND sa site na ito
                 item.noProjectFoundCount = imageRepo.countFailedByErrorForSite(
@@ -183,8 +184,25 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         SiteItem item = items.get(position);
         preloadSizeProvider.setView(h.imgLatest);
 
-        h.tvSite.setText(safe(item.siteId, "SITE"));
-        h.tvProjectLabel.setText("Project: " + safe(item.project, "—"));
+        // Main title: show readable project code/display code first, not raw project/site id.
+        String title = firstNonEmpty(
+                item.projectCode,   // from ImageMetaRepository displayCode, usually p.code / s.code
+                item.project,       // project label / coda / funding display
+                item.siteName,      // site name if available
+                item.siteId         // fallback only
+        );
+
+        h.tvSite.setText(safe(title, "SITE"));
+
+        // Second line: show project name/label. If same as title, show ID instead.
+        String projectLine = firstNonEmpty(item.project, item.siteName);
+        if (projectLine.equalsIgnoreCase(title)) {
+            projectLine = safe(item.siteId, "—");
+            h.tvProjectLabel.setText("Project ID: " + projectLine);
+        } else {
+            h.tvProjectLabel.setText("Project: " + safe(projectLine, "—"));
+        }
+
         h.tvLocationLabel.setText("Location: " + safe(item.location, "-"));
 
         String dateText = formatMonthDayYearFromDb(item.latestTimestamp);
@@ -403,12 +421,38 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
         String siteName;
         String project;
+        String projectCode;
         String location;
 
         int pendingCount;
         int uploadingCount;
         int failedCount;
         int noProjectFoundCount;
+    }
+
+
+    private static String safeString(Cursor c, int idx) {
+        try {
+            if (c == null) return "";
+            if (idx < 0 || idx >= c.getColumnCount()) return "";
+            return c.isNull(idx) ? "" : c.getString(idx);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static String firstNonEmpty(String... values) {
+        if (values == null) return "";
+
+        for (String v : values) {
+            if (v == null) continue;
+            v = v.trim();
+            if (!v.isEmpty() && !v.equalsIgnoreCase("—") && !v.equals("-")) {
+                return v;
+            }
+        }
+
+        return "";
     }
 
     private static String safe(String s, String def) {

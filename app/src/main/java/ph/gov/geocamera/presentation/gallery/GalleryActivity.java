@@ -366,6 +366,34 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         }
     }
 
+
+    /**
+     * countPendingForSync() intentionally excludes NO_PROJECT_FOUND to prevent infinite retries.
+     * This method lets the user manually retry those failed items when they tap Sync again.
+     */
+    private int ensureRetryablePendingIfNeeded() {
+        int pending = imageRepo.countPendingForSync();
+
+        if (pending > 0) {
+            return pending;
+        }
+
+        int noProjectFailed = imageRepo.countNoProjectFoundFailed();
+
+        if (noProjectFailed > 0) {
+            int reset = imageRepo.retryNoProjectFound();
+            pending = imageRepo.countPendingForSync();
+
+            Toast.makeText(
+                    this,
+                    "Retrying " + reset + " failed item(s)...",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+
+        return pending;
+    }
+
     private void startSyncAll() {
         if (isSyncing) {
             Toast.makeText(this, "Sync already in progress.", Toast.LENGTH_SHORT).show();
@@ -379,7 +407,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             return;
         }
 
-        int pending = imageRepo.countPendingForSync();
+        int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
             Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
             return;
@@ -598,7 +626,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             return;
         }
 
-        int pending = imageRepo.countPendingForSync();
+        int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
             Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
             return;
@@ -626,7 +654,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             return;
         }
 
-        int pending = imageRepo.countPendingForSync();
+        int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
             Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
             return;

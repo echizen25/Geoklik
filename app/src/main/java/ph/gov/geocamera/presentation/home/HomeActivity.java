@@ -1,12 +1,12 @@
 package ph.gov.geocamera.presentation.home;
 
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -16,10 +16,21 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.android.play.core.appupdate.AppUpdateInfo;
+import com.google.android.play.core.appupdate.AppUpdateManager;
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory;
+import com.google.android.play.core.appupdate.AppUpdateOptions;
+import com.google.android.play.core.install.InstallStateUpdatedListener;
+import com.google.android.play.core.install.model.AppUpdateType;
+import com.google.android.play.core.install.model.InstallStatus;
+import com.google.android.play.core.install.model.UpdateAvailability;
+import com.google.android.play.core.tasks.Task;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.remote.ApiProjectItem;
@@ -36,14 +47,17 @@ public class HomeActivity extends AppCompatActivity {
     private static final String KEY_LAST_PROJECT_SYNC = "last_project_sync";
     private static final long PROJECT_SYNC_INTERVAL_MS = 6L * 60L * 60L * 1000L; // 6 hours
 
+    private static final int REQ_IN_APP_UPDATE = 5001;
+
     private DrawerLayout drawerLayout;
     private MaterialToolbar topAppBar;
     private NavigationView navView;
 
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private AppUpdateManager appUpdateManager;
+    private InstallStateUpdatedListener installStateUpdatedListener;
 
-    private volatile boolean syncRunning = false;
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean syncRunning = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,13 +68,13 @@ public class HomeActivity extends AppCompatActivity {
         topAppBar = findViewById(R.id.topAppBar);
         navView = findViewById(R.id.navView);
 
-        topAppBar.bringToFront();
-        topAppBar.invalidate();
-
         setupDrawerHamburger();
         setupDrawerMenu();
         setupIconClicks();
         setupBackBehavior();
+
+        setupInAppUpdates();
+        checkForFlexibleUpdate();
 
         // Auto sync projects silently in background
         syncProjectsIfNeeded(false);
@@ -70,13 +84,24 @@ public class HomeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Optional refresh check when returning to Home
+        // Resume flexible update if already downloaded.
+        checkDownloadedFlexibleUpdate();
+
+        // Refresh only if sync interval already expired
         syncProjectsIfNeeded(true);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if (appUpdateManager != null && installStateUpdatedListener != null) {
+            try {
+                appUpdateManager.unregisterListener(installStateUpdatedListener);
+            } catch (Exception ignored) {
+            }
+        }
+
         ioExecutor.shutdown();
     }
 
@@ -98,7 +123,9 @@ public class HomeActivity extends AppCompatActivity {
         navView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
 
-            if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.START);
+            if (drawerLayout != null) {
+                drawerLayout.closeDrawer(GravityCompat.START);
+            }
 
             if (id == R.id.nav_home) {
                 item.setChecked(true);
@@ -195,13 +222,92 @@ public class HomeActivity extends AppCompatActivity {
                 .start();
     }
 
+    // ============================================================
+    // GOOGLE PLAY IN-APP UPDATE
+    // ============================================================
+    private void setupInAppUpdates() {
+        appUpdateManager = AppUpdateManagerFactory.create(this);
+
+        installStateUpdatedListener = state -> {
+            if (state.installStatus() == InstallStatus.DOWNLOADED) {
+                showUpdateDownloadedSnackbar();
+            } else if (state.installStatus() == InstallStatus.FAILED) {
+                Toast.makeText(this, "GeoKlik update failed. Please try again from Play Store.", Toast.LENGTH_LONG).show();
+            }
+        };
+
+        appUpdateManager.registerListener(installStateUpdatedListener);
+    }
+
+    private void checkForFlexibleUpdate() {
+        if (appUpdateManager == null) return;
+
+        Task<AppUpdateInfo> appUpdateInfoTask = appUpdateManager.getAppUpdateInfo();
+
+        appUpdateInfoTask.addOnSuccessListener(appUpdateInfo -> {
+            boolean updateAvailable =
+                    appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE;
+
+            boolean flexibleAllowed =
+                    appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE);
+
+            if (updateAvailable && flexibleAllowed) {
+                startFlexibleUpdate(appUpdateInfo);
+            }
+        });
+    }
+
+    private void checkDownloadedFlexibleUpdate() {
+        if (appUpdateManager == null) return;
+
+        appUpdateManager.getAppUpdateInfo()
+                .addOnSuccessListener(appUpdateInfo -> {
+                    if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
+                        showUpdateDownloadedSnackbar();
+                    }
+                });
+    }
+
+    private void startFlexibleUpdate(@NonNull AppUpdateInfo appUpdateInfo) {
+        try {
+            appUpdateManager.startUpdateFlowForResult(
+                    appUpdateInfo,
+                    this,
+                    AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE)
+                            .setAllowAssetPackDeletion(true)
+                            .build(),
+                    REQ_IN_APP_UPDATE
+            );
+        } catch (IntentSender.SendIntentException e) {
+            Toast.makeText(this, "Unable to start GeoKlik update.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showUpdateDownloadedSnackbar() {
+        View root = findViewById(android.R.id.content);
+        if (root == null || appUpdateManager == null) return;
+
+        Snackbar.make(
+                        root,
+                        "GeoKlik update downloaded. Restart app to install.",
+                        Snackbar.LENGTH_INDEFINITE
+                )
+                .setAction("RESTART", v -> appUpdateManager.completeUpdate())
+                .show();
+    }
+
+    // ============================================================
+    // PROJECT SYNC
+    // ============================================================
     private void syncProjectsIfNeeded(boolean respectInterval) {
-        if (syncRunning) return;
+        if (!syncRunning.compareAndSet(false, true)) {
+            return;
+        }
 
-        ProjectRepository repo = new ProjectRepository(this);
-        boolean hasLocalProjects = repo.hasAnyProjects();
-
+        ProjectRepository repo = new ProjectRepository(getApplicationContext());
         SharedPreferences prefs = getSharedPreferences(PREFS_SYNC, MODE_PRIVATE);
+
+        boolean hasLocalProjects = repo.hasAnyProjects();
         long lastSync = prefs.getLong(KEY_LAST_PROJECT_SYNC, 0L);
         long now = System.currentTimeMillis();
 
@@ -209,7 +315,7 @@ public class HomeActivity extends AppCompatActivity {
 
         boolean shouldSync;
         if (!hasLocalProjects) {
-            // First install / empty DB => sync agad
+            // First install / empty DB => sync immediately
             shouldSync = true;
         } else if (respectInterval) {
             // On resume, sync only if stale
@@ -219,23 +325,26 @@ public class HomeActivity extends AppCompatActivity {
             shouldSync = intervalExpired || lastSync == 0L;
         }
 
-        if (!shouldSync) return;
-
-        syncRunning = true;
+        if (!shouldSync) {
+            syncRunning.set(false);
+            return;
+        }
 
         ioExecutor.execute(() -> {
             try {
                 ProjectApiService apiService = new ProjectApiService();
                 List<ApiProjectItem> items = apiService.fetchProjects();
 
-                if (items != null && !items.isEmpty()) {
+                if (items != null) {
                     repo.saveProjectsFromApi(items);
-                    prefs.edit().putLong(KEY_LAST_PROJECT_SYNC, System.currentTimeMillis()).apply();
+                    prefs.edit()
+                            .putLong(KEY_LAST_PROJECT_SYNC, System.currentTimeMillis())
+                            .apply();
                 }
             } catch (Exception ignored) {
-                // silent sync lang para seamless, no toast
+                // Silent sync only, no toast
             } finally {
-                mainHandler.post(() -> syncRunning = false);
+                syncRunning.set(false);
             }
         });
     }

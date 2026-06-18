@@ -49,6 +49,7 @@ public class UploadWorker extends Worker {
 
         try {
             int totalAll = getInputData().getInt("TOTAL_ALL", repo.countPendingForSync());
+            if (totalAll <= 0) totalAll = repo.countPendingForSync();
 
             int remainingStart = repo.countPendingForSync();
             int doneBase = Math.max(0, totalAll - remainingStart);
@@ -70,22 +71,14 @@ public class UploadWorker extends Worker {
                     .putInt("TOTAL", totalAll)
                     .build());
 
-            while (c.moveToNext()) {
+            while (c.moveToNext() && !isStopped()) {
 
                 String uuid              = safe(c.getString(0));
                 String filePath          = safe(c.getString(1));
-
-                // local tbl_imagemeta.project = funding/display value only
                 String project           = safe(c.getString(2));
-
-                // IMPORTANT:
-                // local tbl_imagemeta.siteid = actual server-side project_id
                 String siteId            = safe(c.getString(3));
-
                 String userId            = safe(c.getString(4));
                 String groupId           = safe(c.getString(5));
-
-                // optional extra funding/display field from query if present
                 String fundingCode       = safe(c.getString(6));
 
                 Double lat = c.isNull(7) ? null : c.getDouble(7);
@@ -110,7 +103,7 @@ public class UploadWorker extends Worker {
                 }
 
                 Log.d(TAG, "Processing uuid=" + uuid
-                        + ", siteId(project_id)=" + siteId
+                        + ", siteId=" + siteId
                         + ", groupId=" + groupId
                         + ", project(funding)=" + project
                         + ", fundingCode=" + fundingCode
@@ -123,11 +116,11 @@ public class UploadWorker extends Worker {
                     repo.markUploadFail(uuid, "MISSING_GROUPID");
                 }
                 else if (siteId.isEmpty()) {
-                    // actual server project_id is required
                     repo.markUploadFail(uuid, ERR_NO_PROJECT_FOUND);
                 }
                 else {
                     File file = new File(filePath);
+
                     if (!file.exists()) {
                         repo.markUploadFail(uuid, "FILE_MISSING");
                     }
@@ -146,8 +139,8 @@ public class UploadWorker extends Worker {
                             Response<UploadResponse> resp = api.uploadPhoto(
                                     photoPart,
                                     text(uuid),
-                                    text(project),            // funding/display value only
-                                    text(siteId),             // actual server project_id
+                                    text(project),
+                                    text(siteId),
                                     text(userId),
                                     text(groupId),
                                     text(motherfolder),
@@ -160,7 +153,7 @@ public class UploadWorker extends Worker {
                                     text(acc == null ? "" : String.valueOf(acc)),
                                     text(location),
                                     text(errorAtLoc),
-                                    text(fundingCode),        // optional metadata only
+                                    text(fundingCode),
                                     text(progressTimestamp)
                             ).execute();
 
@@ -227,13 +220,19 @@ public class UploadWorker extends Worker {
             }
 
             int remainingAfter = repo.countPendingForSync();
-            if (remainingAfter > 0 && shouldRetry) {
-                Log.d(TAG, "More pending remaining and retry needed: " + remainingAfter);
+
+            if (shouldRetry && remainingAfter > 0) {
+                Log.d(TAG, "Batch finished with retryable error. Backoff retry. Remaining=" + remainingAfter);
                 return Result.retry();
             }
 
+            if (remainingAfter > 0) {
+                Log.d(TAG, "Batch finished. More pending remain; scheduling next work. Remaining=" + remainingAfter);
+                SyncScheduler.enqueueUploadNow(getApplicationContext());
+            }
+
             setProgressAsync(new Data.Builder()
-                    .putInt("DONE", totalAll)
+                    .putInt("DONE", Math.min(totalAll, doneBase + processed))
                     .putInt("TOTAL", totalAll)
                     .build());
 

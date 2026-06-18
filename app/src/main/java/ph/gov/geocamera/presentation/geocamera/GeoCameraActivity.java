@@ -189,6 +189,7 @@ public class GeoCameraActivity extends AppCompatActivity {
         imageRepo = new ImageMetaRepository(this);
 
         cameraPrefs = new CameraPrefs(this);
+        allowIndoorFallback = cameraPrefs.isIndoorAssistEnabled();
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         settingsClient = LocationServices.getSettingsClient(this);
@@ -319,6 +320,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                                             "This may reduce accuracy. Captures will be marked as INDOOR_ASSIST in watermark/DB.")
                                     .setPositiveButton("Enable", (d, w) -> {
                                         allowIndoorFallback = true;
+                                        cameraPrefs.saveIndoorAssistEnabled(true);
                                         Toast.makeText(this, "Indoor Assist ON", Toast.LENGTH_SHORT).show();
                                         updateCaptureAvailability();
                                     })
@@ -326,6 +328,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                                     .show();
                         } else {
                             allowIndoorFallback = false;
+                            cameraPrefs.saveIndoorAssistEnabled(false);
                             Toast.makeText(this, "Indoor Assist OFF (GPS-Only)", Toast.LENGTH_SHORT).show();
                             updateCaptureAvailability();
                         }
@@ -474,6 +477,11 @@ public class GeoCameraActivity extends AppCompatActivity {
                         project,
                         file.getAbsolutePath()
                 );
+
+                SyncScheduler.enqueueUploadNow(GeoCameraActivity.this);
+
+                int count = imageRepo.countBySite(siteId);
+                siteRepo.updateImageCount(siteId, count);
 
                 runOnUiThread(() -> {
                     Toast.makeText(this, "Photo saved successfully.", Toast.LENGTH_SHORT).show();
@@ -1100,10 +1108,17 @@ public class GeoCameraActivity extends AppCompatActivity {
 
         if (loc != null) {
             if (tvWatermarkLatLng != null) {
+                String elevText = "--";
+
+                if (loc.hasAltitude()) {
+                    elevText = String.format(Locale.US, "%.1f m", loc.getAltitude());
+                }
+
                 tvWatermarkLatLng.setText(String.format(Locale.US,
-                        "Lat: %.6f | Lng: %.6f",
+                        "Lat: %.6f | Lng: %.6f | Elev: %s",
                         loc.getLatitude(),
-                        loc.getLongitude()
+                        loc.getLongitude(),
+                        elevText
                 ));
             }
             updateAddressFromLocation(loc);
@@ -1787,9 +1802,16 @@ public class GeoCameraActivity extends AppCompatActivity {
             String latStr = (lat == null) ? "--" : String.format(Locale.US, "%.6f", lat);
             String lngStr = (lng == null) ? "--" : String.format(Locale.US, "%.6f", lng);
 
+            String elevStr = "--";
+            if (captureLocForExif != null && captureLocForExif.hasAltitude()) {
+                elevStr = String.format(Locale.US, "%.1f m", captureLocForExif.getAltitude());
+            }
+
             String latLine = "Lat: " + latStr;
             String lngLine = "Lng: " + lngStr;
-            String oneLineLatLng = latLine + "  " + lngLine;
+            String elevLine = "Elev: " + elevStr;
+
+            String oneLineLatLng = latLine + "  " + lngLine + "  " + elevLine;
 
             String line4 = datePretty + "  " + timePretty;
 
@@ -1809,6 +1831,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                             "Loc:"  + safe(line2, "-") + "\n" +
                             "Lat:"  + latStr + "\n" +
                             "Lng:"  + lngStr + "\n" +
+                            "Elev:" + elevStr + "\n" +
                             "At:"   + capturedAt + "\n" +
                             "Mode:" + safe(modeToken, "-");
 
@@ -1983,7 +2006,7 @@ public class GeoCameraActivity extends AppCompatActivity {
             } else {
                 drawTextStrokeNoShadow(canvas, latLine, leftTextX, y, smallSize, maxTextWidth);
                 y += smallStep + smallGap;
-                drawTextStrokeNoShadow(canvas, lngLine, leftTextX, y, smallSize, maxTextWidth);
+                drawTextStrokeNoShadow(canvas, lngLine + "  " + elevLine, leftTextX, y, smallSize, maxTextWidth);
                 y += smallStep + smallGap;
             }
 
@@ -2115,6 +2138,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                             "\nSIG=" + safe(sig, "--") +
                             "\nAT=" + safe(capturedAt, "--") +
                             "\nMODE=" + safe(modeToken, "GPS_ONLY") +
+                            "\nELEV=" + getElevationForExifComment(loc) +
                             "\nSATS=" + gnssUsedInFix + "/" + gnssTotal;
 
             exif.setAttribute(ExifInterface.TAG_USER_COMMENT, comment);
@@ -2123,6 +2147,16 @@ public class GeoCameraActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+
+    private String getElevationForExifComment(Location loc) {
+        try {
+            if (loc != null && loc.hasAltitude()) {
+                return String.format(Locale.US, "%.1f m", loc.getAltitude());
+            }
+        } catch (Exception ignored) {}
+        return "--";
     }
 
     private boolean isGpsTag(String tag) {

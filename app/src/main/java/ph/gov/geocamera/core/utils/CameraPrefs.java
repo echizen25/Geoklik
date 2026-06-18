@@ -9,10 +9,11 @@ public class CameraPrefs {
 
     // compatibility:
     // existing code still uses getSiteId()/saveSite(...)
-    // pero sa bagong flow, dito na natin sini-save ang selected PROJECT ID
+    // sa current flow, KEY_SITE_ID stores the selected project/site code used by upload
     private static final String KEY_SITE_ID = "site_id";
     private static final String KEY_UNCATEGORIZED = "uncategorized";
     private static final String KEY_DESCRIPTION = "photo_description";
+    private static final String KEY_INDOOR_ASSIST = "indoor_assist_enabled";
 
     private final SharedPreferences sp;
 
@@ -20,11 +21,9 @@ public class CameraPrefs {
         sp = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE);
     }
 
-    // compatibility method name:
-    // siteId param now stores selected PROJECT ID in the new flow
     public void saveSite(String siteId, boolean uncategorized) {
         sp.edit()
-                .putString(KEY_SITE_ID, siteId)
+                .putString(KEY_SITE_ID, siteId == null ? null : siteId.trim())
                 .putBoolean(KEY_UNCATEGORIZED, uncategorized)
                 .apply();
     }
@@ -37,15 +36,17 @@ public class CameraPrefs {
 
     public boolean hasSelection() {
         if (!sp.contains(KEY_UNCATEGORIZED)) return false;
+
         boolean uncategorized = sp.getBoolean(KEY_UNCATEGORIZED, false);
         if (uncategorized) return true;
-        return sp.getString(KEY_SITE_ID, null) != null;
+
+        String siteId = sp.getString(KEY_SITE_ID, null);
+        return siteId != null && !siteId.trim().isEmpty();
     }
 
-    // compatibility getter:
-    // returns selected PROJECT ID in the new flow
     public String getSiteId() {
-        return sp.getString(KEY_SITE_ID, null);
+        String s = sp.getString(KEY_SITE_ID, null);
+        return s == null ? null : s.trim();
     }
 
     public boolean isUncategorized() {
@@ -64,6 +65,16 @@ public class CameraPrefs {
 
     public void clearDescription() {
         sp.edit().remove(KEY_DESCRIPTION).apply();
+    }
+
+    public void saveIndoorAssistEnabled(boolean enabled) {
+        sp.edit()
+                .putBoolean(KEY_INDOOR_ASSIST, enabled)
+                .apply();
+    }
+
+    public boolean isIndoorAssistEnabled() {
+        return sp.getBoolean(KEY_INDOOR_ASSIST, false);
     }
 
     public void clear() {

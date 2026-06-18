@@ -229,39 +229,52 @@ public class SetSiteActivity extends AppCompatActivity {
     }
 
     private void selectSiteFromInput(String rawInput) {
+        String raw = normalizeScannedValue(rawInput);
+
+        if (raw.isEmpty()) {
+            Toast.makeText(this, "Invalid project/site.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String projectId = null;
 
-        String raw = normalizeScannedValue(rawInput);
-        if (raw.isEmpty()) {
-            Toast.makeText(this, "Invalid project.", Toast.LENGTH_SHORT).show();
-            return;
+        // Offline-first:
+        // Try local resolution only. Do NOT block capture if it is not found locally.
+        // Server-side existence check happens during UploadWorker/API sync.
+        try {
+            if (projectRepo.existsProjectId(raw)) {
+                projectId = raw.trim();
+            }
+
+            if (projectId == null || projectId.trim().isEmpty()) {
+                projectId = projectRepo.resolveProjectId(raw);
+            }
+        } catch (Exception ignored) {
+            projectId = null;
         }
 
-        // 1) exact raw project_id muna
-        if (projectRepo.existsProjectId(raw)) {
-            projectId = raw;
-        }
+        boolean foundLocal = projectId != null && !projectId.trim().isEmpty();
+        String finalSiteId = foundLocal ? projectId.trim() : raw.trim();
 
-        // 2) fallback resolve via code / coda / display label
-        if (projectId == null || projectId.trim().isEmpty()) {
-            projectId = projectRepo.resolveProjectId(raw);
-        }
+        cameraPrefs.saveSite(finalSiteId, false);
 
-        if (projectId == null || projectId.trim().isEmpty()) {
-            Toast.makeText(this, "Project not found in local synced projects.", Toast.LENGTH_LONG).show();
-            return;
-        }
+        if (foundLocal) {
+            String label = projectRepo.getProjectDisplayLabel(finalSiteId);
 
-        cameraPrefs.saveSite(projectId, false);
-
-        String label = projectRepo.getProjectDisplayLabel(projectId);
-        if (label == null || label.trim().isEmpty()) {
-            Toast.makeText(this, "Selected project: " + projectId, Toast.LENGTH_SHORT).show();
+            if (label == null || label.trim().isEmpty()) {
+                Toast.makeText(this, "Selected project: " + finalSiteId, Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Selected project: " + label, Toast.LENGTH_SHORT).show();
+            }
         } else {
-            Toast.makeText(this, "Selected project: " + label, Toast.LENGTH_SHORT).show();
+            Toast.makeText(
+                    this,
+                    "Offline site selected. It will be verified during sync.",
+                    Toast.LENGTH_LONG
+            ).show();
         }
 
-        finishWithResult(projectId, false);
+        finishWithResult(finalSiteId, false);
     }
 
     private void selectUncategorized() {

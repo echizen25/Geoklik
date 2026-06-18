@@ -10,6 +10,7 @@ import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.Data;
+
 import java.util.concurrent.TimeUnit;
 
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
@@ -20,14 +21,16 @@ public class SyncScheduler {
 
     /**
      * Queue upload immediately.
-     * - Replaces any existing upload work (prevents stuck syncing)
+     * - Keeps existing upload work if already running/enqueued
      * - Requires network
      * - Exponential retry
      */
     public static void enqueueUploadNow(@NonNull Context context) {
 
         ImageMetaRepository repo = new ImageMetaRepository(context);
-        int totalAllPending = repo.countPendingForSync(); // global pending at start
+        repo.resetStuckUploading();
+
+        int totalAllPending = repo.countPendingForSync();
 
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -52,12 +55,13 @@ public class SyncScheduler {
         WorkManager.getInstance(context)
                 .enqueueUniqueWork(
                         UNIQUE_UPLOAD_WORK,
-                        ExistingWorkPolicy.REPLACE,
+                        ExistingWorkPolicy.KEEP,
                         request
                 );
     }
+
     /**
-     * Optional: cancel running sync (if ever needed)
+     * Optional: cancel running sync.
      */
     public static void cancelSync(@NonNull Context context) {
         WorkManager.getInstance(context)
