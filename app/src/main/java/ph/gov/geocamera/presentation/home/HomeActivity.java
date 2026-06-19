@@ -25,7 +25,6 @@ import com.google.android.play.core.install.InstallStateUpdatedListener;
 import com.google.android.play.core.install.model.AppUpdateType;
 import com.google.android.play.core.install.model.InstallStatus;
 import com.google.android.play.core.install.model.UpdateAvailability;
-import com.google.android.play.core.tasks.Task;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -226,49 +225,78 @@ public class HomeActivity extends AppCompatActivity {
     // GOOGLE PLAY IN-APP UPDATE
     // ============================================================
     private void setupInAppUpdates() {
-        appUpdateManager = AppUpdateManagerFactory.create(this);
+        try {
+            appUpdateManager = AppUpdateManagerFactory.create(this);
 
-        installStateUpdatedListener = state -> {
-            if (state.installStatus() == InstallStatus.DOWNLOADED) {
-                showUpdateDownloadedSnackbar();
-            } else if (state.installStatus() == InstallStatus.FAILED) {
-                Toast.makeText(this, "GeoKlik update failed. Please try again from Play Store.", Toast.LENGTH_LONG).show();
-            }
-        };
+            installStateUpdatedListener = state -> {
+                if (isFinishing() || isDestroyed()) return;
 
-        appUpdateManager.registerListener(installStateUpdatedListener);
+                if (state.installStatus() == InstallStatus.DOWNLOADED) {
+                    showUpdateDownloadedSnackbar();
+                } else if (state.installStatus() == InstallStatus.FAILED) {
+                    Toast.makeText(
+                            this,
+                            "GeoKlik update failed. Please try again from Play Store.",
+                            Toast.LENGTH_LONG
+                    ).show();
+                }
+            };
+
+            appUpdateManager.registerListener(installStateUpdatedListener);
+        } catch (Exception ignored) {
+            appUpdateManager = null;
+            installStateUpdatedListener = null;
+        }
     }
 
     private void checkForFlexibleUpdate() {
         if (appUpdateManager == null) return;
 
-        Task<AppUpdateInfo> appUpdateInfoTask = appUpdateManager.getAppUpdateInfo();
+        try {
+            appUpdateManager.getAppUpdateInfo()
+                    .addOnSuccessListener(appUpdateInfo -> {
+                        if (isFinishing() || isDestroyed()) return;
 
-        appUpdateInfoTask.addOnSuccessListener(appUpdateInfo -> {
-            boolean updateAvailable =
-                    appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE;
+                        boolean updateAvailable =
+                                appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE;
 
-            boolean flexibleAllowed =
-                    appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE);
+                        boolean flexibleAllowed =
+                                appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE);
 
-            if (updateAvailable && flexibleAllowed) {
-                startFlexibleUpdate(appUpdateInfo);
-            }
-        });
+                        if (updateAvailable && flexibleAllowed) {
+                            startFlexibleUpdate(appUpdateInfo);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        // Ignore silently. App update check should never block GeoKlik.
+                    });
+        } catch (Exception ignored) {
+            // Some devices / stores may not support Play Core update flow.
+        }
     }
 
     private void checkDownloadedFlexibleUpdate() {
         if (appUpdateManager == null) return;
 
-        appUpdateManager.getAppUpdateInfo()
-                .addOnSuccessListener(appUpdateInfo -> {
-                    if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
-                        showUpdateDownloadedSnackbar();
-                    }
-                });
+        try {
+            appUpdateManager.getAppUpdateInfo()
+                    .addOnSuccessListener(appUpdateInfo -> {
+                        if (isFinishing() || isDestroyed()) return;
+
+                        if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
+                            showUpdateDownloadedSnackbar();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        // Ignore silently.
+                    });
+        } catch (Exception ignored) {
+        }
     }
 
     private void startFlexibleUpdate(@NonNull AppUpdateInfo appUpdateInfo) {
+        if (appUpdateManager == null || isFinishing() || isDestroyed()) return;
+
         try {
             appUpdateManager.startUpdateFlowForResult(
                     appUpdateInfo,
@@ -280,20 +308,32 @@ public class HomeActivity extends AppCompatActivity {
             );
         } catch (IntentSender.SendIntentException e) {
             Toast.makeText(this, "Unable to start GeoKlik update.", Toast.LENGTH_SHORT).show();
+        } catch (Exception ignored) {
+            // Ignore. Update flow should not crash the app.
         }
     }
 
     private void showUpdateDownloadedSnackbar() {
         View root = findViewById(android.R.id.content);
-        if (root == null || appUpdateManager == null) return;
+        if (root == null || appUpdateManager == null || isFinishing() || isDestroyed()) return;
 
-        Snackbar.make(
-                        root,
-                        "GeoKlik update downloaded. Restart app to install.",
-                        Snackbar.LENGTH_INDEFINITE
-                )
-                .setAction("RESTART", v -> appUpdateManager.completeUpdate())
-                .show();
+        try {
+            Snackbar.make(
+                            root,
+                            "GeoKlik update downloaded. Restart app to install.",
+                            Snackbar.LENGTH_INDEFINITE
+                    )
+                    .setAction("RESTART", v -> {
+                        try {
+                            if (appUpdateManager != null) {
+                                appUpdateManager.completeUpdate();
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    })
+                    .show();
+        } catch (Exception ignored) {
+        }
     }
 
     // ============================================================

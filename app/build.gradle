@@ -53,7 +53,7 @@ dependencies {
     // Photo / Image
     implementation libs.photoview
     implementation libs.com.github.bumptech.glide.glide
-    implementation libs.play.core
+
     annotationProcessor libs.github.compiler
     implementation libs.recyclerview.integration
 
@@ -88,5 +88,6 @@ dependencies {
     androidTestImplementation libs.espresso.core
 
     //playstore
-    implementation 'com.google.android.play:app-update:2.1.0'
+    implementation libs.app.update
+    implementation libs.app.update.ktx
 }

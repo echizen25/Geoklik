@@ -139,9 +139,15 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
 
         // badge
         boolean synced = (it.status != 0);
-        if (synced) {
+        if (it.status == 1) {
             h.tvBadge.setText("SYNCED");
             h.tvBadge.setBackgroundResource(R.drawable.bg_badge_synced);
+        } else if (it.status == 2) {
+            h.tvBadge.setText("FAILED");
+            h.tvBadge.setBackgroundResource(R.drawable.bg_badge_pending);
+        } else if (it.status == 3) {
+            h.tvBadge.setText("UPLOADING");
+            h.tvBadge.setBackgroundResource(R.drawable.bg_badge_pending);
         } else {
             h.tvBadge.setText("PENDING");
             h.tvBadge.setBackgroundResource(R.drawable.bg_badge_pending);

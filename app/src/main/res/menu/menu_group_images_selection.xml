@@ -13,9 +13,15 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_change_site"
+        android:icon="@drawable/ic_edit_24"
+        android:title="Change Site"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/action_delete"
-        android:title="Delete"
         android:icon="@drawable/ic_delete_24"
+        android:title="Delete"
         app:showAsAction="ifRoom" />
 
 </menu>

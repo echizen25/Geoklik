@@ -873,6 +873,262 @@ public class ImageMetaRepository {
         );
     }
 
+
+    // ============================================================
+    // CHANGE SITE / PROJECT CODE FOR SELECTED PHOTOS
+    // ============================================================
+
+    /**
+     * Change Site is allowed only for unsynced editable photos.
+     * Editable: STATUS_PENDING, STATUS_FAILED
+     * Locked: STATUS_UPLOADED/SYNCED, STATUS_UPLOADING
+     */
+    public boolean hasLockedPhotosForChangeSite(java.util.Set<String> uuids) {
+        if (uuids == null || uuids.isEmpty()) return false;
+
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        StringBuilder placeholders = new StringBuilder();
+        ArrayList<String> args = new ArrayList<>();
+
+        for (String raw : uuids) {
+            String uuid = raw == null ? "" : raw.trim();
+            if (uuid.isEmpty()) continue;
+
+            if (placeholders.length() > 0) placeholders.append(",");
+            placeholders.append("?");
+            args.add(uuid);
+        }
+
+        if (args.isEmpty()) return false;
+
+        args.add(String.valueOf(STATUS_UPLOADED));
+        args.add(String.valueOf(STATUS_UPLOADING));
+
+        Cursor c = null;
+        try {
+            c = db.rawQuery(
+                    "SELECT COUNT(*) " +
+                            "FROM " + GeoDbHelper.TABLE_IMAGEMETA + " " +
+                            "WHERE uuid IN (" + placeholders + ") " +
+                            "AND status IN (?, ?)",
+                    args.toArray(new String[0])
+            );
+
+            return c.moveToFirst() && c.getInt(0) > 0;
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    public int updateSelectedPhotosSiteId(List<String> uuids, String newSiteId) {
+        if (uuids == null || uuids.isEmpty()) return 0;
+
+        newSiteId = safeText(newSiteId).toUpperCase(Locale.US);
+        if (newSiteId.isEmpty()) return 0;
+
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        db.beginTransaction();
+
+        int updated = 0;
+
+        try {
+            for (String rawUuid : uuids) {
+                String uuid = safeText(rawUuid);
+                if (uuid.isEmpty()) continue;
+
+                PhotoMoveInfo info = getPhotoMoveInfo(db, uuid);
+                if (info == null) continue;
+
+                if (info.status == STATUS_UPLOADED || info.status == STATUS_UPLOADING) {
+                    continue;
+                }
+
+                String oldSiteId = safeText(info.siteId);
+                if (oldSiteId.equalsIgnoreCase(newSiteId)) continue;
+
+                String sessionDate = safeText(info.sessionDate);
+                if (sessionDate.isEmpty()) {
+                    sessionDate = dateOnly(info.timestamp);
+                }
+                if (sessionDate.isEmpty()) {
+                    sessionDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+                }
+
+                String mother = safeText(info.motherFolder);
+                if (mother.isEmpty()) mother = "PROJECT_0000";
+
+                String remarks = safeText(info.groupRemarks);
+                String newGroupId = getOrCreateGroupInTransaction(
+                        db,
+                        mother,
+                        newSiteId,
+                        sessionDate,
+                        remarks
+                );
+
+                ContentValues cv = new ContentValues();
+                cv.put("siteid", newSiteId);
+                cv.put("groupid", newGroupId);
+                cv.put("project", newSiteId);
+                cv.put("status", STATUS_PENDING);
+                cv.putNull("server_path");
+                cv.putNull("last_sync_error");
+                cv.put("sync_attempts", 0);
+                cv.put("last_sync_at", now());
+
+                int r = db.update(
+                        GeoDbHelper.TABLE_IMAGEMETA,
+                        cv,
+                        "uuid=?",
+                        new String[]{uuid}
+                );
+
+                updated += Math.max(0, r);
+            }
+
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+
+        return updated;
+    }
+
+    private static class PhotoMoveInfo {
+        String groupId;
+        String siteId;
+        String timestamp;
+        String sessionDate;
+        String motherFolder;
+        String groupRemarks;
+        int status = STATUS_PENDING;
+    }
+
+    private PhotoMoveInfo getPhotoMoveInfo(SQLiteDatabase db, String uuid) {
+        Cursor c = null;
+
+        try {
+            c = db.rawQuery(
+                    "SELECT " +
+                            "im.groupid, " +
+                            "im.siteid, " +
+                            "im.timestamp, " +
+                            "COALESCE(g.sessiondate,'') AS sessiondate, " +
+                            "COALESCE(g.motherfolder,'') AS motherfolder, " +
+                            "COALESCE(g.description,'') AS groupRemarks, " +
+                            "im.status " +
+                            "FROM " + GeoDbHelper.TABLE_IMAGEMETA + " im " +
+                            "LEFT JOIN " + GeoDbHelper.TABLE_GROUPS + " g ON g.groupid = im.groupid " +
+                            "WHERE im.uuid=? " +
+                            "LIMIT 1",
+                    new String[]{uuid}
+            );
+
+            if (!c.moveToFirst()) return null;
+
+            PhotoMoveInfo info = new PhotoMoveInfo();
+            info.groupId = c.isNull(0) ? "" : c.getString(0);
+            info.siteId = c.isNull(1) ? "" : c.getString(1);
+            info.timestamp = c.isNull(2) ? "" : c.getString(2);
+            info.sessionDate = c.isNull(3) ? "" : c.getString(3);
+            info.motherFolder = c.isNull(4) ? "" : c.getString(4);
+            info.groupRemarks = c.isNull(5) ? "" : c.getString(5);
+            info.status = c.isNull(6) ? STATUS_PENDING : c.getInt(6);
+
+            return info;
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    private String getOrCreateGroupInTransaction(SQLiteDatabase db,
+                                                 String motherFolder,
+                                                 String siteId,
+                                                 String sessionDate,
+                                                 String remarks) {
+        String mf = safeText(motherFolder);
+        String sid = safeText(siteId);
+        String sd = safeText(sessionDate);
+
+        if (mf.isEmpty()) mf = "PROJECT_0000";
+        if (sid.isEmpty()) sid = "UNCAT";
+        if (sd.isEmpty()) sd = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+
+        String existing = findGroupInTransaction(db, mf, sid, sd);
+        if (!existing.isEmpty()) {
+            ContentValues up = new ContentValues();
+            String n = now();
+
+            if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "updated_at")) up.put("updated_at", n);
+            if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "timestamp")) up.put("timestamp", n);
+
+            if (up.size() > 0) {
+                db.update(GeoDbHelper.TABLE_GROUPS, up, "groupid=?", new String[]{existing});
+            }
+
+            return existing;
+        }
+
+        String groupId = java.util.UUID.randomUUID().toString();
+        String folderRel = mf + "/" + sid + "/" + sd;
+        String n = now();
+
+        ContentValues cv = new ContentValues();
+        cv.put("groupid", groupId);
+        cv.put("motherfolder", mf);
+        cv.put("foldername", folderRel);
+        cv.put("siteid", sid);
+        cv.put("sessiondate", sd);
+        cv.put("description", safeText(remarks));
+
+        if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "created_at")) cv.put("created_at", n);
+        if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "updated_at")) cv.put("updated_at", n);
+        if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "timestamp")) cv.put("timestamp", n);
+
+        long row = db.insert(GeoDbHelper.TABLE_GROUPS, null, cv);
+        if (row == -1) {
+            String fallback = findGroupInTransaction(db, mf, sid, sd);
+            if (!fallback.isEmpty()) return fallback;
+            throw new RuntimeException("Failed to create new group for changed site.");
+        }
+
+        return groupId;
+    }
+
+    private String findGroupInTransaction(SQLiteDatabase db, String motherFolder, String siteId, String sessionDate) {
+        Cursor c = null;
+
+        try {
+            String orderCol = null;
+            if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "updated_at")) orderCol = "updated_at";
+            else if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "timestamp")) orderCol = "timestamp";
+
+            String sql =
+                    "SELECT groupid FROM " + GeoDbHelper.TABLE_GROUPS + " " +
+                            "WHERE motherfolder=? AND siteid=? AND sessiondate=? " +
+                            (orderCol != null ? ("ORDER BY " + orderCol + " DESC ") : "") +
+                            "LIMIT 1";
+
+            c = db.rawQuery(sql, new String[]{motherFolder, siteId, sessionDate});
+            if (c.moveToFirst()) return safeText(c.getString(0));
+            return "";
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    private String dateOnly(String timestamp) {
+        timestamp = safeText(timestamp);
+        if (timestamp.length() >= 10) return timestamp.substring(0, 10);
+        return "";
+    }
+
+    private static String safeText(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+
     private String now() {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
     }

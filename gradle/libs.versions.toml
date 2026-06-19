@@ -1,6 +1,7 @@
 [versions]
 agp = "9.1.1"
 appcompatVersion = "1.7.0"
+appUpdate = "2.1.0"
 cameraCamera2 = "1.5.3"
 core = "3.5.4"
 coreSplashscreen = "1.2.0"
@@ -38,6 +39,8 @@ androidx-camera-video = { module = "androidx.camera:camera-video", version.ref =
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCamera2" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "workRuntime" }
+app-update = { module = "com.google.android.play:app-update", version.ref = "appUpdate" }
+app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "appUpdate" }
 appcompat-v170 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
 camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCamera2" }
 camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCamera2" }
