@@ -6,9 +6,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -19,13 +19,8 @@ import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
-import ph.gov.geocamera.core.utils.SimpleTextWatcher;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 
 public class SetSiteActivity extends AppCompatActivity {
@@ -33,19 +28,16 @@ public class SetSiteActivity extends AppCompatActivity {
     public static final String EXTRA_SITE_ID = "EXTRA_SITE_ID";
     public static final String EXTRA_UNCATEGORIZED = "EXTRA_UNCATEGORIZED";
 
-    private static final int SUGGEST_LIMIT = 50;
-
     private ProjectRepository projectRepo;
     private CameraPrefs cameraPrefs;
 
     private ActivityResultLauncher<ScanOptions> qrLauncher;
 
+    // Keep same XML id/layout: actSite
+    // But no adapter, no suggestions, no dropdown.
     private MaterialAutoCompleteTextView actSite;
-    private ArrayAdapter<String> siteAdapter;
 
-    private boolean isSelecting = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private Runnable pendingSearch = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,53 +54,73 @@ public class SetSiteActivity extends AppCompatActivity {
         MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
         MaterialButton btnClose = findViewById(R.id.btnClose);
 
-        List<String> initial = safeList(projectRepo.getProjectSuggestions("", SUGGEST_LIMIT));
-        siteAdapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_list_item_1,
-                new ArrayList<>(initial)
-        );
+        setupManualInputOnly();
 
-        actSite.setAdapter(siteAdapter);
-        actSite.setThreshold(0);
+        btnUseSelected.setOnClickListener(v -> {
+            hideKeyboard();
+            actSite.clearFocus();
+            actSite.dismissDropDown();
 
-        actSite.setOnClickListener(v -> actSite.showDropDown());
+            String raw = actSite.getText() == null ? "" : actSite.getText().toString().trim();
+            raw = normalizeScannedValue(raw);
 
-        actSite.setOnItemClickListener((parent, view, position, id) -> {
-            isSelecting = true;
-            Object item = parent.getItemAtPosition(position);
-            String chosen = item == null ? "" : item.toString();
-            actSite.setText(chosen, false);
-            actSite.setSelection(chosen.length());
-            handler.postDelayed(() -> isSelecting = false, 250);
+            if (raw.isEmpty()) {
+                Toast.makeText(this, "Please type or scan a Project ID.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            selectSiteFromInput(raw);
         });
 
-        actSite.addTextChangedListener(new SimpleTextWatcher() {
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (isSelecting) return;
+        qrLauncher = registerForActivityResult(new ScanContract(), result -> {
+            if (result.getContents() == null) return;
 
-                final String q = s == null ? "" : s.toString();
+            String scanned = normalizeScannedValue(result.getContents());
 
-                if (pendingSearch != null) {
-                    handler.removeCallbacks(pendingSearch);
-                }
+            if (scanned.isEmpty()) {
+                Toast.makeText(this, "Invalid QR content.", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-                pendingSearch = () -> {
-                    if (isSelecting) return;
+            actSite.setText(scanned, false);
+            actSite.setSelection(scanned.length());
+            actSite.dismissDropDown();
+            hideKeyboard();
+            actSite.clearFocus();
 
-                    List<String> matches = safeList(projectRepo.getProjectSuggestions(q, SUGGEST_LIMIT));
+            Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
 
-                    siteAdapter.clear();
-                    siteAdapter.addAll(matches);
-                    siteAdapter.notifyDataSetChanged();
+            // Auto resolve after scan
+            handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
+        });
 
-                    if (!actSite.isPopupShowing()) {
-                        actSite.showDropDown();
-                    }
-                };
+        btnScanQr.setOnClickListener(v -> startQrScan());
+        btnUncategorized.setOnClickListener(v -> selectUncategorized());
 
-                handler.postDelayed(pendingSearch, 220);
+        btnClose.setOnClickListener(v -> {
+            Intent i = new Intent(SetSiteActivity.this, ph.gov.geocamera.presentation.home.HomeActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            finish();
+        });
+    }
+
+    private void setupManualInputOnly() {
+        if (actSite == null) return;
+
+        // No dropdown / suggestions
+        actSite.setAdapter(null);
+        actSite.setThreshold(Integer.MAX_VALUE);
+        actSite.dismissDropDown();
+
+        actSite.setOnClickListener(v -> {
+            // Do nothing. User can type only.
+            actSite.dismissDropDown();
+        });
+
+        actSite.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                actSite.dismissDropDown();
             }
         });
 
@@ -134,62 +146,34 @@ public class SetSiteActivity extends AppCompatActivity {
             if (!raw.isEmpty()) {
                 selectSiteFromInput(raw);
             }
+
             return true;
         });
+    }
 
-        btnUseSelected.setOnClickListener(v -> {
-            String raw = actSite.getText() == null ? "" : actSite.getText().toString().trim();
-            raw = normalizeScannedValue(raw);
-
-            if (raw.isEmpty()) {
-                Toast.makeText(this, "Please type or scan a Project ID.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            selectSiteFromInput(raw);
-        });
-
-        qrLauncher = registerForActivityResult(new ScanContract(), result -> {
-            if (result.getContents() == null) return;
-
-            String scanned = normalizeScannedValue(result.getContents());
-
-            if (scanned.isEmpty()) {
-                Toast.makeText(this, "Invalid QR content.", Toast.LENGTH_SHORT).show();
-                return;
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (ev != null && ev.getAction() == MotionEvent.ACTION_DOWN) {
+            if (getCurrentFocus() != null) {
+                hideKeyboard();
+                getCurrentFocus().clearFocus();
             }
 
-            isSelecting = true;
-            actSite.setText(scanned, false);
-            actSite.setSelection(scanned.length());
-            actSite.dismissDropDown();
-            hideKeyboard();
-            actSite.clearFocus();
+            if (actSite != null) {
+                actSite.dismissDropDown();
+            }
+        }
 
-            handler.postDelayed(() -> isSelecting = false, 200);
-
-            Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
-
-            // auto resolve agad after scan
-            handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
-        });
-
-        btnScanQr.setOnClickListener(v -> startQrScan());
-        btnUncategorized.setOnClickListener(v -> selectUncategorized());
-
-        btnClose.setOnClickListener(v -> {
-            Intent i = new Intent(SetSiteActivity.this, ph.gov.geocamera.presentation.home.HomeActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(i);
-            finish();
-        });
+        return super.dispatchTouchEvent(ev);
     }
 
     private void hideKeyboard() {
         try {
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+
             if (imm != null && getCurrentFocus() != null) {
                 imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
-            } else if (imm != null) {
+            } else if (imm != null && actSite != null) {
                 imm.hideSoftInputFromWindow(actSite.getWindowToken(), 0);
             }
         } catch (Exception ignored) {
@@ -197,12 +181,20 @@ public class SetSiteActivity extends AppCompatActivity {
     }
 
     private void startQrScan() {
+        hideKeyboard();
+
+        if (actSite != null) {
+            actSite.dismissDropDown();
+            actSite.clearFocus();
+        }
+
         ScanOptions options = new ScanOptions();
         options.setPrompt("Scan Project QR");
         options.setBeepEnabled(true);
         options.setOrientationLocked(false);
         options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
         options.setCameraId(0);
+
         qrLauncher.launch(options);
     }
 
@@ -223,6 +215,8 @@ public class SetSiteActivity extends AppCompatActivity {
             s = s.substring(5).trim();
         } else if (s.regionMatches(true, 0, "PROJECT:", 0, 8)) {
             s = s.substring(8).trim();
+        } else if (s.regionMatches(true, 0, "CODE:", 0, 5)) {
+            s = s.substring(5).trim();
         }
 
         return s.trim();
@@ -288,9 +282,5 @@ public class SetSiteActivity extends AppCompatActivity {
         result.putExtra(EXTRA_UNCATEGORIZED, uncategorized);
         setResult(RESULT_OK, result);
         finish();
-    }
-
-    private List<String> safeList(List<String> list) {
-        return list == null ? new ArrayList<>() : list;
     }
 }

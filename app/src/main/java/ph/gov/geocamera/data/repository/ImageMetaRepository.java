@@ -317,9 +317,11 @@ public class ImageMetaRepository {
                             "OR COALESCE(p.projectid,'') LIKE ? " +
                             "OR COALESCE(p.code,'') LIKE ? " +
                             "OR COALESCE(p.coda,'') LIKE ? " +
+                            "OR COALESCE(p.beneficiary,'') LIKE ? " +
                             "OR COALESCE(im.project,'') LIKE ? " +
                             ") "
             );
+            args.add(q);
             args.add(q);
             args.add(q);
             args.add(q);
@@ -377,13 +379,21 @@ public class ImageMetaRepository {
                         " NULLIF(trim(p.code), ''), " +
                         " NULLIF(trim(s.code), ''), " +
                         " im.siteid " +
-                        ") AS displayCode " +                                                            // 13
+                        ") AS displayCode, " +                                                           // 13 code display
+
+                        "COALESCE(NULLIF(trim(p.beneficiary), ''), '—') AS beneficiaryLabel, " +         // 14
+                        "COALESCE(NULLIF(trim(p.projectid), ''), '—') AS projectIdLabel, " +             // 15
+                        "COALESCE(NULLIF(trim(p.coda), ''), '—') AS codaLabel " +                        // 16
 
                         "FROM tbl_imagemeta im " +
                         "LEFT JOIN tbl_site s ON s.siteid = im.siteid " +
-                        "LEFT JOIN tbl_projects p ON p.projectid = s.projectid " +
+                        "LEFT JOIN tbl_projects p ON (" +
+                        " trim(p.code) = trim(im.siteid) COLLATE NOCASE " +
+                        " OR trim(p.projectid) = trim(im.siteid) COLLATE NOCASE " +
+                        " OR trim(p.projectid) = trim(s.projectid) COLLATE NOCASE " +
+                        ") " +
                         "WHERE " + where +
-                        "GROUP BY im.siteid, s.name, s.code, p.projectid, p.code, p.coda " +
+                        "GROUP BY im.siteid, s.name, s.code, p.projectid, p.code, p.coda, p.beneficiary " +
                         "ORDER BY lastUpdated DESC";
 
         ArrayList<String> finalArgs = new ArrayList<>(args);
@@ -729,6 +739,122 @@ public class ImageMetaRepository {
 
         return null;
     }
+
+
+
+    // ============================================================
+    // FAILED SYNC CENTER
+    // ============================================================
+    public int countFailedForSyncCenter() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor c = db.rawQuery(
+                "SELECT COUNT(*) FROM " + GeoDbHelper.TABLE_IMAGEMETA + " WHERE status = ?",
+                new String[]{String.valueOf(STATUS_FAILED)}
+        );
+
+        try {
+            return c.moveToFirst() ? c.getInt(0) : 0;
+        } finally {
+            c.close();
+        }
+    }
+
+    public Cursor getFailedSyncItems(int limit) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        return db.rawQuery(
+                "SELECT " +
+                        "uuid, " +                                      // 0
+                        "filename, " +                                  // 1
+                        "siteid, " +                                    // 2
+                        "timestamp, " +                                 // 3
+                        "COALESCE(last_sync_error,'') AS error, " +     // 4
+                        "COALESCE(sync_attempts,0) AS attempts " +      // 5
+                        "FROM " + GeoDbHelper.TABLE_IMAGEMETA + " " +
+                        "WHERE status = ? " +
+                        "ORDER BY last_sync_at DESC, timestamp DESC " +
+                        "LIMIT ?",
+                new String[]{
+                        String.valueOf(STATUS_FAILED),
+                        String.valueOf(limit)
+                }
+        );
+    }
+
+    public int retryAllFailedForSyncCenter() {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        ContentValues cv = new ContentValues();
+        cv.put("status", STATUS_PENDING);
+        cv.putNull("last_sync_error");
+        cv.put("sync_attempts", 0);
+        cv.put("last_sync_at", now());
+
+        return db.update(
+                GeoDbHelper.TABLE_IMAGEMETA,
+                cv,
+                "status = ?",
+                new String[]{String.valueOf(STATUS_FAILED)}
+        );
+    }
+
+
+    // ============================================================
+    // DUPLICATE DETECTION
+    // ============================================================
+    public boolean hasNearbyPhoto(String siteId, double lat, double lng, double radiusMeters) {
+        return getNearbyPhotoCount(siteId, lat, lng, radiusMeters) > 0;
+    }
+
+    public int getNearbyPhotoCount(String siteId, double lat, double lng, double radiusMeters) {
+        siteId = siteId == null ? "" : siteId.trim();
+        if (siteId.isEmpty()) return 0;
+
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        // Small bounding box first for performance.
+        double latDelta = radiusMeters / 111_320.0;
+        double lngDelta = radiusMeters / (111_320.0 * Math.max(0.1, Math.cos(Math.toRadians(lat))));
+
+        Cursor c = null;
+        int count = 0;
+
+        try {
+            c = db.rawQuery(
+                    "SELECT latitude, longitude " +
+                            "FROM " + GeoDbHelper.TABLE_IMAGEMETA + " " +
+                            "WHERE siteid = ? " +
+                            "AND latitude IS NOT NULL " +
+                            "AND longitude IS NOT NULL " +
+                            "AND latitude BETWEEN ? AND ? " +
+                            "AND longitude BETWEEN ? AND ?",
+                    new String[]{
+                            siteId,
+                            String.valueOf(lat - latDelta),
+                            String.valueOf(lat + latDelta),
+                            String.valueOf(lng - lngDelta),
+                            String.valueOf(lng + lngDelta)
+                    }
+            );
+
+            while (c.moveToNext()) {
+                double pLat = c.isNull(0) ? 0 : c.getDouble(0);
+                double pLng = c.isNull(1) ? 0 : c.getDouble(1);
+
+                float[] result = new float[1];
+                android.location.Location.distanceBetween(lat, lng, pLat, pLng, result);
+
+                if (result[0] <= radiusMeters) {
+                    count++;
+                }
+            }
+
+            return count;
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
 
     // ============================================================
     // PENDING UPLOADS

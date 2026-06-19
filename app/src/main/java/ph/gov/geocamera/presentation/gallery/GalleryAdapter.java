@@ -19,6 +19,7 @@ import com.bumptech.glide.ListPreloader;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.util.ViewPreloadSizeProvider;
 import com.google.android.material.imageview.ShapeableImageView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.File;
 import java.text.ParseException;
@@ -95,7 +96,10 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 item.pendingCount = safeInt(c, 10);
                 item.uploadingCount = safeInt(c, 11);
                 item.failedCount = safeInt(c, 12);
-                item.projectCode = safeString(c, 13);
+                item.projectCode = safeString(c, 13);      // tbl_projects.code
+                item.beneficiary = safeString(c, 14);      // tbl_projects.beneficiary
+                item.projectId = safeString(c, 15);        // tbl_projects.projectid
+                item.coda = safeString(c, 16);             // tbl_projects.coda
 
                 // ✅ detect if may NO_PROJECT_FOUND sa site na ito
                 item.noProjectFoundCount = imageRepo.countFailedByErrorForSite(
@@ -194,14 +198,9 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
         h.tvSite.setText(safe(title, "SITE"));
 
-        // Second line: show project name/label. If same as title, show ID instead.
-        String projectLine = firstNonEmpty(item.project, item.siteName);
-        if (projectLine.equalsIgnoreCase(title)) {
-            projectLine = safe(item.siteId, "—");
-            h.tvProjectLabel.setText("Project ID: " + projectLine);
-        } else {
-            h.tvProjectLabel.setText("Project: " + safe(projectLine, "—"));
-        }
+        // Second line: show beneficiary from tbl_projects.
+        String beneficiaryLine = firstNonEmpty(item.beneficiary);
+        h.tvProjectLabel.setText("FCA: " + safe(beneficiaryLine, "—"));
 
         h.tvLocationLabel.setText("Location: " + safe(item.location, "-"));
 
@@ -242,11 +241,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 return;
             }
 
-            if (item.latestFilename == null || item.latestFilename.trim().isEmpty()) return;
-
-            Intent i = new Intent(context, PreviewImagesActivity.class);
-            i.putExtra("path", item.latestFilename);
-            context.startActivity(i);
+            showProjectDetails(item);
         });
 
         boolean isSelected = selected.contains(item.siteId);
@@ -326,6 +321,45 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
             h.imgLatest.setImageResource(android.R.drawable.ic_menu_gallery);
         }
     }
+
+
+    private void showProjectDetails(@NonNull SiteItem item) {
+        String status;
+
+        if (item.uploadingCount > 0) status = "UPLOADING";
+        else if (item.noProjectFoundCount > 0) status = "NO PROJECT";
+        else if (item.failedCount > 0) status = "FAILED";
+        else if (item.pendingCount > 0) status = "PENDING";
+        else status = "SYNCED";
+
+        String message =
+                "Code: " + safe(item.projectCode, "—") + "\n" +
+                        "Project ID: " + safe(item.projectId, "—") + "\n" +
+                        "CODA: " + safe(item.coda, "—") + "\n" +
+                        "Beneficiary: " + safe(item.beneficiary, "—") + "\n" +
+                        "Site ID: " + safe(item.siteId, "—") + "\n" +
+                        "Location: " + safe(item.location, "—") + "\n\n" +
+                        "Total Photos: " + item.totalPhotos + "\n" +
+                        "Synced: " + item.syncedPhotos + "\n" +
+                        "Pending: " + item.pendingCount + "\n" +
+                        "Uploading: " + item.uploadingCount + "\n" +
+                        "Failed: " + item.failedCount + "\n" +
+                        "Status: " + status + "\n\n" +
+                        "Latest: " + formatMonthDayYearFromDb(item.latestTimestamp);
+
+        new MaterialAlertDialogBuilder(context)
+                .setTitle("Project Details")
+                .setMessage(message)
+                .setPositiveButton("Open Photos", (d, w) -> {
+                    Intent i = new Intent(context, SiteDatesActivity.class);
+                    i.putExtra(SiteDatesActivity.EXTRA_SITE_ID, item.siteId);
+                    i.putExtra(SiteDatesActivity.EXTRA_YEAR, callback.getSelectedYear());
+                    context.startActivity(i);
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
 
     private String formatMonthDayYearFromDb(String dbTimestamp) {
         if (dbTimestamp == null || dbTimestamp.trim().isEmpty()) {
@@ -422,6 +456,9 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         String siteName;
         String project;
         String projectCode;
+        String beneficiary;
+        String projectId;
+        String coda;
         String location;
 
         int pendingCount;

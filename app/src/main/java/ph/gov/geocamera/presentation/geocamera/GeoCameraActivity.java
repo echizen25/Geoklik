@@ -79,6 +79,7 @@ public class GeoCameraActivity extends AppCompatActivity {
 
     private android.widget.TextView tvLatLng, tvAccuracy, tvProject, tvDesc, tvWatermarkLatLng;
     private android.widget.TextView tvDate, tvAddress;
+    private android.widget.TextView tvGpsWarning;
     private View viewAccuracyIndicator;
     private android.widget.TextView tvAccuracyBadge;
 
@@ -133,6 +134,9 @@ public class GeoCameraActivity extends AppCompatActivity {
     private static final float OUTDOOR_GOOD_ACC = 8f;     // very good GPS
     private static final float OUTDOOR_OK_ACC   = 18f;    // acceptable GPS for compliance
     private static final float INDOOR_MAX_ACC   = 60f;    // indoor assist cap (estimate)
+    private static final float GPS_WARN_ACC      = 20f;
+    private static final float GPS_BLOCK_ACC     = 50f;
+    private static final double DUPLICATE_RADIUS_METERS = 5.0;
 
     // legacy (kept, but not used in GPS-only anymore)
     private static final int REQUIRED_STABLE_FIX_COUNT = 2;
@@ -207,6 +211,7 @@ public class GeoCameraActivity extends AppCompatActivity {
         tvWatermarkLatLng = findViewById(R.id.tvWatermarkLatLng);
         tvDate = findViewById(R.id.tvDate);
         tvAddress = findViewById(R.id.tvAddress);
+        tvGpsWarning = findViewById(R.id.tvGpsWarning);
 
         viewAccuracyIndicator = findViewById(R.id.viewAccuracyIndicator);
         tvAccuracyBadge = findViewById(R.id.tvAccuracyBadge);
@@ -556,6 +561,47 @@ public class GeoCameraActivity extends AppCompatActivity {
         final String motherFolder = project + "_" + year;
         final String siteId = (activeSiteId == null) ? "UNCAT" : activeSiteId;
         final String sessionDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+
+        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Possible Duplicate Photo")
+                    .setMessage("A photo for this site was already captured within "
+                            + Math.round(DUPLICATE_RADIUS_METERS)
+                            + " meters of your current location. Continue anyway?")
+                    .setNegativeButton("Cancel", (d, w) -> {
+                        isCapturing = false;
+                        updateCaptureAvailability();
+                    })
+                    .setPositiveButton("Continue", (d, w) -> continueCaptureAfterDuplicateCheck(
+                            captureLoc,
+                            project,
+                            userId,
+                            motherFolder,
+                            siteId,
+                            sessionDate
+                    ))
+                    .show();
+            return;
+        }
+
+        continueCaptureAfterDuplicateCheck(
+                captureLoc,
+                project,
+                userId,
+                motherFolder,
+                siteId,
+                sessionDate
+        );
+    }
+
+    private void continueCaptureAfterDuplicateCheck(
+            Location captureLoc,
+            String project,
+            String userId,
+            String motherFolder,
+            String siteId,
+            String sessionDate
+    ) {
 
         final String groupId = groupRepo.getOrCreateGroup(motherFolder, siteId, sessionDate, null);
 
@@ -921,14 +967,43 @@ public class GeoCameraActivity extends AppCompatActivity {
         tvAccuracy.setText(String.format(Locale.US,
                 "Accuracy: ±%.1f m", loc.getAccuracy()));
 
+        updateGpsAccuracyWarning(loc);
         updateAccuracyBadge(loc);
         updateOverlayTexts();
+    }
+
+    private void updateGpsAccuracyWarning(Location loc) {
+        if (tvGpsWarning == null) return;
+
+        if (loc == null || !loc.hasAccuracy()) {
+            tvGpsWarning.setVisibility(View.VISIBLE);
+            tvGpsWarning.setText("GPS warning: waiting for accuracy.");
+            tvGpsWarning.setTextColor(Color.WHITE);
+            return;
+        }
+
+        float acc = loc.getAccuracy();
+
+        if (acc <= OUTDOOR_GOOD_ACC) {
+            tvGpsWarning.setVisibility(View.VISIBLE);
+            tvGpsWarning.setText("GPS accuracy good.");
+            tvGpsWarning.setTextColor(Color.parseColor("#B9F6CA"));
+        } else if (acc <= GPS_WARN_ACC) {
+            tvGpsWarning.setVisibility(View.VISIBLE);
+            tvGpsWarning.setText("GPS accuracy acceptable. Hold steady.");
+            tvGpsWarning.setTextColor(Color.parseColor("#FFF59D"));
+        } else {
+            tvGpsWarning.setVisibility(View.VISIBLE);
+            tvGpsWarning.setText("GPS weak ±" + Math.round(acc) + "m. Move to open sky before capture.");
+            tvGpsWarning.setTextColor(Color.parseColor("#FFCDD2"));
+        }
     }
 
     private void showLocationUnavailable() {
         tvLatLng.setText("Lat: --, Lng: --");
         tvAccuracy.setText("Accuracy: -- m");
         setBadge(Color.GRAY, "GPS --");
+        updateGpsAccuracyWarning(null);
         updateOverlayTexts();
     }
 

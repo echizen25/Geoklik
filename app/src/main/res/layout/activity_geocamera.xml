@@ -75,6 +75,16 @@
                 android:textSize="@dimen/gc_text_small" />
 
             <TextView
+                android:id="@+id/tvGpsWarning"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="2"
+                android:text="GPS warning: waiting for accuracy."
+                android:textColor="#FFF59D"
+                android:textSize="@dimen/gc_text_xsmall" />
+
+            <TextView
                 android:id="@+id/tvGpsMeta"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

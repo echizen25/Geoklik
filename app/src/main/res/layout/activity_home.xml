@@ -12,16 +12,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/topAppBar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/transparent"
-            app:elevation="0dp"
-            app:navigationIcon="@drawable/ic_menu_24"
-            app:navigationIconTint="#FFFFFF"
-            app:title=""
-            app:titleTextColor="#FFFFFF" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -255,6 +245,19 @@
             </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:layout_gravity="top"
+            android:background="@android:color/transparent"
+            android:translationZ="24dp"
+            app:elevation="8dp"
+            app:navigationIcon="@drawable/ic_menu_24"
+            app:navigationIconTint="#FFFFFF"
+            app:title=""
+            app:titleTextColor="#FFFFFF" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

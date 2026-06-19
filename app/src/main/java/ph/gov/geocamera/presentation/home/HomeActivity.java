@@ -375,7 +375,7 @@ public class HomeActivity extends AppCompatActivity {
                 ProjectApiService apiService = new ProjectApiService();
                 List<ApiProjectItem> items = apiService.fetchProjects();
 
-                if (items != null) {
+                if (items != null && !items.isEmpty()) {
                     repo.saveProjectsFromApi(items);
                     prefs.edit()
                             .putLong(KEY_LAST_PROJECT_SYNC, System.currentTimeMillis())
