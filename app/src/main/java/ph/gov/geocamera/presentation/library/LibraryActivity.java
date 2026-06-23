@@ -11,8 +11,8 @@ import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.widget.AppCompatEditText;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -28,6 +28,7 @@ import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.remote.ApiProjectItem;
 import ph.gov.geocamera.data.remote.ProjectApiService;
 import ph.gov.geocamera.data.repository.ProjectRepository;
+import ph.gov.geocamera.data.seed.ProjectSeedImporter;
 import ph.gov.geocamera.presentation.common.BaseTopAppBarActivity;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
 import ph.gov.geocamera.presentation.home.HomeActivity;
@@ -91,13 +92,17 @@ public class LibraryActivity extends BaseTopAppBarActivity {
         setupSearch();
         setupPullRefresh();
 
+        ProjectSeedImporter.importOrUpdate(getApplicationContext());
+
         loadProjectsFromLocal();
-        syncProjectsFromApiIfOnline();
+        syncProjectsFromApiIfOnline(false);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+
+        ProjectSeedImporter.importOrUpdate(getApplicationContext());
         loadProjectsFromLocal();
     }
 
@@ -111,7 +116,7 @@ public class LibraryActivity extends BaseTopAppBarActivity {
 
         if (id == R.id.action_sync) {
             Toast.makeText(this, "Syncing projects...", Toast.LENGTH_SHORT).show();
-            syncProjectsFromApiIfOnline();
+            syncProjectsFromApiIfOnline(true);
             return true;
         }
 
@@ -134,13 +139,16 @@ public class LibraryActivity extends BaseTopAppBarActivity {
         if (swipeRefresh == null) return;
 
         swipeRefresh.setOnRefreshListener(() -> {
+            ProjectSeedImporter.importOrUpdate(getApplicationContext());
+            loadProjectsFromLocal();
+
             if (!isInternetAvailable()) {
-                Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Showing offline project list", Toast.LENGTH_SHORT).show();
                 swipeRefresh.setRefreshing(false);
                 return;
             }
 
-            syncProjectsFromApiIfOnline();
+            syncProjectsFromApiIfOnline(true);
         });
     }
 
@@ -224,9 +232,11 @@ public class LibraryActivity extends BaseTopAppBarActivity {
         }
     }
 
-    private void syncProjectsFromApiIfOnline() {
+    private void syncProjectsFromApiIfOnline(boolean showToast) {
         if (!isInternetAvailable()) {
-            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            if (showToast) {
+                Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            }
 
             if (swipeRefresh != null) {
                 swipeRefresh.setRefreshing(false);
@@ -236,12 +246,12 @@ public class LibraryActivity extends BaseTopAppBarActivity {
 
         executor.execute(() -> {
             try {
-                Log.d(TAG, "Starting sync...");
+                Log.d(TAG, "Starting API sync...");
 
                 List<ApiProjectItem> apiItems = apiService.fetchProjects();
                 Log.d(TAG, "API returned count = " + (apiItems == null ? 0 : apiItems.size()));
 
-                if (apiItems != null) {
+                if (apiItems != null && !apiItems.isEmpty()) {
                     for (ApiProjectItem item : apiItems) {
                         if (item != null) {
                             Log.d(TAG, "API ITEM => projectId=" + item.projectId
@@ -257,7 +267,7 @@ public class LibraryActivity extends BaseTopAppBarActivity {
                 }
 
                 List<ProjectListItem> localItems = projectRepository.getProjectList();
-                Log.d(TAG, "Local DB count after save = " + (localItems == null ? 0 : localItems.size()));
+                Log.d(TAG, "Local DB count after API save = " + (localItems == null ? 0 : localItems.size()));
 
                 runOnUiThread(() -> {
                     loadProjectsFromLocal();
@@ -266,7 +276,9 @@ public class LibraryActivity extends BaseTopAppBarActivity {
                         swipeRefresh.setRefreshing(false);
                     }
 
-                    Toast.makeText(this, "Projects synced", Toast.LENGTH_SHORT).show();
+                    if (showToast) {
+                        Toast.makeText(this, "Projects synced", Toast.LENGTH_SHORT).show();
+                    }
                 });
 
             } catch (Exception e) {
@@ -277,7 +289,9 @@ public class LibraryActivity extends BaseTopAppBarActivity {
                         swipeRefresh.setRefreshing(false);
                     }
 
-                    Toast.makeText(this, "Sync failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    if (showToast) {
+                        Toast.makeText(this, "Sync failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                 });
             }
         });

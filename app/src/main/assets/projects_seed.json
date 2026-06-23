@@ -1,0 +1,1383 @@
+{
+  "seed_version": 1,
+  "items": [{
+    "project_id": "2B60FF30-1071-442C-1291-08DE9C4A88D5",
+    "code": "LA-R03-DS1-0000048",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Samahang Pangkaunlaran ng Magsasaka sa Calancuasan Irrigators Association Inc.",
+    "location": "Calancuasan Norte, Cuyapo, Nueva Ecija"
+  }, {
+    "project_id": "384241EF-F0F7-4A22-B82F-08DE888D2447",
+    "code": "LA-R1-DS1-0000011",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LAPOG NI GUIA FARMERS ASSOCIATION INC.",
+    "location": "Caestebanan, Banna (Espiritu), Ilocos Norte"
+  }, {
+    "project_id": "EC54B539-C2F9-4664-B830-08DE888D2447",
+    "code": "LA-R1-DS1-0000012",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Free Farmers Multi Purpose Cooperative",
+    "location": "Sagayaden, Cabugao, Ilocos Sur"
+  }, {
+    "project_id": "16BE360F-DC4A-4A4B-B831-08DE888D2447",
+    "code": "LA-R1-DS1-0000013",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Bacnotan",
+    "location": "Nagsimbaanan, Bacnotan, La Union"
+  }, {
+    "project_id": "7A64B3FF-8FB1-40EE-B832-08DE888D2447",
+    "code": "LA-R1-DS1-0000014",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BOGTONG SILAG RICE AND CORN GROWERS FARMER ASSOCIATION (BOSIRACFA), INC.",
+    "location": "Bogtong Silag, Mangatarem, Pangasinan"
+  }, {
+    "project_id": "3D9DD704-E097-4C29-B833-08DE888D2447",
+    "code": "LA-R1-DS1-0000015",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Viba Farmers Cluster Agriculture Cooperative",
+    "location": "Binalay, Malasiqui, Pangasinan"
+  }, {
+    "project_id": "B7DE8A18-6DBD-4792-B834-08DE888D2447",
+    "code": "LA-R1-DS1-0000016",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "TORRES MABUNA MARKETING COOPERATIVE",
+    "location": "Torres, Mapandan, Pangasinan"
+  }, {
+    "project_id": "8BAE8A53-DBD6-4230-B835-08DE888D2447",
+    "code": "LA-R1-DS1-0000017",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Brgy. San Jose San Jacinto Pangasinan Farmers Association Inc.",
+    "location": "San Jose, San Jacinto, Pangasinan"
+  }, {
+    "project_id": "91D70FCF-8F8B-46F4-B836-08DE888D2447",
+    "code": "LA-R1-DS1-0000018",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "HILLSIDE MULTI PURPOSE COOPERATIVE",
+    "location": "Unzad, Villasis, Pangasinan"
+  }, {
+    "project_id": "958D9F28-6F31-44DA-B837-08DE888D2447",
+    "code": "LA-R1-DS1-0000019",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "NAFA- NATIVIDAD FARMERS ASSOCIATION INC.",
+    "location": "Poblacion West, Natividad, Pangasinan"
+  }, {
+    "project_id": "7E48A063-6BD3-4CA7-B838-08DE888D2447",
+    "code": "LA-R1-DS1-0000020",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MUNICIPAL LOCAL GOVERNMENT UNIT OF ROSALES",
+    "location": "Zone I (Pob.), Rosales, Pangasinan"
+  }, {
+    "project_id": "7F9DA16A-A26E-47ED-B839-08DE888D2447",
+    "code": "LA-R1-DS1-0000021",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "ALO-O PROGRESSIVE MULTI-PURPOSE COOPERATIVE",
+    "location": "Poblacion East, Umingan, Pangasinan"
+  }, {
+    "project_id": "23A44C6F-71CB-466B-B83A-08DE888D2447",
+    "code": "LA-R1-DS1-0000022",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "D' Plowman Multi Purpose Cooperative",
+    "location": "Caurdanetaan, Umingan, Pangasinan"
+  }, {
+    "project_id": "2278602E-E821-4752-B83B-08DE888D2447",
+    "code": "LA-R1-DS1-0000023",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "UBBOG TI BIAG AGRICULTURE COOPERATIVE",
+    "location": "San Leon, Umingan, Pangasinan"
+  }, {
+    "project_id": "5DE81071-6746-4DD8-777E-08DE84A1E181",
+    "code": "LA-R3-DS1-000001",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "TINGINTINGINO FARMERS GROUP ASSOCIATION INC.",
+    "location": "Magumbali, Candaba, Pampanga"
+  }, {
+    "project_id": "B33C5004-A1F9-43D2-7775-08DE84A1E181",
+    "code": "LA-R3-DS1-0000010",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Samal",
+    "location": "San Roque (Pob.), Samal, Bataan"
+  }, {
+    "project_id": "810540FB-39AA-48B6-777D-08DE84A1E181",
+    "code": "LA-R3-DS1-000002",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Candaba Marketing Cooperative",
+    "location": "Pasig, Candaba, Pampanga"
+  }, {
+    "project_id": "FAD15940-5A13-4455-777C-08DE84A1E181",
+    "code": "LA-R3-DS1-000003",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CAMA JUAN MULTIPURPOSE COOPERATIVE",
+    "location": "Cama Juan, San Antonio, Nueva Ecija"
+  }, {
+    "project_id": "11DC9EC5-BA2C-4B72-777B-08DE84A1E181",
+    "code": "LA-R3-DS1-000004",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Gabaldon",
+    "location": "South Poblacion, Gabaldon, Nueva Ecija"
+  }, {
+    "project_id": "F7705995-5DB3-4D26-777A-08DE84A1E181",
+    "code": "LA-R3-DS1-000005",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Grano de Oro Farmers Agriculture Cooperative of Nueva Ecija (GRANO)",
+    "location": "Ferdinand E. Marcos Pob. (District II), San Jose City, Nueva Ecija"
+  }, {
+    "project_id": "056E8A85-9387-47E3-1293-08DE9C4A88D5",
+    "code": "LA-R3-DS1-0000050",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BARANGAY DALLIPAWEN FARMERS ASSOCIATION (BDFA)",
+    "location": "Dallipawen, San Narciso, Zambales"
+  }, {
+    "project_id": "F0A5218E-6FB5-4EA7-7779-08DE84A1E181",
+    "code": "LA-R3-DS1-000006",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Nagkakaisang Magsasaka Agricultural Primary Multipurpose Cooperative",
+    "location": "Tabacao, Talavera, Nueva Ecija"
+  }, {
+    "project_id": "673867B3-9D1C-4981-7778-08DE84A1E181",
+    "code": "LA-R3-DS1-000007",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Guimba Seed Growers Agriculture Cooperative",
+    "location": "Cavite, Guimba, Nueva Ecija"
+  }, {
+    "project_id": "401CACDA-9606-4033-7777-08DE84A1E181",
+    "code": "LA-R3-DS1-000008",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Cooperative Enterprise for True Economic Reform",
+    "location": "Cabaruan, Guimba, Nueva Ecija"
+  }, {
+    "project_id": "62843D12-439B-466C-7776-08DE84A1E181",
+    "code": "LA-R3-DS1-000009",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Pulilan",
+    "location": "Poblacion, Pulilan, Bulacan"
+  }, {
+    "project_id": "A92D315F-0425-4E0D-1292-08DE9C4A88D5",
+    "code": "LA-R3-DS1-000049",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MUNICIPAL LOCAL GOVERNMENT UNIT OF QUEZON",
+    "location": "Tabacao, Talavera, Nueva Ecija"
+  }, {
+    "project_id": "63CEF452-22A3-401F-B82E-08DE888D2447",
+    "code": "LA-R3-RPS-000001",
+    "name": "RPS II",
+    "cost": 6.400000000000000e+007,
+    "beneficiary": "Cooperative Enterprise for True Economic Reform",
+    "location": "Cabaruan, Guimba, Nueva Ecija"
+  }, {
+    "project_id": "F9C8ABE6-A19B-4174-989B-08DE88A5832D",
+    "code": "LB-CAR-DS1-0000028",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Flora Farmers Cluster Agriculture Cooperative (FLORACO)",
+    "location": "Poblacion East, Flora, Apayao"
+  }, {
+    "project_id": "5386437A-5EDB-4C19-989C-08DE88A5832D",
+    "code": "LB-CAR-DS1-0000029",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Tabuk Farmers Multipurpose Cooperative",
+    "location": "Casigayan, Tabuk City, Kalinga"
+  }, {
+    "project_id": "FD7D9052-3EFB-4F2C-989D-08DE88A5832D",
+    "code": "LB-CAR-DS1-0000030",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MANGGAWA FARMERS ENVIRONMENTAL DEV'T. ASSOCIATION",
+    "location": "New Tanglag, Tabuk City, Kalinga"
+  }, {
+    "project_id": "FCA64BBA-40CB-4EBC-989E-08DE88A5832D",
+    "code": "LB-R2-DS1-0000031",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Camalaniugan",
+    "location": "Dacal-Lafugu, Camalaniugan, Cagayan"
+  }, {
+    "project_id": "8338C1EA-E1B1-4DCB-989F-08DE88A5832D",
+    "code": "LB-R2-DS1-0000032",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Nararagan Valley Multi-purpose Cooperative",
+    "location": "Nararagan, Ballesteros, Cagayan"
+  }, {
+    "project_id": "3DD146DA-8605-487D-98A0-08DE88A5832D",
+    "code": "LB-R2-DS1-0000033",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Solana",
+    "location": "Centro Southwest (Pob.), Solana, Cagayan"
+  }, {
+    "project_id": "3E4B6584-5E60-4741-98A1-08DE88A5832D",
+    "code": "LB-R2-DS1-0000034",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Cagayan Seed Producers Multipurpose Cooperative",
+    "location": "Lingu, Solana, Cagayan"
+  }, {
+    "project_id": "EF0F8603-DF31-4227-98A2-08DE88A5832D",
+    "code": "LB-R2-DS1-0000035",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Christian Farmers Multi-Purpose Cooperative",
+    "location": "Ugad, Cabagan, Isabela"
+  }, {
+    "project_id": "5B73CC57-AC58-47BC-98A3-08DE88A5832D",
+    "code": "LB-R2-DS1-0000036",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Amianan Farmers Enterpreneur Agriculture Cooperative",
+    "location": "Santa Victoria, Ilagan City, Isabela"
+  }, {
+    "project_id": "0D8C193F-74C7-400E-98A4-08DE88A5832D",
+    "code": "LB-R2-DS1-0000037",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "San Jose Farmers Association",
+    "location": "San Jose, Delfin Albano, Isabela"
+  }, {
+    "project_id": "8DAB7754-D9ED-4FE8-98A5-08DE88A5832D",
+    "code": "LB-R2-DS1-0000038",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Baro a Langa ti Mannalon Agriculture Cooperative",
+    "location": "Mabini, Gamu, Isabela"
+  }, {
+    "project_id": "F75A0CEA-C393-46A8-98A6-08DE88A5832D",
+    "code": "LB-R2-DS1-0000039",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Oshwind Multi-Purpose Cooperative",
+    "location": "Bagnos, Alicia, Isabela"
+  }, {
+    "project_id": "2E34D906-7577-4E4B-98A7-08DE88A5832D",
+    "code": "LB-R2-DS1-0000040",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Rainbow Multi-Purpose Cooperative (Previously Rainbow Marketing Cooperative)",
+    "location": "Bugallon Proper (Pob.), Ramon, Isabela"
+  }, {
+    "project_id": "D36E56D7-6903-4B15-98A8-08DE88A5832D",
+    "code": "LB-R2-DS1-0000041",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Good Samaritan Multi-Purpose Cooperative (GOODSAM MPC)",
+    "location": "Barangay IV (Pob.), San Mateo, Isabela"
+  }, {
+    "project_id": "4146E4E8-C29F-47DD-98A9-08DE88A5832D",
+    "code": "LB-R2-DS1-0000042",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Kabisig Savings and Agri-Development Cooperative (KASA-KABISIG)",
+    "location": "Dalibubon, Jones, Isabela"
+  }, {
+    "project_id": "CA26BF01-3D22-49BF-98AA-08DE88A5832D",
+    "code": "LB-R2-DS1-0000042",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Kabisig Savings and Agri-Development Cooperative (KASA-KABISIG)",
+    "location": "Dalibubon, Jones, Isabela"
+  }, {
+    "project_id": "BDED110A-37F0-4EBE-98AB-08DE88A5832D",
+    "code": "LB-R2-DS1-0000043",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "EPIPHANY MULTI-PURPOSE COOPERATIVE",
+    "location": "Abut, Quezon, Isabela"
+  }, {
+    "project_id": "BE4369EF-5E9B-46FF-98AC-08DE88A5832D",
+    "code": "LB-R2-DS1-0000044",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "TRIPLE SAN IRRIGATORS ASSOCIATION OF ECHAGUE, INC.",
+    "location": "Santa Maria, Echague, Isabela"
+  }, {
+    "project_id": "54694310-CFA3-4953-98AD-08DE88A5832D",
+    "code": "LB-R2-DS1-0000045",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Saint Jerome's Parish Multi-purpose Cooperative",
+    "location": "San Geronimo (Pob.), Bagabag, Nueva Vizcaya"
+  }, {
+    "project_id": "A9C74F61-F46F-4228-98AE-08DE88A5832D",
+    "code": "LB-R2-DS1-0000045",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "St. Vincent Parish Multi-purpose Cooperative",
+    "location": "Bagumbayan, Dupax del Sur, Nueva Vizcaya"
+  }, {
+    "project_id": "B813ED06-68E4-49F1-98AF-08DE88A5832D",
+    "code": "LB-R2-DS1-0000046",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Solano",
+    "location": "Roxas, Solano, Nueva Vizcaya"
+  }, {
+    "project_id": "276070F8-C2D8-422B-204D-08DED007B211",
+    "code": "LB-R2-DS1-0000188",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "EPIPHANY MULTI-PURPOSE COOPERATIVE",
+    "location": "Abut, Quezon, Isabela"
+  }, {
+    "project_id": "4102935A-1930-441F-204C-08DED007B211",
+    "code": "LB-R2-RPS-000007",
+    "name": "RPS I",
+    "cost": 1.900000000000000e+007,
+    "beneficiary": "Mallig FST Multi-Purpose Cooperative",
+    "location": "Victoria, Mallig, Isabela"
+  }, {
+    "project_id": "9464D783-FD8A-4AF9-204E-08DED007B211",
+    "code": "LB-R2-RPS-000008",
+    "name": "RPS II",
+    "cost": 6.400000000000000e+007,
+    "beneficiary": "St. Catherine Parish of Nueva Vizcaya Multipurpose Cooperative",
+    "location": "Banggot (Pob.), Bambang, Nueva Vizcaya"
+  }, {
+    "project_id": "2100C34B-1B0B-4B02-1294-08DE9C4A88D5",
+    "code": "LC-R4A-DS1-0000051",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MUNICIPAL LOCAL GOVERNMENT UNIT OF GENERAL NAKAR",
+    "location": "Anoling, General Nakar, Quezon"
+  }, {
+    "project_id": "CBEF51FB-9835-4A47-1295-08DE9C4A88D5",
+    "code": "LC-R4A-DS1-0000052",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "ALITAS FARMERS AND FISHERFOLK ASSOCIATION INC.",
+    "location": "Alitas, Infanta, Quezon"
+  }, {
+    "project_id": "992D64CD-8D57-47C8-1296-08DE9C4A88D5",
+    "code": "LC-R4A-DS1-0000053",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BARANGAY INGAS FARMERS ASSOCIATION (BIFA)",
+    "location": "Ingas, Infanta, Quezon"
+  }, {
+    "project_id": "B7C1623C-7E93-48EC-1297-08DE9C4A88D5",
+    "code": "LC-R4A-DS1-0000054",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "FEDERATION OF AGOS RIVER FARMERS IRRIGATORS ASSOCIATION, INC.",
+    "location": "Comon, Infanta, Quezon"
+  }, {
+    "project_id": "89DE22D8-0AA1-478C-1298-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000055",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BUGTONG BURI FARMERS ASSOCIATION, INC.",
+    "location": "Poblacion, Magsaysay, Occidental Mindoro"
+  }, {
+    "project_id": "272FD351-1E8B-4405-1299-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000056",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Magsaysay",
+    "location": "Poblacion, Magsaysay, Occidental Mindoro"
+  }, {
+    "project_id": "2338DAED-3686-465E-129A-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000057",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Mindoro Progressive Multi-Purpose Cooperative",
+    "location": "Tangkalan, Mamburao, Occidental Mindoro"
+  }, {
+    "project_id": "73149C79-405B-4A17-129B-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000058",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Rizal",
+    "location": "Rumbang, Rizal, Occidental Mindoro"
+  }, {
+    "project_id": "88BE523F-8208-4D79-129C-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000059",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Family Arrange the Resources and Managed Multi-Purpose Cooperative",
+    "location": "Tuban, Sablayan, Occidental Mindoro"
+  }, {
+    "project_id": "4772C14C-2D4A-427F-129D-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000060",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Samahan ng mga Magbibinhi ng Sablayan Agriculture Cooperative (SAMASACO)",
+    "location": "San Francisco, Sablayan, Occidental Mindoro"
+  }, {
+    "project_id": "F291B719-6A8D-4070-129E-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000061",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Samahang Gumagawa Tungong Tagumpay Multi-Purpose Cooperative (SAGUTT MPC)",
+    "location": "Paetan, Sablayan, Occidental Mindoro"
+  }, {
+    "project_id": "BEC8FB32-B473-4055-129F-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000062",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Samahang Matagumpay na Magsasaka",
+    "location": "Ilvita, Sablayan, Occidental Mindoro"
+  }, {
+    "project_id": "71766B29-8D7E-4CC2-12A0-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000063",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "United As One Agriculture Cooperative",
+    "location": "Batong Buhay, Sablayan, Occidental Mindoro"
+  }, {
+    "project_id": "40BFD5F5-6676-4D52-12A1-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000064",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Kaagapay Kilusang Bayang Tagapagpaunlad Multi-Purpose Cooperative (KAAKIBAT)",
+    "location": "Labangan Poblacion, San Jose, Occidental Mindoro"
+  }, {
+    "project_id": "F162D85D-7714-4DDD-12A2-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000065",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MINA DE ORO SEED GROWERS MULTI-PURPOSE COOPERATIVE",
+    "location": "Mapaya, San Jose, Occidental Mindoro"
+  }, {
+    "project_id": "C47D4A5F-AB54-4965-12A3-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000066",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BARUYAN FARMERS' ASSOCIATION",
+    "location": "Baruyan, Calapan City, Oriental Mindoro"
+  }, {
+    "project_id": "229F2FF7-7B54-41A0-12A4-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000067",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MALAD FARMERS ASSOCIATION",
+    "location": "Malad, Calapan City, Oriental Mindoro"
+  }, {
+    "project_id": "74F66F57-20DB-4891-12A5-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000068",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "STA. CRUZ FARMER'S ASSOCIATION",
+    "location": "Santa Cruz, Calapan City, Oriental Mindoro"
+  }, {
+    "project_id": "DE8ACBB6-1F28-4F8E-12A6-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000069",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "General ESCO Multi-Purpose Cooperative",
+    "location": "General Esco, Naujan, Oriental Mindoro"
+  }, {
+    "project_id": "D18CB84B-50E5-463E-12A7-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000070",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MIMAROPA Island Seed Producer Agriculture Cooperative (MISPC)",
+    "location": "Adrialuna, Naujan, Oriental Mindoro"
+  }, {
+    "project_id": "3D4373BA-C557-4B77-12A8-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000071",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Oriental Mindoro Seed Producers Multi-Purpose Cooperative",
+    "location": "Barcenaga, Naujan, Oriental Mindoro"
+  }, {
+    "project_id": "0BAE5558-B0B1-4B76-12A9-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000072",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SAN CARLOS FARMERS ASSOCIATION",
+    "location": "San Carlos, Naujan, Oriental Mindoro"
+  }, {
+    "project_id": "DCF8BFD4-5EAF-4B25-12AA-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000073",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "STA. MARIA AGRARIAN REFORM COMMUNITY COOPERATIVE (SMARCC)",
+    "location": "Santa Maria, Naujan, Oriental Mindoro"
+  }, {
+    "project_id": "C15B2056-986C-4B54-12AB-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000074",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "STO. NIÑO FARMERS ASSOCIATION",
+    "location": "Santo Niño, Naujan, Oriental Mindoro"
+  }, {
+    "project_id": "8F1E062A-72EC-49F2-12AC-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000075",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LUNTIANG KABUNDUKAN IRRIGATOR'S ASSOCIATION, INC.",
+    "location": "Narra (Pob.), Narra, Palawan"
+  }, {
+    "project_id": "B177DA1A-6BD2-446E-12AD-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000076",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Palawan ARC Cooperative Federation (PARCOFED)",
+    "location": "Narra (Pob.), Narra, Palawan"
+  }, {
+    "project_id": "D8229B6E-A629-4502-12AE-08DE9C4A88D5",
+    "code": "LC-R4B-DS1-0000077",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MUNICIPAL LOCAL GOVERMENT UNIT OF QUEZON",
+    "location": "Alfonso XIII (Pob.), Quezon, Palawan"
+  }, {
+    "project_id": "97AA1E9D-66FE-4F07-12AF-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000078",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Malinao",
+    "location": "Poblacion, Malinao, Albay"
+  }, {
+    "project_id": "3EA50D3B-542D-4B7B-12B0-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000079",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Camalig",
+    "location": "Barangay 2 (Pob.), Camalig, Albay"
+  }, {
+    "project_id": "3EB66F21-203C-4852-12B1-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000080",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Camarines Norte Seed Growers Multi-Purpose Cooperative",
+    "location": "Bactas, Basud, Camarines Norte"
+  }, {
+    "project_id": "EEB8319A-3BBE-4AB9-12B2-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000081",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Del Gallego",
+    "location": "Poblacion Zone III, Del Gallego, Camarines Sur"
+  }, {
+    "project_id": "43FE29D1-1DAC-4485-12B3-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000082",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Bikolanas Agriculture Cooperative",
+    "location": "San Felipe, Naga City, Camarines Sur"
+  }, {
+    "project_id": "CF95BE15-1C64-47F2-12B4-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000083",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Samahan ng mga Magsasaka ng Calalahan",
+    "location": "Calalahan, San Jose, Camarines Sur"
+  }, {
+    "project_id": "F41F6193-7895-445A-12B5-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000084",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "UNITED FARMERS IRRIGATORS AGRICULTURE COOPERATIVE (UFIAC)",
+    "location": "Fabrica, Bula, Camarines Sur"
+  }, {
+    "project_id": "4DE4130C-052D-4984-12B6-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000085",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Balud Farmers and Fisherfolks Association INC",
+    "location": "Ilaya, Balud, Masbate"
+  }, {
+    "project_id": "881132EF-50AF-4C11-12B7-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000086",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Dinapa Farmers Organization (DIFAO)",
+    "location": "Dinapa, Castilla, Sorsogon"
+  }, {
+    "project_id": "DE27CA91-9E43-4637-12B8-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000087",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Pilar",
+    "location": "Calongay, Pilar, Sorsogon"
+  }, {
+    "project_id": "74DA3507-5EAD-47A2-12B9-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000088",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BARANGAY SAN PASCUAL FARMERS-IRRIGATORS ASSOCIATION",
+    "location": "San Pascual, Sorsogon City, Sorsogon"
+  }, {
+    "project_id": "79023959-F867-495D-12BA-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000089",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SAMAHANG MAGSASAKA NG SAN ISIDRO BACON INC.",
+    "location": "San Isidro (Bacon District), Sorsogon City, Sorsogon"
+  }, {
+    "project_id": "025935DB-28CC-4FB6-12BB-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000090",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "JOHN PETER IRRIGATORS ASSOCIATION, INC.",
+    "location": "San Juan Bag-o, Bulan, Sorsogon"
+  }, {
+    "project_id": "F8278C59-BC6A-4FD1-12BC-08DE9C4A88D5",
+    "code": "LC-R5-DS1-0000091",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Gabao Samahang Nayon Multi-Purpose Development Cooperative",
+    "location": "Gabao, Irosin, Sorsogon"
+  }, {
+    "project_id": "B2534C9F-1A10-442B-B83C-08DE888D2447",
+    "code": "MA-R10-DS1-0000024",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LIBORAN SAMAHANG NAYON MULTI-PURPOSE COOPERATIVE",
+    "location": "Liboran, Baungon, Bukidnon"
+  }, {
+    "project_id": "91666974-6E08-48C8-B83D-08DE888D2447",
+    "code": "MA-R10-DS1-0000025",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CABANGLASAN FARMERS SMALL WATER IRRIGATION SYSTEM ASSOCIATION INC.",
+    "location": "Poblacion, Cabanglasan, Bukidnon"
+  }, {
+    "project_id": "351FCBF1-EE66-49FE-B83F-08DE888D2447",
+    "code": "MA-R10-DS1-0000027",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "KAHAPONAN-VALENCIA CITY IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Kahapunan, Valencia City, Bukidnon"
+  }, {
+    "project_id": "9F097DCC-024B-4304-0E58-08DE8A122621",
+    "code": "MA-R10-DS1-0000047",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Linabo Agrarian Reform Cooperative",
+    "location": "Linabo, Malaybalay City, Bukidnon"
+  }, {
+    "project_id": "E0A09686-359D-44AF-3426-08DE9E80E935",
+    "code": "MA-R10-DS1-0000131",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MARIS DIV. A MACABASAKPA IRRIGATORS' ASSOCIATION INC.",
+    "location": "Curvada, Kapatagan, Lanao Del Norte"
+  }, {
+    "project_id": "4B2A1235-00A1-441D-3427-08DE9E80E935",
+    "code": "MA-R10-DS1-0000132",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Kapatagan",
+    "location": "Poblacion, Kapatagan, Lanao Del Norte"
+  }, {
+    "project_id": "D9566308-67CB-43D7-3428-08DE9E80E935",
+    "code": "MA-R10-DS1-0000133",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CURVA-MIAGAO SAN MIGUEL IRRIGATORS ASSOCIATION, INC.",
+    "location": "San Manuel, Lala, Lanao Del Norte"
+  }, {
+    "project_id": "9D7B07FC-3DD8-4F19-3429-08DE9E80E935",
+    "code": "MA-R10-DS1-0000134",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Lala",
+    "location": "Lanipao, Lala, Lanao Del Norte"
+  }, {
+    "project_id": "2B6B8C1D-9554-40FD-342A-08DE9E80E935",
+    "code": "MA-R10-DS1-0000135",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SAN ISIDRO UPPER FARMERS MULTI-PURPOSE COOPERATIVE",
+    "location": "San Isidro Upper, Lala, Lanao Del Norte"
+  }, {
+    "project_id": "84A65817-3A33-42F6-342B-08DE9E80E935",
+    "code": "MA-R10-DS1-0000136",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MSU-IIT National Multipurpose Cooperative (MSU-IIT NMPC)",
+    "location": "Palao, Iligan City, Lanao Del Norte"
+  }, {
+    "project_id": "1F002F3B-B7A1-4339-342C-08DE9E80E935",
+    "code": "MA-R10-DS1-0000137",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Plaridel",
+    "location": "Panalsalan, Plaridel, Misamis Occidental"
+  }, {
+    "project_id": "61BAC2B8-0D50-4ABE-342D-08DE9E80E935",
+    "code": "MA-R10-DS1-0000138",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "First Community Cooperative",
+    "location": "Agay-ayan, Gingoog City, Misamis Oriental"
+  }, {
+    "project_id": "4E1680B9-682F-447B-342E-08DE9E80E935",
+    "code": "MA-R10-DS1-0000139",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LINUGOS FARMERS-IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Kibungsod, Magsaysay, Misamis Oriental"
+  }, {
+    "project_id": "6745D885-6845-4D70-9899-08DE88A5832D",
+    "code": "MA-R10-RPS-000002",
+    "name": "RPS I",
+    "cost": 1.900000000000000e+007,
+    "beneficiary": "LINABO AGRARIAN REFORM COOPERATIVE",
+    "location": "Linabo, Malaybalay City, Bukidnon"
+  }, {
+    "project_id": "4E498541-E589-4248-989A-08DE88A5832D",
+    "code": "MA-R10-RPS-000003",
+    "name": "RPS II",
+    "cost": 6.400000000000000e+007,
+    "beneficiary": "Provincial Local Government Unit of Bukidnon",
+    "location": "Barangay 9 (Pob.), Malaybalay City, Bukidnon"
+  }, {
+    "project_id": "29E98BD0-51FF-4DA2-3449-08DE9E80E935",
+    "code": "MA-R13-DS1-0000166",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 0.000000000000000e+000,
+    "beneficiary": "BUTUAN AGUSAN FARMERS MULTI-PURPOSE COOPERATIVE",
+    "location": "Los Angeles, Butuan City, Agusan Del Norte"
+  }, {
+    "project_id": "FA694B50-033E-4B25-344A-08DE9E80E935",
+    "code": "MA-R13-DS1-0000167",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Saint Gabriel Multipurpose Cooperative (SGMPC)",
+    "location": "Tiniwisan, Butuan City, Agusan Del Norte"
+  }, {
+    "project_id": "4B76757C-538B-44AC-344B-08DE9E80E935",
+    "code": "MA-R13-DS1-0000168",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Avanceña Beneficiaries & Farmers Multi-purpose Cooperative",
+    "location": "Sanghan, Cabadbaran City, Agusan Del Norte"
+  }, {
+    "project_id": "796CFB84-8663-4D2F-344C-08DE9E80E935",
+    "code": "MA-R13-DS1-0000169",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Remedios T. Romualdez",
+    "location": "Poblacion I (Agay), Remedios T. Romualdez, Agusan Del Norte"
+  }, {
+    "project_id": "1E2EA891-E753-457E-344D-08DE9E80E935",
+    "code": "MA-R13-DS1-0000170",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "La Fortuna Multi-Purpose Cooperative",
+    "location": "La Fortuna, Veruela, Agusan Del Sur"
+  }, {
+    "project_id": "7835B17D-7839-4B13-344E-08DE9E80E935",
+    "code": "MA-R13-DS1-0000171",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Alipao Multi-purpose Cooperative",
+    "location": "Alipao, Alegria, Surigao Del Norte"
+  }, {
+    "project_id": "5F0AECC7-5F83-41EE-344F-08DE9E80E935",
+    "code": "MA-R13-DS1-0000172",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Alegria",
+    "location": "Poblacion (Alegria), Alegria, Surigao Del Norte"
+  }, {
+    "project_id": "2D49F6FE-8A16-40DC-3450-08DE9E80E935",
+    "code": "MA-R13-DS1-0000173",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Daywan Farmers and Irrigators Agriculture Cooperative",
+    "location": "Daywan, Claver, Surigao Del Norte"
+  }, {
+    "project_id": "B6FAFFA4-EEFF-42AB-3451-08DE9E80E935",
+    "code": "MA-R13-DS1-0000174",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "City Local Government Unit of Surigao",
+    "location": "Washington (Pob.), Surigao City, Surigao Del Norte"
+  }, {
+    "project_id": "CBD40851-4067-4F00-3452-08DE9E80E935",
+    "code": "MA-R13-DS1-0000175",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LIBAS SUD IRRIGATORS ASSOCIATION, INC.",
+    "location": "Libas Sud, San Miguel, Surigao Del Sur"
+  }, {
+    "project_id": "D66EEA8E-8817-48CD-3453-08DE9E80E935",
+    "code": "MA-R13-DS1-0000176",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of San Miguel",
+    "location": "Tina, San Miguel, Surigao Del Sur"
+  }, {
+    "project_id": "56374516-6B90-439F-12D7-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000118",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Provincial Local Government Unit of Zamboanga del Norte",
+    "location": "Estaca (Pob.), Dipolog City, Zamboanga Del Norte"
+  }, {
+    "project_id": "18B9EA7F-8EFE-447C-12D8-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000119",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Labason Irrigators Agriculture Cooperative (LABIAGCO)",
+    "location": "La Union, Labason, Zamboanga Del Norte"
+  }, {
+    "project_id": "93E13C26-F366-4FE0-12D9-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000120",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Aurora Integrated Multipurpose Cooperative (AIMC)",
+    "location": "Poblacion, Aurora, Zamboanga Del Sur"
+  }, {
+    "project_id": "F4B68240-CA81-4CAC-12DA-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000121",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Bayog",
+    "location": "Poblacion, Bayog, Zamboanga Del Sur"
+  }, {
+    "project_id": "C6FEEF57-7F62-42B1-12DB-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000122",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Dimataling",
+    "location": "Kagawasan, Dimataling, Zamboanga Del Sur"
+  }, {
+    "project_id": "B795FAFF-7C07-4169-12DC-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000123",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "ZDS GOVERNMENT OFFICIALS, EMPLOYEES AND COMMUNITY MULTIPURPOSE COOPERATIVE (ZAMSURGOFEMCO-MPC)",
+    "location": "Poblacion, Dimataling, Zamboanga Del Sur"
+  }, {
+    "project_id": "9A85859F-EE8D-47E9-12DD-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000124",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BAROG BALSAM-2 IRRIGATOR'S ASSOCIATION, INC.",
+    "location": "Balangao, Diplahan, Zamboanga Sibugay"
+  }, {
+    "project_id": "287FDB48-891E-4289-12DE-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000125",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "GINTO SA SAKAHAN IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Balangao, Diplahan, Zamboanga Sibugay"
+  }, {
+    "project_id": "922B060A-FC21-4081-12DF-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000126",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BULAWAN-KULASIAN-GUIWAN IRRIGATORS' ASSOCIATION INCORPORATED",
+    "location": "Bulawan, Payao, Zamboanga Sibugay"
+  }, {
+    "project_id": "5C20DF78-9357-401F-12E0-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000127",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Provincial Local Government Unit of Zamboanga Sibugay",
+    "location": "Ipil Heights, Ipil, Zamboanga Sibugay"
+  }, {
+    "project_id": "212CF68E-1DAC-4164-12E1-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000128",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Roseller T. Lim",
+    "location": "Katipunan, Roseller Lim, Zamboanga Sibugay"
+  }, {
+    "project_id": "FBED1FC7-4E01-4355-12E2-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000129",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "HANJIN FARMERS ASSOCIATION",
+    "location": "Namnama, Titay, Zamboanga Sibugay"
+  }, {
+    "project_id": "48B46903-57F6-4BF2-12E3-08DE9C4A88D5",
+    "code": "MA-R9-DS1-0000130",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SANITO FARMER IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Dalangin, Titay, Zamboanga Sibugay"
+  }, {
+    "project_id": "3CFDCA32-8AEB-4572-342F-08DE9E80E935",
+    "code": "MB-R11-DS1-0000140",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "AURORA BANAGBANAG FARMERS IRRIGATORS ASSOCIATION (ABAFIA), INC.",
+    "location": "Aurora, Compostela, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "901402EE-D5CD-43B5-3430-08DE9E80E935",
+    "code": "MB-R11-DS1-0000141",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LOWER NABOC IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Naboc, Monkayo, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "B6E6C74A-1C5C-4957-3431-08DE9E80E935",
+    "code": "MB-R11-DS1-0000142",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Laak",
+    "location": "Laac (Pob.), Laak, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "AA63925F-2AF5-4318-3432-08DE9E80E935",
+    "code": "MB-R11-DS1-0000143",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MAWAB MULTIPURPOSE COOPERATIVE (MAWABCOOP)",
+    "location": "Malinawon, Mawab, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "7D572095-261A-4BF9-3433-08DE9E80E935",
+    "code": "MB-R11-DS1-0000144",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BASAK PANGUTOSAN CARP IRRIGATORS ASSN., INC.",
+    "location": "Basak, Nabunturan, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "8040A12D-23C6-4CAE-3434-08DE9E80E935",
+    "code": "MB-R11-DS1-0000145",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Cabacungan Primary Multi Purpose Cooperative",
+    "location": "Cabacungan, Nabunturan, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "8E084507-3E86-425E-3435-08DE9E80E935",
+    "code": "MB-R11-DS1-0000146",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MAGADING AGRICULTURAL SMALL IRRIGATORS ASSOCIATION (MASIA), INC.",
+    "location": "Magading, Nabunturan, Davao De Oro (compostela Valley)"
+  }, {
+    "project_id": "7E2EF30C-471E-4B79-3436-08DE9E80E935",
+    "code": "MB-R11-DS1-0000147",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "GABUYAN IRRIGATOR'S SERVICE ASSOCIATION, INC.",
+    "location": "Gabuyan, Kapalong, Davao Del Norte"
+  }, {
+    "project_id": "9ADA2667-4446-452C-3437-08DE9E80E935",
+    "code": "MB-R11-DS1-0000148",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Provincial Local Government Unit of Davao del Norte",
+    "location": "Mankilam, Tagum City, Davao Del Norte"
+  }, {
+    "project_id": "653C7F0F-1FDF-4D2B-3438-08DE9E80E935",
+    "code": "MB-R11-DS1-0000149",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Dalawinon Farmers Multipurpose Cooperative (DFMC)",
+    "location": "Poblacion, Magsaysay, Davao Del Sur"
+  }, {
+    "project_id": "D892C87B-8A07-4FFE-3439-08DE9E80E935",
+    "code": "MB-R11-DS1-0000150",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Sulop",
+    "location": "Poblacion, Sulop, Davao Del Sur"
+  }, {
+    "project_id": "254DDA6D-E858-408B-343A-08DE9E80E935",
+    "code": "MB-R11-DS1-0000151",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SALUFA IRRIGATORS ASSOCIATION, INC.",
+    "location": "San Luis, Caraga, Davao Oriental"
+  }, {
+    "project_id": "4F3C1994-F4A6-40E8-343B-08DE9E80E935",
+    "code": "MB-R11-DS1-0000152",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CAUMNAY FARMERS ASSOCIATION",
+    "location": "San Alfonso, Cateel, Davao Oriental"
+  }, {
+    "project_id": "FA06AD61-7301-4509-343C-08DE9E80E935",
+    "code": "MB-R12-DS1-0000153",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Cotabato Agricultural Allied Services Cooperative",
+    "location": "Bual Norte, Midsayap, Cotabato (north Cotabato)"
+  }, {
+    "project_id": "C83EE8F2-5A27-4C51-343D-08DE9E80E935",
+    "code": "MB-R12-DS1-0000154",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "UNITED SEED PRODUCERS MULTIPURPOSE COOPERATIVE (USPMC)",
+    "location": "Katidtuan, Kabacan, Cotabato (north Cotabato)"
+  }, {
+    "project_id": "2170F945-E34C-4200-343E-08DE9E80E935",
+    "code": "MB-R12-DS1-0000155",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Pangi Multi Purpose Cooperative",
+    "location": "Pangi (Linao), Maitum, Sarangani"
+  }, {
+    "project_id": "34610F19-477A-4C10-343F-08DE9E80E935",
+    "code": "MB-R12-DS1-0000156",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "D'RICE BOWL IRRIGATORS ASSOCIATION, INC.",
+    "location": "Poblacion, Norala, South Cotabato"
+  }, {
+    "project_id": "CAE6A9B4-ADA1-462A-3440-08DE9E80E935",
+    "code": "MB-R12-DS1-0000157",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "ROVICPA IRRIGATORS ASSOCIATION, INC.",
+    "location": "Panay, Santo Niño, South Cotabato"
+  }, {
+    "project_id": "D345535F-11B4-4DDA-3441-08DE9E80E935",
+    "code": "MB-R12-DS1-0000158",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "San Felipe Cooperative (SAFECO)",
+    "location": "San Felipe, Tantangan, South Cotabato"
+  }, {
+    "project_id": "0D210379-8F23-4081-3442-08DE9E80E935",
+    "code": "MB-R12-DS1-0000159",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "ALIP-LUMAGA COMMUNAL IRRIGATOR'S ASSOCIATION, INC.",
+    "location": "Poblacion, Columbio, Sultan Kudarat"
+  }, {
+    "project_id": "2AF5BB3D-B632-404F-3443-08DE9E80E935",
+    "code": "MB-R12-DS1-0000160",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MALIGAYA COMMUNAL IRRIG. ASSN. INCORPORATED",
+    "location": "Maligaya, Columbio, Sultan Kudarat"
+  }, {
+    "project_id": "F9B67C32-AF4D-441E-3444-08DE9E80E935",
+    "code": "MB-R12-DS1-0000161",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "PANGULAN-ISULAN IRRIGATORS' SERVICE ASSOCIATION, INC.",
+    "location": "Laguilayan, Isulan, Sultan Kudarat"
+  }, {
+    "project_id": "96C49E1E-B96E-41C0-3445-08DE9E80E935",
+    "code": "MB-R12-DS1-0000162",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "NALDAN CREEK IRRIGATORS ASSOCIATION INCORPORATED",
+    "location": "Sadsalan, Lambayong, Sultan Kudarat"
+  }, {
+    "project_id": "66BA7A41-4F4D-435E-3446-08DE9E80E935",
+    "code": "MB-R12-DS1-0000163",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "KALAYAAN COMMUNAL IRRIGATOR'S ASSOCIATION, INC",
+    "location": "Blingkong, Lutayan, Sultan Kudarat"
+  }, {
+    "project_id": "8C5C72F4-9C54-40B9-3447-08DE9E80E935",
+    "code": "MB-R12-DS1-0000164",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "PALAVILLA BARANGAY IRRIGATION DEVELOPMENT ASSOCIATION, INC.",
+    "location": "Palavilla, Lutayan, Sultan Kudarat"
+  }, {
+    "project_id": "389C1C00-711A-4E04-3448-08DE9E80E935",
+    "code": "MB-R12-DS1-0000165",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "ALA SALABACA IRRIGATOR'S ASSOCIATION, INC.",
+    "location": "Salabaca, Esperanza, Sultan Kudarat"
+  }, {
+    "project_id": "01DC8A3A-5638-475A-3454-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000177",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LOBO BASARA FARM PRODUCER COOPERATIVE",
+    "location": "Lobo Basara, Lumba-Bayabao (Maguing), Lanao Del Sur"
+  }, {
+    "project_id": "DAD501A8-6A67-4E98-3455-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000178",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Al-ahsan Community Economic Agriculture Cooperative",
+    "location": "Caramian Alim Raya, Masiu, Lanao Del Sur"
+  }, {
+    "project_id": "4919D6B1-D7CE-4DE9-3456-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000179",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BUBONG GUILOPA MULONDO PRODUCERS COOPERATIVE",
+    "location": "Bubonga Guilopa, Mulondo, Lanao Del Sur"
+  }, {
+    "project_id": "111AFB9D-73D1-42F2-3457-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000180",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BANSAYAN FARMER'S ASSOCIATION",
+    "location": "Bansayan, Poona Bayabao (Gata), Lanao Del Sur"
+  }, {
+    "project_id": "D710127D-AABA-4CF3-3458-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000181",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "LOWER DINGANEN COMMUNAL IRRIGATORS ASSOCIATION, INC.",
+    "location": "Dinganen, Buldon, Maguindanao"
+  }, {
+    "project_id": "22BF30A0-CD2B-4E1B-3459-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000182",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Purok Maunlarin Agriculture Cooperatives",
+    "location": "Nangi, Upi, Maguindanao"
+  }, {
+    "project_id": "FB158E6F-F362-4A6F-345A-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000183",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MAADEN IRRIGATORS ASSOCIATION, INC.",
+    "location": "Salbu, Datu Saudi-Ampatuan, Maguindanao"
+  }, {
+    "project_id": "055C858B-DB19-4EE0-345B-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000184",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "KAPAMAGAYON IRRIGATORS ASSOCIATION, INC.",
+    "location": "Muslim, Guindulungan, Maguindanao"
+  }, {
+    "project_id": "07A6C3E0-F72A-4C39-345C-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000185",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Talaposao Farmers Marketing Cooperative",
+    "location": "Muslim, Guindulungan, Maguindanao"
+  }, {
+    "project_id": "93C28063-E743-4402-345D-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000186",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Al-Rahman Farmers Multi-Purpose Cooperative",
+    "location": "Manongkaling, Mamasapano, Maguindanao"
+  }, {
+    "project_id": "40421DDB-6298-4F24-345E-08DE9E80E935",
+    "code": "MB-RBARMM-DS1-0000187",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "WANIN IRRIGATORS FARMERS ASSOCIATION",
+    "location": "Damablac, Talayan, Maguindanao"
+  }, {
+    "project_id": "774F57AB-52C6-4CAC-62C5-08DE99230834",
+    "code": "Philmech-Infra-25-02-05",
+    "name": "SUPPLY OF LABOR AND MATERIALS, For the Construction of PHilMech Printing Press",
+    "cost": 1.178116350000000e+006,
+    "beneficiary": "PHilMech",
+    "location": "PHilMech, Bantug, Science City of Munoz, Nueva Ecija"
+  }, {
+    "project_id": "DBF751E9-DACB-4D56-12BD-08DE9C4A88D5",
+    "code": "VA-R6-DS1-0000092",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Aklan Seed Growers Multi-Purpose Cooperative",
+    "location": "Estancia, Kalibo, Aklan"
+  }, {
+    "project_id": "70D63C54-4407-44DA-12BE-08DE9C4A88D5",
+    "code": "VA-R6-DS1-0000093",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Magsaysay Farmer's Association",
+    "location": "Magsaysay, Patnongon, Antique"
+  }, {
+    "project_id": "CC8A350F-B7A8-45F5-12BF-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000094",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CASAMDA IRRIGATORS ASSOCIATION, INC.",
+    "location": "Caluasan, Dagohoy, Bohol"
+  }, {
+    "project_id": "3B860861-96AD-4B9D-12C0-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000095",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Trinidad",
+    "location": "Poblacion I, Tagbilaran City, Bohol"
+  }, {
+    "project_id": "8CE7FBF4-7D8E-4BC6-12C1-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000096",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CORALIS IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Gabi, Ubay, Bohol"
+  }, {
+    "project_id": "E7496AD3-052A-4D6C-12C2-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000097",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "GBL IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Gabi, Ubay, Bohol"
+  }, {
+    "project_id": "FA76E3FD-22A1-48E1-12C3-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000098",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SANBABUE IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Buenavista, Ubay, Bohol"
+  }, {
+    "project_id": "9AA8DB01-5A86-4C43-12C4-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000099",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CARLIM IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Cagawasan, Pilar, Bohol"
+  }, {
+    "project_id": "ADF5F010-26D6-4BE2-12C5-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000100",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SAN ISIDRO MULTI-PURPOSE COOPERATIVE",
+    "location": "San Isidro, Pilar, Bohol"
+  }, {
+    "project_id": "7B7F7D72-D85B-4EE6-12C6-08DE9C4A88D5",
+    "code": "VB-R6-DS1-0000101",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SAN-LES RALIP IRRIGATORS ASSOCIATION INC",
+    "location": "San Isidro, Pilar, Bohol"
+  }, {
+    "project_id": "6D9F92CC-9FB7-4CCC-12C7-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000102",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CUTA FARMERS MULTI-PURPOSE COOPERATIVE",
+    "location": "Cuta, Barugo, Leyte"
+  }, {
+    "project_id": "883BB134-8723-4C63-12C8-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000103",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Binoligay Farmers-Irrigators Service Cooperative",
+    "location": "San Pablo, Burauen, Leyte"
+  }, {
+    "project_id": "681AD6C7-97AF-4861-12C9-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000104",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "KAHAYAG - LIBAS IRRIGATORS' ASSOCIATION, INC.",
+    "location": "Libas, Burauen, Leyte"
+  }, {
+    "project_id": "604DC4E1-D821-4889-12CA-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000105",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "EAST LINDOG RICE FARMERS IRRIGATORS ASSOCIATION, INC.",
+    "location": "Lower Sogod, Carigara, Leyte"
+  }, {
+    "project_id": "99A8D821-9F9E-47A4-12CB-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000106",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Sidlit Farmer-Irrigator's Service Cooperative",
+    "location": "Hinologan, Dagami, Leyte"
+  }, {
+    "project_id": "AD4C24C2-FDEC-4BA4-12CC-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000107",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CAPIBU RICE FARMERS IRRIGATORS ASSOCIATION, INC.",
+    "location": "Pitogo, Jaro, Leyte"
+  }, {
+    "project_id": "5C788063-FED2-47BA-12CD-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000108",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BALANTE JULITA IRRIGATORS ASSOCIATION INC.",
+    "location": "Balante, Julita, Leyte"
+  }, {
+    "project_id": "D778664F-E930-4F0D-12CE-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000109",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "CABADIANGAN-BURGOS IRRIGATORS' ASSOCIATION INC.",
+    "location": "Burgos, Mayorga, Leyte"
+  }, {
+    "project_id": "5E443447-85F1-47B0-12CF-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000110",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "POBLACION-BONIFACIO-CALIPAYAN IRRIGATORS' ASSOCIATION INC.",
+    "location": "Calipayan, Mayorga, Leyte"
+  }, {
+    "project_id": "0CB5F5A5-2205-4A16-12D0-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000111",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "MUNICIPAL LOCAL GOVERNMENT UNIT OF SAN ISIDRO",
+    "location": "Bawod (Pob.), San Isidro, Leyte"
+  }, {
+    "project_id": "8978CEA4-868D-4A08-12D1-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000112",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "BAGONG HENERASYON CAGNOCOT FARMERS' ASSOCIATION",
+    "location": "Cagnocot, Villaba, Leyte"
+  }, {
+    "project_id": "9A1EE773-B43A-4A2A-12D2-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000113",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "SITIO UPPER HAMPIPILA FARMERS ASSOCIATION (SUHFA)",
+    "location": "Hampipila, Abuyog, Leyte"
+  }, {
+    "project_id": "B7ABB9EF-8261-4D6B-12D3-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000114",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "KILIM INTEGRATED FARMERS IRRIGATORS ASSOCIATION, INC.",
+    "location": "Kilim, Baybay City, Leyte"
+  }, {
+    "project_id": "DB04E571-1414-4C23-12D4-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000115",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Municipal Local Government Unit of Matalom",
+    "location": "Santo Niño (Pob.), Matalom, Leyte"
+  }, {
+    "project_id": "328AE9CE-1940-4D1B-12D5-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000116",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Sts. Peter and Paul Multi-purpose Cooperative",
+    "location": "Poblacion, Hinunangan, Southern Leyte"
+  }, {
+    "project_id": "936A079F-53F4-402D-12D6-08DE9C4A88D5",
+    "code": "VB-R8-DS1-0000117",
+    "name": "SUPPLY OF LABOR AND MATERIALS FOR THE PROPOSED CONSTRUCTION OF DRYING SYSTEM SHED",
+    "cost": 5.388809740000000e+006,
+    "beneficiary": "Saint Bernard Multipurpose Cooperative (SBMPC)",
+    "location": "Himatagon (Pob.), Saint Bernard, Southern Leyte"
+  }, {
+    "project_id": "9F23077C-97E1-479E-765D-08DEA198E4D9",
+    "code": "VB-R8-RPS-000004",
+    "name": "RPS I",
+    "cost": 1.900000000000000e+007,
+    "beneficiary": "Municipal Local Government Unit of Pastrana",
+    "location": "District 4 (Pob.), Pastrana, Leyte"
+  }, {
+    "project_id": "1BE7A63A-3392-4B25-8646-08DEC5CABA00",
+    "code": "VB-R8-RPS-000006",
+    "name": "RPS I",
+    "cost": 1.900000000000000e+007,
+    "beneficiary": "Saint Bernard Multipurpose Cooperative (SBMPC)",
+    "location": "Himatagon (Pob.), Saint Bernard, Southern Leyte"
+  }]
+}

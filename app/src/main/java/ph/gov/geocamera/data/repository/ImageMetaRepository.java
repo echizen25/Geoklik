@@ -1070,8 +1070,8 @@ public class ImageMetaRepository {
                     continue;
                 }
 
-                String oldSiteId = safeText(info.siteId);
-                if (oldSiteId.equalsIgnoreCase(newSiteId)) continue;
+                String oldSiteId = safeText(info.siteId).toUpperCase(Locale.US);
+                if (oldSiteId.equals(newSiteId)) continue;
 
                 String sessionDate = safeText(info.sessionDate);
                 if (sessionDate.isEmpty()) {
@@ -1174,7 +1174,7 @@ public class ImageMetaRepository {
                                                  String sessionDate,
                                                  String remarks) {
         String mf = safeText(motherFolder);
-        String sid = safeText(siteId);
+        String sid = safeText(siteId).toUpperCase(Locale.US);
         String sd = safeText(sessionDate);
 
         if (mf.isEmpty()) mf = "PROJECT_0000";
@@ -1226,17 +1226,49 @@ public class ImageMetaRepository {
         Cursor c = null;
 
         try {
+            String mf = safeText(motherFolder);
+            String sid = safeText(siteId).toUpperCase(Locale.US);
+            String sd = safeText(sessionDate);
+
             String orderCol = null;
             if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "updated_at")) orderCol = "updated_at";
             else if (hasColumn(db, GeoDbHelper.TABLE_GROUPS, "timestamp")) orderCol = "timestamp";
 
-            String sql =
+            String order = orderCol != null ? (" ORDER BY " + orderCol + " DESC ") : "";
+
+            /*
+             * Change Site behavior:
+             * Reuse existing group by SAME PROJECT/SITE CODE only.
+             * Date does not matter.
+             *
+             * Example:
+             * Existing group: TEST01 / 2026-06-19
+             * Changed photo:  TEST01 / 2026-06-21
+             * Result: photo moves to existing TEST01 group.
+             */
+            c = db.rawQuery(
+                    "SELECT groupid FROM " + GeoDbHelper.TABLE_GROUPS + " " +
+                            "WHERE siteid=? " +
+                            order +
+                            "LIMIT 1",
+                    new String[]{sid}
+            );
+
+            if (c.moveToFirst()) return safeText(c.getString(0));
+            c.close();
+            c = null;
+
+            /*
+             * Fallback exact group. This is mostly for first-time groups.
+             */
+            c = db.rawQuery(
                     "SELECT groupid FROM " + GeoDbHelper.TABLE_GROUPS + " " +
                             "WHERE motherfolder=? AND siteid=? AND sessiondate=? " +
-                            (orderCol != null ? ("ORDER BY " + orderCol + " DESC ") : "") +
-                            "LIMIT 1";
+                            order +
+                            "LIMIT 1",
+                    new String[]{mf, sid, sd}
+            );
 
-            c = db.rawQuery(sql, new String[]{motherFolder, siteId, sessionDate});
             if (c.moveToFirst()) return safeText(c.getString(0));
             return "";
         } finally {

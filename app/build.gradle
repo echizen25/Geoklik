@@ -7,7 +7,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "ph.gov.geocamera"
+        applicationId = "ph.gov.geocamera"olla
         minSdk = 24
         targetSdk = 36
         versionCode = 3

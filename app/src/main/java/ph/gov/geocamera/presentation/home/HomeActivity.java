@@ -35,10 +35,13 @@ import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.remote.ApiProjectItem;
 import ph.gov.geocamera.data.remote.ProjectApiService;
 import ph.gov.geocamera.data.repository.ProjectRepository;
+import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
+import ph.gov.geocamera.data.sync.ProjectSyncScheduler;
 import ph.gov.geocamera.presentation.gallery.GalleryActivity;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
 import ph.gov.geocamera.presentation.library.LibraryActivity;
 import ph.gov.geocamera.presentation.settings.SettingsActivity;
+import ph.gov.geocamera.data.seed.ProjectSeedImporter;
 
 public class HomeActivity extends AppCompatActivity {
 
@@ -74,9 +77,10 @@ public class HomeActivity extends AppCompatActivity {
 
         setupInAppUpdates();
         checkForFlexibleUpdate();
-
-        // Auto sync projects silently in background
-        syncProjectsIfNeeded(false);
+        ProjectSeedImporter.importOrUpdate(getApplicationContext());
+        // Seamless project sync in background
+        ProjectSyncScheduler.schedulePeriodicProjectSync(getApplicationContext());
+        ProjectBackgroundSync.syncIfNeeded(getApplicationContext(), false, null);
     }
 
     @Override
@@ -86,8 +90,8 @@ public class HomeActivity extends AppCompatActivity {
         // Resume flexible update if already downloaded.
         checkDownloadedFlexibleUpdate();
 
-        // Refresh only if sync interval already expired
-        syncProjectsIfNeeded(true);
+        // Seamless project sync; skips automatically if recently synced
+        ProjectBackgroundSync.syncIfNeeded(getApplicationContext(), false, null);
     }
 
     @Override
@@ -375,7 +379,7 @@ public class HomeActivity extends AppCompatActivity {
                 ProjectApiService apiService = new ProjectApiService();
                 List<ApiProjectItem> items = apiService.fetchProjects();
 
-                if (items != null && !items.isEmpty()) {
+                if (items != null) {
                     repo.saveProjectsFromApi(items);
                     prefs.edit()
                             .putLong(KEY_LAST_PROJECT_SYNC, System.currentTimeMillis())

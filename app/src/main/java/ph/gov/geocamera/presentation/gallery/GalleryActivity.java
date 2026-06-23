@@ -3,7 +3,6 @@ package ph.gov.geocamera.presentation.gallery;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Rect;
@@ -51,26 +50,17 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import ph.gov.geocamera.data.repository.ProjectRepository;
-import ph.gov.geocamera.data.remote.ProjectApiService;
-import ph.gov.geocamera.data.remote.ApiProjectItem;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.data.sync.SyncScheduler;
+import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
+import ph.gov.geocamera.data.sync.ProjectSyncScheduler;
 import ph.gov.geocamera.presentation.home.HomeActivity;
 import ph.gov.geocamera.presentation.library.LibraryActivity;
 import ph.gov.geocamera.presentation.settings.SettingsActivity;
 
 public class GalleryActivity extends AppCompatActivity implements GalleryAdapter.Callback {
-
-    private static final String PREFS_PROJECT_SYNC = "project_sync_prefs";
-    private static final String KEY_LAST_PROJECT_SYNC = "last_project_sync";
-    private static final long PROJECT_SYNC_INTERVAL_MS = 6L * 60L * 60L * 1000L; // 6 hours
-
 
     private MaterialToolbar toolbar;
 
@@ -115,9 +105,6 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
     // sync state
     private boolean isSyncing = false;
-
-    private final ExecutorService projectSyncExecutor = Executors.newSingleThreadExecutor();
-    private final AtomicBoolean projectSyncRunning = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,7 +176,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             swipeRefresh.setOnRefreshListener(() -> {
                 if (adapter != null) adapter.clearSelection();
                 updateSelectionUi(0);
-                syncProjectsSilentlyThenReload();
+
                 loadRoot();
 
                 swipeRefresh.postDelayed(() -> {
@@ -268,77 +255,30 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         applyConnectivityUi(isOnline());
         updateMenuState();
 
-        // Silent project masterlist sync so beneficiary/code displays stay updated.
-        syncProjectsSilentlyThenReload();
+        // Seamless project sync so beneficiary/code data refreshes automatically
+        syncProjectsInBackgroundThenReloadGallery(false);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unregisterConnectivityWatcher();
-
-        try {
-            projectSyncExecutor.shutdown();
-        } catch (Exception ignored) {
-        }
     }
 
 
     // ============================================================
-    // SILENT PROJECT SYNC
+    // BACKGROUND PROJECT SYNC
     // ============================================================
-    private void syncProjectsSilentlyThenReload() {
-        if (!projectSyncRunning.compareAndSet(false, true)) {
-            return;
-        }
-
-        ProjectRepository repo = new ProjectRepository(getApplicationContext());
-        SharedPreferences prefs = getSharedPreferences(PREFS_PROJECT_SYNC, MODE_PRIVATE);
-
-        boolean hasLocalProjects = repo.hasAnyProjects();
-        long lastSync = prefs.getLong(KEY_LAST_PROJECT_SYNC, 0L);
-        long now = System.currentTimeMillis();
-
-        boolean intervalExpired = (now - lastSync) >= PROJECT_SYNC_INTERVAL_MS;
-
-        if (hasLocalProjects && !intervalExpired) {
-            projectSyncRunning.set(false);
-            return;
-        }
-
-        projectSyncExecutor.execute(() -> {
-            boolean updated = false;
-
-            try {
-                ProjectApiService apiService = new ProjectApiService();
-                List<ApiProjectItem> items = apiService.fetchProjects();
-
-                if (items != null && !items.isEmpty()) {
-                    repo.saveProjectsFromApi(items);
-
-                    prefs.edit()
-                            .putLong(KEY_LAST_PROJECT_SYNC, System.currentTimeMillis())
-                            .apply();
-
-                    updated = true;
+    private void syncProjectsInBackgroundThenReloadGallery(boolean force) {
+        ProjectBackgroundSync.syncIfNeeded(getApplicationContext(), force, updated -> {
+            runOnUiThread(() -> {
+                if (updated && !isFinishing() && !isDestroyed()) {
+                    loadRoot();
+                    updateMenuState();
                 }
-            } catch (Exception ignored) {
-                // Silent sync only. No toast, no blocking UI.
-            } finally {
-                boolean shouldReload = updated;
-
-                runOnUiThread(() -> {
-                    projectSyncRunning.set(false);
-
-                    if (shouldReload && !isFinishing() && !isDestroyed()) {
-                        loadRoot();
-                        updateMenuState();
-                    }
-                });
-            }
+            });
         });
     }
-
 
     // ============================================================
     // Toolbar menu handling
