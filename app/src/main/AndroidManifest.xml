@@ -13,8 +13,6 @@
     <!-- Only if you truly use it -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
-    <!-- Only if you read images outside app-scoped storage -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <!-- For Android 8 export -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
