@@ -49,7 +49,7 @@ public class PermissionActivity extends AppCompatActivity {
                         goNext();
                     } else {
                         Snackbar.make(findViewById(android.R.id.content),
-                                "Camera, Location and Storage permissions are required.",
+                                "Camera and Location permissions are required.",
                                 Snackbar.LENGTH_LONG).show();
                     }
                 });
@@ -82,10 +82,7 @@ public class PermissionActivity extends AppCompatActivity {
             perms.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
 
-        // ✅ Android 13+ (future proof if you upgrade device)
-        if (Build.VERSION.SDK_INT >= 33) {
-            perms.add(Manifest.permission.READ_MEDIA_IMAGES);
-        }
+
 
         return perms.toArray(new String[0]);
     }
