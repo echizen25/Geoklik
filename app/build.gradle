@@ -49,9 +49,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Use a concrete File here instead of passing a Provider into the legacy
+    // SourceSet API. Newer AGP versions reject Provider instances in srcDir().
+    // preBuild below carries the generation dependency explicitly.
     sourceSets {
         main {
-            assets.srcDir(phAdminAssetsDir)
+            assets.srcDir(phAdminAssetsDir.get().asFile)
         }
     }
 
