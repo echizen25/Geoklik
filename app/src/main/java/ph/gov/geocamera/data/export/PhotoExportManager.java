@@ -19,11 +19,21 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PhotoExportManager {
 
     private PhotoExportManager() {}
+
+    // Process-memory cache. Gallery opening can use this immediately while a background
+    // refresh checks MediaStore / public Pictures for the authoritative saved state.
+    private static final ConcurrentHashMap<String, Boolean> SAVED_CACHE = new ConcurrentHashMap<>();
 
     public static final class SaveResult {
         public final Uri uri;
@@ -35,6 +45,119 @@ public final class PhotoExportManager {
         }
     }
 
+    private static String cacheKey(File file) {
+        if (file == null) return "";
+        try {
+            return file.getCanonicalPath();
+        } catch (Exception ignored) {
+            return file.getAbsolutePath();
+        }
+    }
+
+    public static Boolean peekSavedState(File sourceFile) {
+        if (sourceFile == null) return null;
+        return SAVED_CACHE.get(cacheKey(sourceFile));
+    }
+
+    public static void markSavedInCache(File sourceFile, boolean saved) {
+        if (sourceFile == null) return;
+        SAVED_CACHE.put(cacheKey(sourceFile), saved);
+    }
+
+    /**
+     * Batch-refresh saved state. This method performs storage/MediaStore I/O and should
+     * be called from a background thread. It returns a map keyed by source absolute path.
+     */
+    public static Map<String, Boolean> refreshSavedStates(Context context, List<File> sourceFiles) {
+        if (context == null || sourceFiles == null || sourceFiles.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Set<String> targetNames = new HashSet<>();
+        for (File file : sourceFiles) {
+            if (file != null && file.getName() != null && !file.getName().trim().isEmpty()) {
+                targetNames.add(file.getName());
+            }
+        }
+
+        Set<String> savedNames = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                ? querySavedNamesMediaStore(context, targetNames)
+                : scanLegacySavedNames(targetNames);
+
+        Map<String, Boolean> result = new HashMap<>();
+        for (File file : sourceFiles) {
+            if (file == null) continue;
+            boolean saved = savedNames.contains(file.getName());
+            String key = cacheKey(file);
+            SAVED_CACHE.put(key, saved);
+            result.put(key, saved);
+        }
+        return result;
+    }
+
+    private static Set<String> querySavedNamesMediaStore(Context context, Set<String> targetNames) {
+        if (targetNames == null || targetNames.isEmpty()) return Collections.emptySet();
+
+        Set<String> found = new HashSet<>();
+        ContentResolver resolver = context.getContentResolver();
+        String[] projection = new String[]{
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH
+        };
+
+        // Only inspect GeoKlik/legacy GeoCamera exports instead of scanning the entire photo library.
+        String selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR "
+                + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+        String[] args = new String[]{
+                Environment.DIRECTORY_PICTURES + "/GeoKlik/%",
+                Environment.DIRECTORY_PICTURES + "/GeoCamera/%"
+        };
+
+        try (Cursor c = resolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                args,
+                null)) {
+            if (c == null) return found;
+            int nameCol = c.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME);
+            while (c.moveToNext()) {
+                String name = nameCol >= 0 ? c.getString(nameCol) : null;
+                if (name != null && targetNames.contains(name)) {
+                    found.add(name);
+                    if (found.size() == targetNames.size()) break;
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return found;
+    }
+
+    private static Set<String> scanLegacySavedNames(Set<String> targetNames) {
+        if (targetNames == null || targetNames.isEmpty()) return Collections.emptySet();
+        Set<String> found = new HashSet<>();
+        File pictures = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        collectMatchingNames(new File(pictures, "GeoKlik"), targetNames, found);
+        if (found.size() < targetNames.size()) {
+            collectMatchingNames(new File(pictures, "GeoCamera"), targetNames, found);
+        }
+        return found;
+    }
+
+    private static void collectMatchingNames(File root, Set<String> targets, Set<String> found) {
+        if (root == null || !root.exists() || found.size() == targets.size()) return;
+        File[] files = root.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                collectMatchingNames(file, targets, found);
+            } else if (targets.contains(file.getName())) {
+                found.add(file.getName());
+            }
+            if (found.size() == targets.size()) return;
+        }
+    }
+
     public static Uri findExistingInGallery(Context context, File sourceFile) {
         if (context == null || sourceFile == null) return null;
         String displayName = sourceFile.getName();
@@ -43,8 +166,14 @@ public final class PhotoExportManager {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentResolver resolver = context.getContentResolver();
             String[] projection = new String[]{MediaStore.Images.Media._ID};
-            String selection = MediaStore.Images.Media.DISPLAY_NAME + " = ?";
-            String[] args = new String[]{displayName};
+            String selection = MediaStore.Images.Media.DISPLAY_NAME + " = ? AND ("
+                    + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR "
+                    + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?)";
+            String[] args = new String[]{
+                    displayName,
+                    Environment.DIRECTORY_PICTURES + "/GeoKlik/%",
+                    Environment.DIRECTORY_PICTURES + "/GeoCamera/%"
+            };
 
             try (Cursor c = resolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -54,17 +183,18 @@ public final class PhotoExportManager {
                     null)) {
                 if (c != null && c.moveToFirst()) {
                     long id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                    markSavedInCache(sourceFile, true);
                     return ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
                 }
             } catch (Exception ignored) {}
+            markSavedInCache(sourceFile, false);
             return null;
         }
 
         File pictures = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-        File geoKlik = new File(pictures, "GeoKlik");
-        File geoCamera = new File(pictures, "GeoCamera");
-        File found = findByName(geoKlik, displayName);
-        if (found == null) found = findByName(geoCamera, displayName);
+        File found = findByName(new File(pictures, "GeoKlik"), displayName);
+        if (found == null) found = findByName(new File(pictures, "GeoCamera"), displayName);
+        markSavedInCache(sourceFile, found != null);
         return found == null ? null : Uri.fromFile(found);
     }
 
@@ -105,6 +235,7 @@ public final class PhotoExportManager {
             ContentValues done = new ContentValues();
             done.put(MediaStore.Images.Media.IS_PENDING, 0);
             resolver.update(uri, done, null, null);
+            markSavedInCache(sourceFile, true);
             return new SaveResult(uri, false);
         }
 
@@ -115,7 +246,10 @@ public final class PhotoExportManager {
         }
 
         File dest = new File(destDir, sourceFile.getName());
-        if (dest.exists()) return new SaveResult(Uri.fromFile(dest), true);
+        if (dest.exists()) {
+            markSavedInCache(sourceFile, true);
+            return new SaveResult(Uri.fromFile(dest), true);
+        }
 
         try (InputStream in = new FileInputStream(sourceFile);
              OutputStream out = new FileOutputStream(dest)) {
@@ -129,6 +263,7 @@ public final class PhotoExportManager {
                 null
         );
 
+        markSavedInCache(sourceFile, true);
         return new SaveResult(Uri.fromFile(dest), false);
     }
 
