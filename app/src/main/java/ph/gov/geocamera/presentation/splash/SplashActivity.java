@@ -35,14 +35,22 @@ public class SplashActivity extends AppCompatActivity {
         new AppVersionService(this).check((policy, fromServer) -> {
             if (isFinishing() || isDestroyed()) return;
 
+            // Do not show or enforce an update unless the live version endpoint
+            // actually responds. This lets the app work normally before the
+            // endpoint is deployed, during maintenance, or while offline.
+            if (!fromServer || policy == null) {
+                continueToApp();
+                return;
+            }
+
             int installedVersionCode = BuildConfig.VERSION_CODE;
 
-            if (policy != null && policy.isUpdateRequired(installedVersionCode)) {
+            if (policy.isUpdateRequired(installedVersionCode)) {
                 showRequiredUpdate(policy);
                 return;
             }
 
-            if (policy != null && policy.isUpdateAvailable(installedVersionCode)) {
+            if (policy.isUpdateAvailable(installedVersionCode)) {
                 showOptionalUpdate(policy);
                 return;
             }
