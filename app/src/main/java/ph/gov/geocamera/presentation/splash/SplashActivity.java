@@ -2,7 +2,9 @@ package ph.gov.geocamera.presentation.splash;
 
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,7 +12,6 @@ import androidx.core.splashscreen.SplashScreen;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import ph.gov.geocamera.BuildConfig;
 import ph.gov.geocamera.data.remote.AppVersionService;
 import ph.gov.geocamera.data.repository.UserRepository;
 import ph.gov.geocamera.presentation.home.HomeActivity;
@@ -27,7 +28,6 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         userRepo = new UserRepository(this);
-
         getWindow().getDecorView().postDelayed(this::checkAppVersion, 650);
     }
 
@@ -35,15 +35,13 @@ public class SplashActivity extends AppCompatActivity {
         new AppVersionService(this).check((policy, fromServer) -> {
             if (isFinishing() || isDestroyed()) return;
 
-            // Do not show or enforce an update unless the live version endpoint
-            // actually responds. This lets the app work normally before the
-            // endpoint is deployed, during maintenance, or while offline.
+            // Only a live endpoint response can show/enforce an update.
             if (!fromServer || policy == null) {
                 continueToApp();
                 return;
             }
 
-            int installedVersionCode = BuildConfig.VERSION_CODE;
+            int installedVersionCode = getInstalledVersionCode();
 
             if (policy.isUpdateRequired(installedVersionCode)) {
                 showRequiredUpdate(policy);
@@ -57,6 +55,19 @@ public class SplashActivity extends AppCompatActivity {
 
             continueToApp();
         });
+    }
+
+    private int getInstalledVersionCode() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long code = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                    ? info.getLongVersionCode()
+                    : info.versionCode;
+            return code > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) code;
+        } catch (Exception ignored) {
+            // Fail open instead of blocking field use if package metadata fails.
+            return Integer.MAX_VALUE;
+        }
     }
 
     private void showRequiredUpdate(AppVersionService.VersionPolicy policy) {
