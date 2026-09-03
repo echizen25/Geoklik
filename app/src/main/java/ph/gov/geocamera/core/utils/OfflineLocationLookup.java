@@ -13,15 +13,18 @@ import java.util.Locale;
 /**
  * Offline reverse-location fallback for GeoKlik.
  *
- * Uses representative city/municipality coordinates bundled with the APK.
- * It is intentionally a fallback: Android Geocoder remains preferred when it
- * returns a usable result. Representative points are not administrative
- * boundaries, so a confidence radius is applied before a municipality name is
- * returned.
+ * Preferred data source is the bundled Open Admin Data Philippine flat dataset
+ * generated into the APK at build time (CC BY 4.0). A compact legacy asset is
+ * retained only as a fallback when the generated asset is unavailable.
+ *
+ * Coordinates are representative administrative points rather than boundary
+ * polygons, so this lookup deliberately applies a confidence radius and falls
+ * back to province-only when the nearest municipality is too far away.
  */
 public final class OfflineLocationLookup {
 
-    private static final String ASSET_NAME = "ph_city_coords.csv";
+    private static final String FULL_ASSET_NAME = "ph_admin_all_flat.csv";
+    private static final String FALLBACK_ASSET_NAME = "ph_city_coords.csv";
     private static final double MAX_CITY_DISTANCE_KM = 45.0;
     private static final Object LOCK = new Object();
     private static volatile List<Point> cachedPoints;
@@ -72,7 +75,6 @@ public final class OfflineLocationLookup {
                     : new Result(fallbackProvince, "", Double.NaN, false);
         }
 
-        // Guard against bad/outlier representative coordinates and border guesses.
         boolean confident = bestKm <= MAX_CITY_DISTANCE_KM;
         String province = nearest.province;
         if (!confident && fallbackProvince != null && !fallbackProvince.trim().isEmpty()) {
@@ -92,6 +94,11 @@ public final class OfflineLocationLookup {
         return r == null ? null : r.displayName();
     }
 
+    public static int getLoadedPointCount(Context context) {
+        if (context == null) return 0;
+        return ensureLoaded(context.getApplicationContext()).size();
+    }
+
     private static List<Point> ensureLoaded(Context context) {
         List<Point> local = cachedPoints;
         if (local != null) return local;
@@ -100,25 +107,72 @@ public final class OfflineLocationLookup {
             if (cachedPoints != null) return cachedPoints;
 
             ArrayList<Point> out = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    context.getAssets().open(ASSET_NAME), StandardCharsets.UTF_8))) {
-                String line;
-                boolean first = true;
-                while ((line = reader.readLine()) != null) {
-                    if (first) {
-                        first = false;
-                        if (line.toLowerCase(Locale.US).startsWith("province,")) continue;
-                    }
-                    parseLine(line, out);
-                }
-            } catch (Exception ignored) {}
+            boolean fullLoaded = loadOpenAdminFlat(context, out);
+            if (!fullLoaded || out.size() < 1000) {
+                out.clear();
+                loadCompactFallback(context, out);
+            }
 
             cachedPoints = Collections.unmodifiableList(out);
             return cachedPoints;
         }
     }
 
-    private static void parseLine(String raw, List<Point> out) {
+    private static boolean loadOpenAdminFlat(Context context, List<Point> out) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                context.getAssets().open(FULL_ASSET_NAME), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty() || line.charAt(0) == '#') continue;
+                if (line.startsWith("id,level,")) continue;
+                parseOpenAdminLine(line, out);
+            }
+            return !out.isEmpty();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Columns used from Open Admin Data all-flat.csv:
+     * 1=level, 4=name.local, 10=parent.name.local, 17=geo.lat, 18=geo.lon.
+     * Municipality/city rows are level 3.
+     */
+    private static void parseOpenAdminLine(String line, List<Point> out) {
+        List<String> cols = parseCsv(line);
+        if (cols.size() < 19) return;
+        if (!"3".equals(clean(cols.get(1)))) return;
+
+        String city = clean(cols.get(4));
+        String province = clean(cols.get(10));
+        String latText = clean(cols.get(17));
+        String lngText = clean(cols.get(18));
+        if (city.isEmpty() || province.isEmpty() || latText.isEmpty() || lngText.isEmpty()) return;
+
+        try {
+            double lat = Double.parseDouble(latText);
+            double lng = Double.parseDouble(lngText);
+            if (!validPhilippineCoordinate(lat, lng)) return;
+            out.add(new Point(province, city, lat, lng));
+        } catch (Exception ignored) {}
+    }
+
+    private static void loadCompactFallback(Context context, List<Point> out) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                context.getAssets().open(FALLBACK_ASSET_NAME), StandardCharsets.UTF_8))) {
+            String line;
+            boolean first = true;
+            while ((line = reader.readLine()) != null) {
+                if (first) {
+                    first = false;
+                    if (line.toLowerCase(Locale.US).startsWith("province,")) continue;
+                }
+                parseCompactLine(line, out);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private static void parseCompactLine(String raw, List<Point> out) {
         if (raw == null) return;
         String line = raw.trim();
         if (line.isEmpty()) return;
@@ -144,6 +198,31 @@ public final class OfflineLocationLookup {
         } catch (Exception ignored) {}
     }
 
+    private static List<String> parseCsv(String line) {
+        ArrayList<String> out = new ArrayList<>();
+        StringBuilder cell = new StringBuilder();
+        boolean quoted = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == '"') {
+                if (quoted && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    cell.append('"');
+                    i++;
+                } else {
+                    quoted = !quoted;
+                }
+            } else if (ch == ',' && !quoted) {
+                out.add(cell.toString());
+                cell.setLength(0);
+            } else {
+                cell.append(ch);
+            }
+        }
+        out.add(cell.toString());
+        return out;
+    }
+
     private static String clean(String s) {
         if (s == null) return "";
         s = s.trim();
@@ -154,7 +233,6 @@ public final class OfflineLocationLookup {
     }
 
     private static boolean validPhilippineCoordinate(double lat, double lng) {
-        // Broad Philippine envelope; also rejects known foreign/outlier rows.
         return lat >= 4.0 && lat <= 22.5 && lng >= 114.0 && lng <= 127.5;
     }
 
