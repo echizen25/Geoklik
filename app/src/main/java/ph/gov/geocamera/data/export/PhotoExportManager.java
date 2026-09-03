@@ -18,6 +18,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class PhotoExportManager {
 
@@ -149,6 +151,43 @@ public final class PhotoExportManager {
         context.startActivity(Intent.createChooser(
                 send,
                 chooserTitle == null || chooserTitle.trim().isEmpty() ? "Share GeoKlik photo" : chooserTitle
+        ));
+    }
+
+    public static void sharePhotos(Context context, List<File> sourceFiles, String chooserTitle) {
+        if (context == null) throw new IllegalArgumentException("Context is required.");
+        if (sourceFiles == null || sourceFiles.isEmpty()) {
+            throw new IllegalArgumentException("No photos selected.");
+        }
+
+        ArrayList<Uri> uris = new ArrayList<>();
+        for (File file : sourceFiles) {
+            if (file == null || !file.exists()) continue;
+            Uri uri = FileProvider.getUriForFile(
+                    context,
+                    context.getPackageName() + ".fileprovider",
+                    file
+            );
+            uris.add(uri);
+        }
+
+        if (uris.isEmpty()) throw new IllegalArgumentException("Selected photos are missing.");
+
+        if (uris.size() == 1) {
+            sharePhoto(context, sourceFiles.get(0), chooserTitle);
+            return;
+        }
+
+        Intent send = new Intent(Intent.ACTION_SEND_MULTIPLE);
+        send.setType("image/*");
+        send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        context.startActivity(Intent.createChooser(
+                send,
+                chooserTitle == null || chooserTitle.trim().isEmpty()
+                        ? "Share selected GeoKlik photos"
+                        : chooserTitle
         ));
     }
 
