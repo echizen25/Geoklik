@@ -1,27 +1,22 @@
 package ph.gov.geocamera.presentation.gallery;
 
+import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ScaleGestureDetector;
 import android.view.View;
-import android.widget.Toast;
-import com.google.android.material.button.MaterialButton;
-import android.content.Context;
 import android.view.inputmethod.InputMethodManager;
-import androidx.activity.result.ActivityResultLauncher;
-import com.journeyapps.barcodescanner.ScanOptions;
-import com.journeyapps.barcodescanner.ScanContract;
-import ph.gov.geocamera.data.sync.SyncScheduler;
-import com.google.android.material.textfield.TextInputLayout;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import android.widget.ArrayAdapter;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -29,15 +24,28 @@ import androidx.appcompat.view.ActionMode;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import ph.gov.geocamera.R;
+import ph.gov.geocamera.data.export.PhotoExportManager;
 import ph.gov.geocamera.data.repository.GroupRepository;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
+import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.map.OsmMapDialog;
 import ph.gov.geocamera.presentation.map.PhotoPin;
 
@@ -50,32 +58,42 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     private com.google.android.material.appbar.MaterialToolbar toolbar;
     private RecyclerView rv;
+    private View emptyState;
+    private TextView tvEmptyTitle;
+    private TextView tvEmptySubtitle;
 
     private ImageMetaRepository imageRepo;
     private GroupRepository groupRepo;
     private GroupImagesAdapter adapter;
+
+    private final List<GroupImagesAdapter.ImageItem> allImages = new ArrayList<>();
 
     private String groupId;
     private String siteId;
     private String sessionDate;
     private String description;
 
+    private int statusFilter = 0;
+    private int sortMode = 0;
+
     private ActionMode actionMode;
-
     private ActivityResultLauncher<ScanOptions> changeSiteQrLauncher;
-    private com.google.android.material.textfield.MaterialAutoCompleteTextView activeChangeSiteInput;
+    private MaterialAutoCompleteTextView activeChangeSiteInput;
 
-    // ✅ Grid
     private GridLayoutManager gridLayoutManager;
     private GridSpacingItemDecoration gridDecoration;
 
     private int spanCount = 3;
     private static final int MIN_SPAN = 2;
     private static final int MAX_SPAN = 6;
+    private static final int REQ_WRITE_STORAGE = 3101;
 
-    // ✅ Pinch
     private ScaleGestureDetector scaleDetector;
     private float scaleAccumulator = 1f;
+
+    // Saved-to-device checks are storage I/O. Keep them off the UI thread.
+    private final ExecutorService savedStateExecutor = Executors.newSingleThreadExecutor();
+    private int savedStateGeneration = 0;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -87,6 +105,9 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
         toolbar = findViewById(R.id.toolbar);
         rv = findViewById(R.id.rvImages);
+        emptyState = findViewById(R.id.emptyState);
+        tvEmptyTitle = findViewById(R.id.tvEmptyTitle);
+        tvEmptySubtitle = findViewById(R.id.tvEmptySubtitle);
 
         Intent i = getIntent();
         groupId = i != null ? i.getStringExtra(EXTRA_GROUP_ID) : null;
@@ -108,22 +129,19 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (actionMode != null) actionMode.finish();
             else finish();
         });
-
         toolbar.setTitle(!safe(description).isEmpty() ? safe(description) : "Images");
+        toolbar.setOnMenuItemClickListener(this::onToolbarMenuItemClick);
 
         rv.setHasFixedSize(true);
         rv.setItemViewCacheSize(24);
 
         spanCount = clampSpan(calculateSpanCount(120));
-
         gridLayoutManager = new GridLayoutManager(this, spanCount);
         gridLayoutManager.setItemPrefetchEnabled(true);
         gridLayoutManager.setInitialPrefetchItemCount(spanCount * 3);
         rv.setLayoutManager(gridLayoutManager);
 
-        int spacingPx = dp(4);
-        rv.invalidateItemDecorations();
-        gridDecoration = new GridSpacingItemDecoration(spanCount, spacingPx, true);
+        gridDecoration = new GridSpacingItemDecoration(spanCount, dp(4), true);
         rv.addItemDecoration(gridDecoration);
 
         adapter = new GroupImagesAdapter(this, this, groupId, spanCount);
@@ -137,15 +155,72 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     @Override
     protected void onResume() {
         super.onResume();
-
         String dbRemarks = safe(groupRepo.getRemarksByGroupId(groupId));
         if (!dbRemarks.isEmpty()) toolbar.setTitle(dbRemarks);
-
         loadImages();
     }
 
+    @Override
+    protected void onDestroy() {
+        savedStateGeneration++;
+        savedStateExecutor.shutdownNow();
+        super.onDestroy();
+    }
+
+    private boolean onToolbarMenuItemClick(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_filter_status) {
+            showStatusFilterDialog();
+            return true;
+        }
+        if (id == R.id.action_sort_photos) {
+            showSortDialog();
+            return true;
+        }
+        return false;
+    }
+
+    private void showStatusFilterDialog() {
+        String[] options = new String[]{
+                "All photos", "Pending", "Synced", "Failed", "Uploading", "Saved to device"
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Filter photos")
+                .setSingleChoiceItems(options, statusFilter, (dialog, which) -> {
+                    statusFilter = which;
+                    dialog.dismiss();
+                    if (actionMode != null) actionMode.finish();
+                    applyFilterAndSort();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showSortDialog() {
+        String[] options = new String[]{
+                "Newest first", "Oldest first", "Pending first", "Failed first"
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Sort photos")
+                .setSingleChoiceItems(options, sortMode, (dialog, which) -> {
+                    sortMode = which;
+                    dialog.dismiss();
+                    if (actionMode != null) actionMode.finish();
+                    applyFilterAndSort();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * Fast path: read SQLite + in-memory saved-state cache only, render immediately.
+     * The authoritative MediaStore/public Pictures check runs afterwards in one background task.
+     */
     private void loadImages() {
-        List<GroupImagesAdapter.ImageItem> out = new ArrayList<>();
+        final int generation = ++savedStateGeneration;
+        allImages.clear();
 
         Cursor c = null;
         try {
@@ -156,36 +231,134 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 it.filename = c.getString(1);
                 it.timestamp = c.getString(2);
                 it.status = c.getInt(3);
-                out.add(it);
+
+                if (it.filename != null && !it.filename.trim().isEmpty()) {
+                    File f = new File(it.filename);
+                    Boolean cached = PhotoExportManager.peekSavedState(f);
+                    it.savedToDevice = Boolean.TRUE.equals(cached);
+                }
+                allImages.add(it);
             }
         } finally {
             if (c != null) c.close();
         }
 
-        adapter.submit(out);
-
+        applyFilterAndSort();
         if (actionMode != null) onSelectionCountChanged(adapter.getSelectedCount());
+
+        refreshSavedStateAsync(generation);
     }
 
-    // ============================================================
-    // Adapter callbacks
-    // ============================================================
+    private void refreshSavedStateAsync(final int generation) {
+        final List<File> files = new ArrayList<>();
+        for (GroupImagesAdapter.ImageItem it : allImages) {
+            if (it.filename == null || it.filename.trim().isEmpty()) continue;
+            File f = new File(it.filename);
+            if (f.exists()) files.add(f);
+        }
+
+        if (files.isEmpty() || savedStateExecutor.isShutdown()) return;
+
+        final Context appContext = getApplicationContext();
+        savedStateExecutor.execute(() -> {
+            Map<String, Boolean> states = PhotoExportManager.refreshSavedStates(appContext, files);
+            if (Thread.currentThread().isInterrupted()) return;
+
+            runOnUiThread(() -> {
+                if (generation != savedStateGeneration || isFinishing() || isDestroyed()) return;
+
+                boolean changed = false;
+                for (GroupImagesAdapter.ImageItem it : allImages) {
+                    if (it.filename == null || it.filename.trim().isEmpty()) continue;
+                    File f = new File(it.filename);
+                    Boolean saved = states.get(cacheKey(f));
+                    if (saved == null) continue;
+                    boolean value = Boolean.TRUE.equals(saved);
+                    if (it.savedToDevice != value) {
+                        it.savedToDevice = value;
+                        changed = true;
+                    }
+                }
+
+                // Re-apply because the active filter may be "Saved to device".
+                if (changed || statusFilter == 5) applyFilterAndSort();
+            });
+        });
+    }
+
+    private String cacheKey(File file) {
+        try {
+            return file.getCanonicalPath();
+        } catch (Exception ignored) {
+            return file.getAbsolutePath();
+        }
+    }
+
+    private void applyFilterAndSort() {
+        List<GroupImagesAdapter.ImageItem> visible = new ArrayList<>();
+
+        for (GroupImagesAdapter.ImageItem it : allImages) {
+            if (matchesStatusFilter(it)) visible.add(it);
+        }
+
+        Comparator<GroupImagesAdapter.ImageItem> newest =
+                (a, b) -> safe(b.timestamp).compareTo(safe(a.timestamp));
+        Comparator<GroupImagesAdapter.ImageItem> oldest =
+                (a, b) -> safe(a.timestamp).compareTo(safe(b.timestamp));
+
+        if (sortMode == 1) {
+            visible.sort(oldest);
+        } else if (sortMode == 2) {
+            visible.sort(Comparator
+                    .comparingInt((GroupImagesAdapter.ImageItem it) -> it.status == 0 ? 0 : 1)
+                    .thenComparing(newest));
+        } else if (sortMode == 3) {
+            visible.sort(Comparator
+                    .comparingInt((GroupImagesAdapter.ImageItem it) -> it.status == 2 ? 0 : 1)
+                    .thenComparing(newest));
+        } else {
+            visible.sort(newest);
+        }
+
+        adapter.submit(visible);
+        updateEmptyState(visible.isEmpty());
+    }
+
+    private boolean matchesStatusFilter(GroupImagesAdapter.ImageItem it) {
+        if (statusFilter == 1) return it.status == 0;
+        if (statusFilter == 2) return it.status == 1;
+        if (statusFilter == 3) return it.status == 2;
+        if (statusFilter == 4) return it.status == 3;
+        if (statusFilter == 5) return it.savedToDevice;
+        return true;
+    }
+
+    private void updateEmptyState(boolean empty) {
+        if (rv != null) rv.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (emptyState != null) emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
+        if (!empty) return;
+
+        if (allImages.isEmpty()) {
+            tvEmptyTitle.setText("No photos yet");
+            tvEmptySubtitle.setText("Captured photos for this inspection will appear here.");
+        } else {
+            tvEmptyTitle.setText("No matching photos");
+            tvEmptySubtitle.setText("Try another status filter to see more photos.");
+        }
+    }
 
     @Override
     public void onImageClicked(String groupId, String clickedUuid) {
-        // If selection mode, toggle (retain delete flow)
         if (adapter.isSelectionMode()) {
             adapter.toggleSelection(clickedUuid);
             return;
         }
 
-        // Otherwise open bottomsheet actions
         String title = toolbar.getTitle() != null ? toolbar.getTitle().toString() : "Photo";
         PhotoActionsBottomSheet bs = PhotoActionsBottomSheet.newInstance(groupId, clickedUuid, title);
         bs.show(getSupportFragmentManager(), "photo_actions");
     }
 
-    // Helper called by bottomsheet (Preview button)
     public void openPreview(String groupId, String clickedUuid) {
         Intent i = new Intent(this, PreviewImagesActivity.class);
         i.putExtra(PreviewImagesActivity.EXTRA_GROUP_ID, groupId);
@@ -197,7 +370,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     @Override
     public void onImageLongPressed(String uuid) {
-        // ✅ long-press -> selection mode for delete
         if (actionMode == null) actionMode = startSupportActionMode(actionModeCb);
         adapter.setSelectionMode(true);
         adapter.toggleSelection(uuid);
@@ -216,13 +388,8 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         }
     }
 
-    // ============================================================
-    // Called from BottomSheet
-    // ============================================================
-
     public void openPreviewForUuid(String uuid) {
         if (uuid == null || uuid.trim().isEmpty()) return;
-
         Intent i = new Intent(this, PreviewImagesActivity.class);
         i.putExtra(PreviewImagesActivity.EXTRA_GROUP_ID, groupId);
         i.putExtra(PreviewImagesActivity.EXTRA_UUID, uuid);
@@ -240,7 +407,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             return;
         }
 
-        // ✅ valid gps: block only if BOTH are ~0
         if (Double.isNaN(pin.lat) || Double.isNaN(pin.lng) ||
                 (Math.abs(pin.lat) < 0.000001 && Math.abs(pin.lng) < 0.000001)) {
             Toast.makeText(this, "No GPS location for this photo.", Toast.LENGTH_SHORT).show();
@@ -249,18 +415,12 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
         ArrayList<PhotoPin> pins = new ArrayList<>();
         pins.add(pin);
-
-        OsmMapDialog d = OsmMapDialog.newInstance("Pin on Map")
-                .setPins(pins);
-
-        d.show(getSupportFragmentManager(), "osm_map");
+        OsmMapDialog.newInstance("Pin on Map")
+                .setPins(pins)
+                .show(getSupportFragmentManager(), "osm_map");
     }
-    // ============================================================
-    // ActionMode (delete only)
-    // ============================================================
 
     private final ActionMode.Callback actionModeCb = new ActionMode.Callback() {
-
         @Override
         public boolean onCreateActionMode(ActionMode mode, Menu menu) {
             mode.getMenuInflater().inflate(R.menu.menu_group_images_selection, menu);
@@ -270,15 +430,12 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         @Override
         public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
             MenuItem changeSite = menu.findItem(R.id.action_change_site);
-
             if (changeSite != null) {
                 Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 boolean hasLocked = imageRepo.hasLockedPhotosForChangeSite(selected);
-
                 changeSite.setVisible(!hasLocked);
                 changeSite.setEnabled(!hasLocked);
             }
-
             return true;
         }
 
@@ -286,19 +443,31 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
             int id = item.getItemId();
 
-            if (id == R.id.action_select_all) { adapter.selectAll(); return true; }
-            if (id == R.id.action_clear) { adapter.clearSelection(); return true; }
+            if (id == R.id.action_save_selected) {
+                saveSelectedToDevice();
+                return true;
+            }
+            if (id == R.id.action_share_selected) {
+                shareSelectedPhotos();
+                return true;
+            }
+            if (id == R.id.action_select_all) {
+                adapter.selectAll();
+                return true;
+            }
+            if (id == R.id.action_clear) {
+                adapter.clearSelection();
+                return true;
+            }
 
             if (id == R.id.action_change_site) {
                 final Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 if (selected.isEmpty()) return true;
 
                 if (imageRepo.hasLockedPhotosForChangeSite(selected)) {
-                    Toast.makeText(
-                            GroupImagesActivity.this,
+                    Toast.makeText(GroupImagesActivity.this,
                             "Only unsynced photos can be reassigned. Synced/uploading photos are locked.",
-                            Toast.LENGTH_LONG
-                    ).show();
+                            Toast.LENGTH_LONG).show();
                     return true;
                 }
 
@@ -330,7 +499,102 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         }
     };
 
+    private void saveSelectedToDevice() {
+        Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
+        if (selected.isEmpty()) {
+            Toast.makeText(this, "No photos selected.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
+        if (Build.VERSION.SDK_INT <= 28 &&
+                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_WRITE_STORAGE);
+            Toast.makeText(this, "Allow storage permission, then tap Save to Device again.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        int saved = 0;
+        int existing = 0;
+        int missing = 0;
+        int failed = 0;
+        String subPath = buildExportSubPath();
+
+        for (String uuid : selected) {
+            String path = adapter.getPathByUuid(uuid);
+            if (path == null || path.trim().isEmpty()) path = imageRepo.getFilenameByUuid(uuid);
+
+            if (path == null || path.trim().isEmpty()) {
+                missing++;
+                continue;
+            }
+
+            File file = new File(path);
+            if (!file.exists()) {
+                missing++;
+                continue;
+            }
+
+            try {
+                PhotoExportManager.SaveResult result = PhotoExportManager.saveToDevice(this, file, subPath);
+                if (result.alreadySaved) existing++;
+                else saved++;
+            } catch (Exception e) {
+                failed++;
+            }
+        }
+
+        String msg = "Saved: " + saved;
+        if (existing > 0) msg += " • Already saved: " + existing;
+        if (missing > 0) msg += " • Missing: " + missing;
+        if (failed > 0) msg += " • Failed: " + failed;
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+        loadImages();
+    }
+
+    private void shareSelectedPhotos() {
+        Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
+        if (selected.isEmpty()) {
+            Toast.makeText(this, "No photos selected.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<File> files = new ArrayList<>();
+        for (String uuid : selected) {
+            String path = adapter.getPathByUuid(uuid);
+            if (path == null || path.trim().isEmpty()) path = imageRepo.getFilenameByUuid(uuid);
+            if (path == null || path.trim().isEmpty()) continue;
+            File f = new File(path);
+            if (f.exists()) files.add(f);
+        }
+
+        if (files.isEmpty()) {
+            Toast.makeText(this, "Selected photos are missing from the device.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            PhotoExportManager.sharePhotos(this, files, "Share selected GeoKlik photos");
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to share selected photos.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String buildExportSubPath() {
+        StringBuilder b = new StringBuilder();
+        appendPath(b, siteId);
+        appendPath(b, sessionDate);
+        appendPath(b, description);
+        return b.toString();
+    }
+
+    private void appendPath(StringBuilder b, String value) {
+        String s = safe(value);
+        if (s.isEmpty()) return;
+        s = s.replaceAll("[\\\\/:*?\"<>|]", "_").replaceAll("\\s+", "_");
+        if (s.length() > 50) s = s.substring(0, 50);
+        if (b.length() > 0) b.append('/');
+        b.append(s);
+    }
 
     private void setupChangeSiteQrLauncher() {
         changeSiteQrLauncher = registerForActivityResult(new ScanContract(), result -> {
@@ -346,7 +610,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 activeChangeSiteInput.setText(scanned, false);
                 activeChangeSiteInput.setSelection(scanned.length());
             }
-
             Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
         });
     }
@@ -355,24 +618,17 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         if (selectedUuids == null || selectedUuids.isEmpty()) return;
 
         View view = getLayoutInflater().inflate(R.layout.dialog_change_site_photos, null);
-
         TextInputLayout tilSite = view.findViewById(R.id.tilSite);
         MaterialAutoCompleteTextView actSite = view.findViewById(R.id.actSite);
         MaterialButton btnClose = view.findViewById(R.id.btnClose);
         MaterialButton btnUseSelected = view.findViewById(R.id.btnUseSelected);
         MaterialButton btnScanQr = view.findViewById(R.id.btnScanQr);
 
-        androidx.appcompat.app.AlertDialog dialog =
-                new MaterialAlertDialogBuilder(this)
-                        .setView(view)
-                        .create();
-
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setView(view)
+                .create();
 
         btnClose.setOnClickListener(v -> dialog.dismiss());
-
         btnScanQr.setOnClickListener(v -> {
             activeChangeSiteInput = actSite;
             startChangeSiteQrScan();
@@ -396,30 +652,22 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             hideKeyboard(actSite);
 
             if (imageRepo.hasLockedPhotosForChangeSite(selectedUuids)) {
-                Toast.makeText(
-                        this,
+                Toast.makeText(this,
                         "Only unsynced photos can be reassigned. Synced/uploading photos are locked.",
-                        Toast.LENGTH_LONG
-                ).show();
+                        Toast.LENGTH_LONG).show();
                 return;
             }
 
             List<String> uuids = new ArrayList<>(selectedUuids);
             int moved = imageRepo.updateSelectedPhotosSiteId(uuids, newSiteCode);
 
-            Toast.makeText(
-                    this,
+            Toast.makeText(this,
                     "Updated " + moved + " photo(s) to " + newSiteCode,
-                    Toast.LENGTH_LONG
-            ).show();
+                    Toast.LENGTH_LONG).show();
 
             if (actionMode != null) actionMode.finish();
-
             loadImages();
-
-            // Queue sync. The repository reset moved photos to PENDING.
             SyncScheduler.enqueueUploadNow(getApplicationContext());
-
             dialog.dismiss();
         });
 
@@ -439,7 +687,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         options.setOrientationLocked(false);
         options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
         options.setCameraId(0);
-
         changeSiteQrLauncher.launch(options);
     }
 
@@ -447,23 +694,13 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         String s = input == null ? "" : input.trim();
         if (s.isEmpty()) return "";
 
-        s = s.replace("\n", " ")
-                .replace("\r", " ")
-                .trim();
+        s = s.replace("\n", " ").replace("\r", " ").trim();
+        while (s.contains("  ")) s = s.replace("  ", " ");
 
-        while (s.contains("  ")) {
-            s = s.replace("  ", " ");
-        }
+        if (s.regionMatches(true, 0, "SITE:", 0, 5)) s = s.substring(5).trim();
+        else if (s.regionMatches(true, 0, "PROJECT:", 0, 8)) s = s.substring(8).trim();
+        else if (s.regionMatches(true, 0, "CODE:", 0, 5)) s = s.substring(5).trim();
 
-        if (s.regionMatches(true, 0, "SITE:", 0, 5)) {
-            s = s.substring(5).trim();
-        } else if (s.regionMatches(true, 0, "PROJECT:", 0, 8)) {
-            s = s.substring(8).trim();
-        } else if (s.regionMatches(true, 0, "CODE:", 0, 5)) {
-            s = s.substring(5).trim();
-        }
-
-        // If QR/display value contains "CODE • Name" or "CODE - Name", keep the code.
         String[] separators = new String[]{"•", "—", "|", " - "};
         for (String sep : separators) {
             int idx = s.indexOf(sep);
@@ -479,14 +716,9 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     private void hideKeyboard(View v) {
         try {
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null && v != null) {
-                imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
-            }
+            if (imm != null && v != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
         } catch (Exception ignored) {}
     }
-
-
-
 
     private void deleteSelected(Set<String> uuids) {
         for (String uuid : uuids) {
@@ -499,10 +731,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         if (actionMode != null) actionMode.finish();
         loadImages();
     }
-
-    // ============================================================
-    // Pinch-to-zoom grid
-    // ============================================================
 
     private void setupPinchToZoom() {
         scaleDetector = new ScaleGestureDetector(this,
@@ -533,17 +761,14 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         if (clamped == spanCount) return;
 
         spanCount = clamped;
-
         if (gridLayoutManager != null) {
             gridLayoutManager.setSpanCount(spanCount);
             gridLayoutManager.setInitialPrefetchItemCount(spanCount * 3);
         }
 
         if (gridDecoration != null) rv.removeItemDecoration(gridDecoration);
-        int spacingPx = dp(4);
-        gridDecoration = new GridSpacingItemDecoration(spanCount, spacingPx, true);
+        gridDecoration = new GridSpacingItemDecoration(spanCount, dp(4), true);
         rv.addItemDecoration(gridDecoration);
-
         rv.invalidateItemDecorations();
 
         if (adapter != null) adapter.updateSpanCount(spanCount);
@@ -585,11 +810,9 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (position == RecyclerView.NO_POSITION) return;
 
             int column = position % spanCount;
-
             if (includeEdge) {
                 outRect.left = spacing - column * spacing / spanCount;
                 outRect.right = (column + 1) * spacing / spanCount;
-
                 if (position < spanCount) outRect.top = spacing;
                 outRect.bottom = spacing;
             } else {

@@ -1,7 +1,5 @@
 package ph.gov.geocamera.presentation.gallery;
 
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -10,12 +8,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -27,12 +20,9 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
-
-import com.google.android.material.navigation.NavigationView;
-
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -42,20 +32,22 @@ import androidx.work.WorkManager;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.integration.recyclerview.RecyclerViewPreloader;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.textfield.TextInputEditText;
 
+import android.text.Editable;
+import android.text.TextWatcher;
+
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import ph.gov.geocamera.R;
+import ph.gov.geocamera.data.export.PhotoExportManager;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
-import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
-import ph.gov.geocamera.data.sync.ProjectSyncScheduler;
+import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.home.HomeActivity;
 import ph.gov.geocamera.presentation.library.LibraryActivity;
 import ph.gov.geocamera.presentation.settings.SettingsActivity;
@@ -63,48 +55,45 @@ import ph.gov.geocamera.presentation.settings.SettingsActivity;
 public class GalleryActivity extends AppCompatActivity implements GalleryAdapter.Callback {
 
     private MaterialToolbar toolbar;
-
-    // panels
     private View cardSearch;
     private View cardFilter;
-
     private Spinner spYear;
     private RecyclerView rvGallery;
     private TextInputEditText etSearchSite;
-
     private DrawerLayout drawerLayout;
     private NavigationView navView;
-
     private TextView tvFilterHint;
     private TextView tvNetworkStatus;
-
     private SwipeRefreshLayout swipeRefresh;
-
     private View syncStatusRow;
     private ProgressBar pbSync;
     private TextView tvSyncProgress;
 
     private boolean toastShownRunning = false;
-
     private ImageMetaRepository imageRepo;
     private GalleryAdapter adapter;
-
     private String selectedYear = "ALL";
     private String searchText = "";
-
     private int selectedCount = 0;
 
-    // connectivity
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
     private boolean hasInternet = false;
-
-    // ui toggles
     private boolean searchOpen = false;
     private boolean filterOpen = false;
-
-    // sync state
     private boolean isSyncing = false;
+
+    private static final int REQ_WRITE_STORAGE = 2001;
+
+    private static final class ExportItem {
+        final File source;
+        final String subPath;
+
+        ExportItem(File source, String subPath) {
+            this.source = source;
+            this.subPath = subPath;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,7 +102,6 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
         drawerLayout = findViewById(R.id.drawerLayout);
         navView = findViewById(R.id.navView);
-
         toolbar = findViewById(R.id.toolbar);
         if (toolbar == null) {
             throw new IllegalStateException("Toolbar not found. Check activity_gallery.xml for @+id/toolbar");
@@ -121,23 +109,18 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
         cardSearch = findViewById(R.id.cardSearch);
         cardFilter = findViewById(R.id.cardFilter);
-
         spYear = findViewById(R.id.spYear);
         rvGallery = findViewById(R.id.rvGallery);
         etSearchSite = findViewById(R.id.etSearchSite);
-
         tvFilterHint = findViewById(R.id.tvFilterHint);
         tvNetworkStatus = findViewById(R.id.tvNetworkStatus);
-
         swipeRefresh = findViewById(R.id.swipeRefresh);
-
         syncStatusRow = findViewById(R.id.syncStatusRow);
         pbSync = findViewById(R.id.pbSync);
         tvSyncProgress = findViewById(R.id.tvSyncProgress);
 
         imageRepo = new ImageMetaRepository(this);
 
-        // Drawer icon
         toolbar.setNavigationIcon(R.drawable.ic_menu_24);
         toolbar.setNavigationIconTint(getColor(android.R.color.white));
         toolbar.setNavigationOnClickListener(v -> {
@@ -176,50 +159,35 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             swipeRefresh.setOnRefreshListener(() -> {
                 if (adapter != null) adapter.clearSelection();
                 updateSelectionUi(0);
-
                 loadRoot();
-
                 swipeRefresh.postDelayed(() -> {
                     if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
                 }, 250);
             });
         }
 
-        // RecyclerView setup
         rvGallery.setLayoutManager(new LinearLayoutManager(this));
         rvGallery.setHasFixedSize(true);
         rvGallery.setItemAnimator(null);
         rvGallery.setClipToPadding(false);
-
         rvGallery.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
             public void getItemOffsets(Rect outRect, View view,
                                        RecyclerView parent,
                                        RecyclerView.State state) {
                 int position = parent.getChildAdapterPosition(view);
-
                 outRect.left = 0;
                 outRect.right = 0;
                 outRect.bottom = dp(10);
-
-                if (position == 0) {
-                    outRect.top = dp(14); // breathing space sa first card
-                } else {
-                    outRect.top = 0;
-                }
+                outRect.top = position == 0 ? dp(14) : 0;
             }
         });
 
         adapter = new GalleryAdapter(this, imageRepo);
         rvGallery.setAdapter(adapter);
 
-        RecyclerViewPreloader<File> preloader =
-                new RecyclerViewPreloader<>(
-                        Glide.with(this),
-                        adapter,
-                        adapter.getPreloadSizeProvider(),
-                        12
-                );
+        RecyclerViewPreloader<File> preloader = new RecyclerViewPreloader<>(
+                Glide.with(this), adapter, adapter.getPreloadSizeProvider(), 12);
         rvGallery.addOnScrollListener(preloader);
 
         registerConnectivityWatcher();
@@ -228,10 +196,8 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             etSearchSite.addTextChangedListener(new TextWatcher() {
                 @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
                 @Override public void afterTextChanged(Editable s) {}
-
-                @Override
-                public void onTextChanged(CharSequence s, int start, int before, int count) {
-                    searchText = (s == null) ? "" : s.toString();
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    searchText = s == null ? "" : s.toString();
                     if (adapter != null) adapter.clearSelection();
                     loadRoot();
                 }
@@ -239,11 +205,9 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         }
 
         observeUploadWork();
-
         loadFilters();
         loadRoot();
         updateSelectionUi(0);
-
         setPanelVisible(cardSearch, false);
         setPanelVisible(cardFilter, false);
     }
@@ -254,8 +218,6 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         loadRoot();
         applyConnectivityUi(isOnline());
         updateMenuState();
-
-        // Seamless project sync so beneficiary/code data refreshes automatically
         syncProjectsInBackgroundThenReloadGallery(false);
     }
 
@@ -265,10 +227,6 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         unregisterConnectivityWatcher();
     }
 
-
-    // ============================================================
-    // BACKGROUND PROJECT SYNC
-    // ============================================================
     private void syncProjectsInBackgroundThenReloadGallery(boolean force) {
         ProjectBackgroundSync.syncIfNeeded(getApplicationContext(), force, updated -> {
             runOnUiThread(() -> {
@@ -280,12 +238,8 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         });
     }
 
-    // ============================================================
-    // Toolbar menu handling
-    // ============================================================
     private boolean onToolbarMenuClick(MenuItem item) {
         int id = item.getItemId();
-
         if (id == R.id.action_home) {
             Intent h = new Intent(this, HomeActivity.class);
             h.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -297,22 +251,18 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             toggleSearchPanel();
             return true;
         }
-
         if (id == R.id.action_filter) {
             toggleFilterPanel();
             return true;
         }
-
         if (id == R.id.action_export) {
             exportSelectedSitesToGallery();
             return true;
         }
-
         if (id == R.id.action_sync_all) {
             startSyncAll();
             return true;
         }
-
         return false;
     }
 
@@ -321,9 +271,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             filterOpen = false;
             hideDrop(cardFilter);
         }
-
         searchOpen = !searchOpen;
-
         if (searchOpen) {
             showDrop(cardSearch);
             if (etSearchSite != null) etSearchSite.requestFocus();
@@ -337,21 +285,18 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             searchOpen = false;
             hideDrop(cardSearch);
         }
-
         filterOpen = !filterOpen;
         if (filterOpen) showDrop(cardFilter);
         else hideDrop(cardFilter);
     }
 
     private void setPanelVisible(View v, boolean visible) {
-        if (v == null) return;
-        v.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (v != null) v.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     private void updateMenuState() {
         Menu m = toolbar.getMenu();
         if (m == null) return;
-
         MenuItem export = m.findItem(R.id.action_export);
         MenuItem sync = m.findItem(R.id.action_sync_all);
 
@@ -359,7 +304,6 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             export.setEnabled(selectedCount > 0);
             export.setVisible(true);
         }
-
         if (sync != null) {
             sync.setEnabled(!isSyncing);
             sync.setVisible(true);
@@ -367,50 +311,26 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         }
     }
 
-    // ============================================================
-    // Sync UI helpers
-    // ============================================================
     private void setSyncUi(boolean syncing, String progressText) {
         if (!hasInternet) syncing = false;
-
         isSyncing = syncing;
         updateMenuState();
-
         if (swipeRefresh != null) swipeRefresh.setEnabled(!syncing);
-
         if (syncStatusRow != null) syncStatusRow.setVisibility(syncing ? View.VISIBLE : View.GONE);
         if (pbSync != null) pbSync.setVisibility(syncing ? View.VISIBLE : View.GONE);
-
-        if (tvSyncProgress != null && progressText != null) {
-            tvSyncProgress.setText(progressText);
-        }
+        if (tvSyncProgress != null && progressText != null) tvSyncProgress.setText(progressText);
     }
 
-
-    /**
-     * countPendingForSync() intentionally excludes NO_PROJECT_FOUND to prevent infinite retries.
-     * This method lets the user manually retry those failed items when they tap Sync again.
-     */
     private int ensureRetryablePendingIfNeeded() {
         int pending = imageRepo.countPendingForSync();
-
-        if (pending > 0) {
-            return pending;
-        }
+        if (pending > 0) return pending;
 
         int noProjectFailed = imageRepo.countNoProjectFoundFailed();
-
         if (noProjectFailed > 0) {
             int reset = imageRepo.retryNoProjectFound();
             pending = imageRepo.countPendingForSync();
-
-            Toast.makeText(
-                    this,
-                    "Retrying " + reset + " failed item(s)...",
-                    Toast.LENGTH_SHORT
-            ).show();
+            Toast.makeText(this, "Retrying " + reset + " failed item(s)...", Toast.LENGTH_SHORT).show();
         }
-
         return pending;
     }
 
@@ -419,64 +339,47 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             Toast.makeText(this, "Sync already in progress.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (!hasInternet || !isOnline()) {
             hasInternet = false;
             applyConnectivityUi(false);
             Toast.makeText(this, "No internet connection. Sync unavailable.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
             Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         toastShownRunning = false;
         setSyncUi(true, "Sync: starting...");
         Toast.makeText(this, "Preparing sync...", Toast.LENGTH_SHORT).show();
         SyncScheduler.enqueueUploadNow(getApplicationContext());
     }
 
-    // ============================================================
-    // Connectivity
-    // ============================================================
     private boolean isOnline() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (cm == null) return false;
-
         Network network = cm.getActiveNetwork();
         if (network == null) return false;
-
         NetworkCapabilities caps = cm.getNetworkCapabilities(network);
         if (caps == null) return false;
-
-        boolean hasNet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        boolean validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
-
-        return hasNet && validated;
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 
     private void applyConnectivityUi(boolean online) {
         hasInternet = online;
-
         if (tvNetworkStatus != null) {
             tvNetworkStatus.setVisibility(online ? View.GONE : View.VISIBLE);
             if (!online) tvNetworkStatus.setText("No internet. Sync disabled.");
         }
-
-        if (!online) {
-            setSyncUi(false, null);
-        }
-
+        if (!online) setSyncUi(false, null);
         updateMenuState();
     }
 
     private void registerConnectivityWatcher() {
         connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (connectivityManager == null) return;
-
         applyConnectivityUi(isOnline());
 
         NetworkRequest req = new NetworkRequest.Builder()
@@ -484,37 +387,26 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
                 .build();
 
         networkCallback = new ConnectivityManager.NetworkCallback() {
-            @Override
-            public void onAvailable(Network network) {
+            @Override public void onAvailable(Network network) {
                 runOnUiThread(() -> applyConnectivityUi(isOnline()));
             }
-
-            @Override
-            public void onLost(Network network) {
+            @Override public void onLost(Network network) {
                 runOnUiThread(() -> applyConnectivityUi(false));
             }
-
-            @Override
-            public void onCapabilitiesChanged(Network network, NetworkCapabilities nc) {
+            @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities nc) {
                 runOnUiThread(() -> applyConnectivityUi(isOnline()));
             }
         };
-
         connectivityManager.registerNetworkCallback(req, networkCallback);
     }
 
     private void unregisterConnectivityWatcher() {
         if (connectivityManager != null && networkCallback != null) {
-            try {
-                connectivityManager.unregisterNetworkCallback(networkCallback);
-            } catch (Exception ignored) {
-            }
+            try { connectivityManager.unregisterNetworkCallback(networkCallback); }
+            catch (Exception ignored) {}
         }
     }
 
-    // ============================================================
-    // WorkManager Observer
-    // ============================================================
     private void observeUploadWork() {
         WorkManager.getInstance(this)
                 .getWorkInfosForUniqueWorkLiveData(SyncScheduler.UNIQUE_UPLOAD_WORK)
@@ -526,89 +418,62 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
                     WorkInfo info = infos.get(0);
                     WorkInfo.State state = info.getState();
-
                     if (!hasInternet) {
                         setSyncUi(false, null);
                         return;
                     }
 
-                    boolean runningOrQueued =
-                            (state == WorkInfo.State.RUNNING
-                                    || state == WorkInfo.State.ENQUEUED
-                                    || state == WorkInfo.State.BLOCKED);
+                    boolean runningOrQueued = state == WorkInfo.State.RUNNING
+                            || state == WorkInfo.State.ENQUEUED
+                            || state == WorkInfo.State.BLOCKED;
 
                     if (runningOrQueued) {
                         int done = info.getProgress().getInt("DONE", 0);
                         int total = info.getProgress().getInt("TOTAL", 0);
                         String site = info.getProgress().getString("SITE");
-
-                        String label = (total > 0)
-                                ? ("Sync: " + done + "/" + total)
-                                : "Sync: working...";
-
-                        if (site != null && !site.trim().isEmpty()) {
-                            label += " • " + site.trim();
-                        }
-
+                        String label = total > 0 ? "Sync: " + done + "/" + total : "Sync: working...";
+                        if (site != null && !site.trim().isEmpty()) label += " • " + site.trim();
                         setSyncUi(true, label);
 
                         if (state == WorkInfo.State.RUNNING && !toastShownRunning) {
                             toastShownRunning = true;
                             Toast.makeText(this, "Sync started", Toast.LENGTH_SHORT).show();
                         }
-
                     } else if (state == WorkInfo.State.SUCCEEDED) {
                         setSyncUi(false, null);
-
                         int noProjectCount = imageRepo.countNoProjectFoundFailed();
-
                         if (noProjectCount > 0) {
-                            Toast.makeText(
-                                    this,
+                            Toast.makeText(this,
                                     noProjectCount + " item(s) failed: No project found for the site ID.",
-                                    Toast.LENGTH_LONG
-                            ).show();
+                                    Toast.LENGTH_LONG).show();
                         } else {
                             Toast.makeText(this, "Sync complete", Toast.LENGTH_SHORT).show();
                         }
-
                         loadRoot();
-
                     } else if (state == WorkInfo.State.FAILED) {
                         setSyncUi(false, null);
-
                         int noProjectCount = imageRepo.countNoProjectFoundFailed();
-
                         if (noProjectCount > 0) {
-                            Toast.makeText(
-                                    this,
+                            Toast.makeText(this,
                                     noProjectCount + " item(s) failed: No project found for the site ID.",
-                                    Toast.LENGTH_LONG
-                            ).show();
+                                    Toast.LENGTH_LONG).show();
                         } else {
                             Toast.makeText(this, "Sync failed", Toast.LENGTH_LONG).show();
                         }
-
                         loadRoot();
-
                     } else if (state == WorkInfo.State.CANCELLED) {
                         setSyncUi(false, null);
                         Toast.makeText(this, "Sync cancelled", Toast.LENGTH_SHORT).show();
                         loadRoot();
-
                     } else {
                         setSyncUi(false, null);
                     }
                 });
     }
 
-    // ============================================================
-    // Filters / loading
-    // ============================================================
     private void loadFilters() {
         List<String> years = new ArrayList<>();
         years.add("ALL");
-
         Cursor yc = imageRepo.getDistinctYears();
         try {
             while (yc.moveToNext()) {
@@ -631,27 +496,21 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         adapter.loadSites("ALL", selectedYear, searchText);
     }
 
-    // ============================================================
-    // GalleryAdapter.Callback
-    // ============================================================
     @Override
     public void onSyncSiteClicked(String siteId, String year, boolean alreadySynced) {
         if (!hasInternet) {
             Toast.makeText(this, "No internet connection.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (alreadySynced) {
             Toast.makeText(this, "Already synced.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
             Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         toastShownRunning = false;
         setSyncUi(true, "Sync: starting... • " + siteId);
         SyncScheduler.enqueueUploadNow(getApplicationContext());
@@ -668,22 +527,18 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             Toast.makeText(this, "No sites selected.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (!hasInternet) {
             Toast.makeText(this, "No internet connection.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
             Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         toastShownRunning = false;
         setSyncUi(true, "Sync: starting... (" + siteIds.size() + " site(s))");
         SyncScheduler.enqueueUploadNow(getApplicationContext());
-
         adapter.clearSelection();
     }
 
@@ -692,24 +547,18 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         return selectedYear;
     }
 
-    // ============================================================
-    // EXPORT
-    // ============================================================
     private void exportSelectedSitesToGallery() {
-        if (android.os.Build.VERSION.SDK_INT <= 28) {
-            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-
-                requestPermissions(
-                        new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                        2001
-                );
-
-                Toast.makeText(this,
-                        "Storage permission required. Please allow and retry.",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
+        if (android.os.Build.VERSION.SDK_INT <= 28 &&
+                checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQ_WRITE_STORAGE
+            );
+            Toast.makeText(this,
+                    "Storage permission required. Please allow and retry.",
+                    Toast.LENGTH_LONG).show();
+            return;
         }
 
         List<String> siteIds = adapter.getSelectedSiteIds();
@@ -718,142 +567,96 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
             return;
         }
 
-        Cursor c = null;
-        int exported = 0, missing = 0, failed = 0;
-        String firstErrorMessage = null;
+        List<ExportItem> pending = new ArrayList<>();
+        int found = 0;
+        int alreadySaved = 0;
+        int missing = 0;
 
+        Cursor c = null;
         try {
             c = imageRepo.getImagesForExportBySites(siteIds, "ALL", selectedYear);
-
             while (c.moveToNext()) {
+                found++;
                 String filename = c.getString(3);
                 String motherfolder = c.getString(4);
-                String siteid = c.getString(2);
-                String sessiondate = c.getString(5);
+                String siteId = c.getString(2);
+                String sessionDate = c.getString(5);
                 String description = c.getString(6);
 
-                File src = new File(filename);
+                File src = new File(filename == null ? "" : filename);
                 if (!src.exists()) {
                     missing++;
                     continue;
                 }
 
-                try {
-                    exportOneToGallery(src, motherfolder, siteid, sessiondate, description);
-                    exported++;
-                } catch (Exception ex) {
-                    failed++;
-                    if (firstErrorMessage == null) {
-                        firstErrorMessage = ex.getMessage();
-                        if (firstErrorMessage == null) firstErrorMessage = ex.toString();
-                    }
+                if (PhotoExportManager.findExistingInGallery(this, src) != null) {
+                    alreadySaved++;
+                    continue;
                 }
+
+                String subPath = safeFolder(motherfolder == null ? "PROJECT_YYYY" : motherfolder)
+                        + "/" + safeFolder(siteId == null ? "UNCAT" : siteId)
+                        + "/" + safeFolder(sessionDate == null ? "UNKNOWN_DATE" : sessionDate)
+                        + "/" + safeFolder(description == null ? "GENERAL" : description);
+                pending.add(new ExportItem(src, subPath));
             }
-
-            if (failed > 0 && firstErrorMessage != null) {
-                Toast.makeText(this,
-                        "Export error: " + firstErrorMessage,
-                        Toast.LENGTH_LONG).show();
-            } else {
-                Toast.makeText(this,
-                        "Exported: " + exported +
-                                (missing > 0 ? " | Missing: " + missing : ""),
-                        Toast.LENGTH_LONG).show();
-            }
-
-            adapter.clearSelection();
-
         } catch (Exception e) {
-            Toast.makeText(this,
-                    "Export failed: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Export scan failed: " + e.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
+            return;
         } finally {
             if (c != null) c.close();
         }
+
+        final int totalFound = found;
+        final int totalExisting = alreadySaved;
+        final int totalMissing = missing;
+
+        if (pending.isEmpty()) {
+            Toast.makeText(this,
+                    "No new photos to export. Already saved: " + totalExisting
+                            + (totalMissing > 0 ? " | Missing: " + totalMissing : ""),
+                    Toast.LENGTH_LONG).show();
+            adapter.clearSelection();
+            return;
+        }
+
+        String message = totalFound + " photo(s) found\n"
+                + totalExisting + " already saved\n"
+                + pending.size() + " new photo(s)\n"
+                + (totalMissing > 0 ? totalMissing + " missing local file(s)\n" : "")
+                + "\nOnly new photos will be copied.";
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Export Selected Sites")
+                .setMessage(message)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Export " + pending.size(), (d, w) -> runBatchExport(pending, totalExisting, totalMissing))
+                .show();
     }
 
-    private Uri exportOneToGallery(File sourceFile,
-                                   String motherfolder,
-                                   String siteId,
-                                   String sessionDate,
-                                   String description) throws Exception {
+    private void runBatchExport(List<ExportItem> items, int alreadySavedBefore, int missingBefore) {
+        int saved = 0;
+        int skipped = alreadySavedBefore;
+        int failed = 0;
 
-        String safeMother = safeFolder(motherfolder == null ? "PROJECT_YYYY" : motherfolder);
-        String safeSite = safeFolder(siteId == null ? "UNCAT" : siteId);
-        String safeDate = safeFolder(sessionDate == null ? "UNKNOWN_DATE" : sessionDate);
-        String safeDesc = safeFolder(description == null ? "GENERAL" : description);
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-
-            String relativePath = Environment.DIRECTORY_PICTURES
-                    + "/GeoCamera/"
-                    + safeMother + "/"
-                    + safeSite + "/"
-                    + safeDate + "/"
-                    + safeDesc + "/";
-
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Images.Media.DISPLAY_NAME, sourceFile.getName());
-            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-            values.put(MediaStore.Images.Media.RELATIVE_PATH, relativePath);
-            values.put(MediaStore.Images.Media.IS_PENDING, 1);
-
-            ContentResolver resolver = getContentResolver();
-            Uri uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-            if (uri == null) throw new IllegalStateException("MediaStore insert failed.");
-
-            try (InputStream in = new FileInputStream(sourceFile);
-                 OutputStream out = resolver.openOutputStream(uri)) {
-
-                if (out == null) throw new IllegalStateException("OpenOutputStream failed.");
-
-                byte[] buf = new byte[8192];
-                int len;
-                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-                out.flush();
+        for (ExportItem item : items) {
+            try {
+                PhotoExportManager.SaveResult result =
+                        PhotoExportManager.saveToDevice(this, item.source, item.subPath);
+                if (result.alreadySaved) skipped++;
+                else saved++;
             } catch (Exception e) {
-                try {
-                    resolver.delete(uri, null, null);
-                } catch (Exception ignored) {
-                }
-                throw e;
+                failed++;
             }
-
-            ContentValues done = new ContentValues();
-            done.put(MediaStore.Images.Media.IS_PENDING, 0);
-            resolver.update(uri, done, null, null);
-
-            return uri;
         }
 
-        File pictures = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-
-        File destDir = new File(pictures,
-                "GeoCamera/" + safeMother + "/" + safeSite + "/" + safeDate + "/" + safeDesc);
-
-        if (!destDir.exists() && !destDir.mkdirs()) {
-            throw new IllegalStateException("Failed to create folder: " + destDir.getAbsolutePath());
-        }
-
-        File destFile = new File(destDir, sourceFile.getName());
-
-        try (InputStream in = new FileInputStream(sourceFile);
-             OutputStream out = new java.io.FileOutputStream(destFile)) {
-
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-            out.flush();
-        }
-
-        android.media.MediaScannerConnection.scanFile(
-                this,
-                new String[]{destFile.getAbsolutePath()},
-                new String[]{"image/jpeg"},
-                null
-        );
-
-        return Uri.fromFile(destFile);
+        Toast.makeText(this,
+                "Saved: " + saved
+                        + " | Already saved: " + skipped
+                        + (missingBefore > 0 ? " | Missing: " + missingBefore : "")
+                        + (failed > 0 ? " | Failed: " + failed : ""),
+                Toast.LENGTH_LONG).show();
+        adapter.clearSelection();
     }
 
     private String safeFolder(String input) {
@@ -868,14 +671,12 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
     private void showDrop(View v) {
         if (v == null) return;
-
         v.animate().cancel();
         v.setVisibility(View.VISIBLE);
         v.setAlpha(0f);
         v.setTranslationY(-dp(10));
         v.setScaleX(0.985f);
         v.setScaleY(0.985f);
-
         v.animate()
                 .alpha(1f)
                 .translationY(0f)
@@ -888,9 +689,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
     private void hideDrop(View v) {
         if (v == null) return;
-
         v.animate().cancel();
-
         v.animate()
                 .alpha(0f)
                 .translationY(-dp(8))
@@ -910,19 +709,15 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
     private void updateSelectionUi(int count) {
         selectedCount = count;
-
         boolean hasSelection = count > 0;
-
         if (tvFilterHint != null) {
             tvFilterHint.setText(hasSelection
-                    ? "Selected sites: " + count + " (Export enabled)"
-                    : "Long-press to select sites. Export uses selected sites.");
+                    ? "Selected sites: " + count + " • Export available in More"
+                    : "Long-press a site to select it for optional batch export.");
         }
-
         if (tvNetworkStatus != null) {
             tvNetworkStatus.setVisibility(hasInternet ? View.GONE : View.VISIBLE);
         }
-
         updateMenuState();
     }
 

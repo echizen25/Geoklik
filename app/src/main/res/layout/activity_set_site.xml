@@ -40,7 +40,7 @@
                         android:id="@+id/tvTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Change Site"
+                        android:text="Select Project"
                         android:textStyle="bold"
                         android:textSize="18sp"
                         android:textColor="#0B5A3C" />
@@ -50,7 +50,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="Scan or type a Site ID from your synced local database."
+                        android:text="Choose a project already used on this device, or type/scan a project code."
                         android:textSize="13sp"
                         android:textColor="#5B5B5B" />
                 </LinearLayout>
@@ -81,10 +81,10 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilSite"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Type or scan Site ID"
+                android:hint="Project code or title"
                 app:boxCornerRadiusTopStart="14dp"
                 app:boxCornerRadiusTopEnd="14dp"
                 app:boxCornerRadiusBottomStart="14dp"
@@ -111,7 +111,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="QR usually contains the raw Site ID. Labels are only for display."
+                android:text="Suggestions come only from projects with photos already saved in this app. New codes can be verified by the server during sync."
                 android:textSize="12sp"
                 android:textColor="#7A7A7A" />
 
@@ -120,7 +120,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Use Selected Site"
+                android:text="Use Project"
                 android:textColor="@android:color/white"
                 app:backgroundTint="#0B5A3C"
                 app:cornerRadius="14dp"
@@ -156,7 +156,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="UNCATEGORIZED"
+                    android:text="My Photos"
                     android:textColor="#0B5A3C"
                     app:backgroundTint="#E6E9E7"
                     app:cornerRadius="14dp"
