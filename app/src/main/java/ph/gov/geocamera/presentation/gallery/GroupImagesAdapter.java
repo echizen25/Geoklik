@@ -18,8 +18,8 @@ import com.google.android.material.imageview.ShapeableImageView;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +39,7 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         public String filename;
         public String timestamp;
         public int status;
+        public boolean savedToDevice;
     }
 
     private final Context context;
@@ -55,8 +56,7 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
     public GroupImagesAdapter(Context ctx, Callback cb, String groupId, int spanCount) {
         context = ctx;
         callback = cb;
-        this.groupId = (groupId == null) ? "" : groupId.trim();
-
+        this.groupId = groupId == null ? "" : groupId.trim();
         setHasStableIds(true);
         recomputeThumbSize(spanCount);
     }
@@ -76,14 +76,13 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
 
         selectedUuids.retainAll(uuidToPath.keySet());
         notifyDataSetChanged();
-
         if (callback != null) callback.onSelectionCountChanged(selectedUuids.size());
     }
 
     @Override
     public long getItemId(int position) {
         String u = items.get(position).uuid;
-        return (u == null) ? position : u.hashCode();
+        return u == null ? position : u.hashCode();
     }
 
     @NonNull
@@ -113,29 +112,15 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
             h.img.setImageResource(android.R.drawable.ic_menu_gallery);
         }
 
-        if (it.status == 1) {
-            h.tvBadge.setText("SYNCED");
-            h.tvBadge.setBackgroundResource(R.drawable.bg_badge_synced);
-        } else if (it.status == 2) {
-            h.tvBadge.setText("FAILED");
-            h.tvBadge.setBackgroundResource(R.drawable.bg_badge_pending);
-        } else if (it.status == 3) {
-            h.tvBadge.setText("UPLOADING");
-            h.tvBadge.setBackgroundResource(R.drawable.bg_badge_pending);
-        } else {
-            h.tvBadge.setText("PENDING");
-            h.tvBadge.setBackgroundResource(R.drawable.bg_badge_pending);
-        }
-        h.tvBadge.setVisibility(View.VISIBLE);
-
-        h.tvFileName.setText(shortNameFromPath(it.filename));
+        bindStatusBadge(h.tvBadge, it.status);
+        h.tvSaved.setVisibility(it.savedToDevice ? View.VISIBLE : View.GONE);
 
         boolean isSelected = it.uuid != null && selectedUuids.contains(it.uuid);
         h.selectionOverlay.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+        h.card.setStrokeWidth(dp(isSelected ? 2 : 1));
 
         View.OnClickListener click = v -> {
             if (it.uuid == null) return;
-
             if (selectionMode) {
                 toggleSelection(it.uuid);
             } else if (callback != null) {
@@ -153,6 +138,23 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         h.card.setOnLongClickListener(longClick);
         h.img.setOnClickListener(click);
         h.img.setOnLongClickListener(longClick);
+    }
+
+    private void bindStatusBadge(TextView badge, int status) {
+        if (status == 1) {
+            badge.setText("SYNCED");
+            badge.setBackgroundResource(R.drawable.bg_gallery_badge_synced);
+        } else if (status == 2) {
+            badge.setText("FAILED");
+            badge.setBackgroundResource(R.drawable.bg_gallery_badge_failed);
+        } else if (status == 3) {
+            badge.setText("UPLOADING");
+            badge.setBackgroundResource(R.drawable.bg_gallery_badge_uploading);
+        } else {
+            badge.setText("PENDING");
+            badge.setBackgroundResource(R.drawable.bg_gallery_badge_pending);
+        }
+        badge.setVisibility(View.VISIBLE);
     }
 
     public void updateSpanCount(int spanCount) {
@@ -191,10 +193,8 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
 
     public void toggleSelection(String uuid) {
         if (uuid == null) return;
-
         if (selectedUuids.contains(uuid)) selectedUuids.remove(uuid);
         else selectedUuids.add(uuid);
-
         if (callback != null) callback.onSelectionCountChanged(selectedUuids.size());
         notifyDataSetChanged();
     }
@@ -226,17 +226,6 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         return uuidToPath.get(uuid);
     }
 
-    private String shortNameFromPath(String path) {
-        if (path == null) return "";
-        try {
-            int idx = path.lastIndexOf(File.separator);
-            if (idx >= 0 && idx < path.length() - 1) return path.substring(idx + 1);
-            return path;
-        } catch (Exception e) {
-            return path;
-        }
-    }
-
     private int dp(int v) {
         return Math.round(TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP, v, context.getResources().getDisplayMetrics()
@@ -246,15 +235,15 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
     static class VH extends RecyclerView.ViewHolder {
         MaterialCardView card;
         ShapeableImageView img;
-        TextView tvFileName, tvBadge;
+        TextView tvBadge, tvSaved;
         View selectionOverlay;
 
         VH(@NonNull View itemView) {
             super(itemView);
             card = itemView.findViewById(R.id.card);
             img = itemView.findViewById(R.id.imgThumb);
-            tvFileName = itemView.findViewById(R.id.tvFileName);
             tvBadge = itemView.findViewById(R.id.tvBadge);
+            tvSaved = itemView.findViewById(R.id.tvSaved);
             selectionOverlay = itemView.findViewById(R.id.viewSelectionOverlay);
         }
     }
