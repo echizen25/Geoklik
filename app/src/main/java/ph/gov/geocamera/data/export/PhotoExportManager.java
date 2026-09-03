@@ -163,24 +163,25 @@ public final class PhotoExportManager {
         ArrayList<Uri> uris = new ArrayList<>();
         for (File file : sourceFiles) {
             if (file == null || !file.exists()) continue;
-            Uri uri = FileProvider.getUriForFile(
+            uris.add(FileProvider.getUriForFile(
                     context,
                     context.getPackageName() + ".fileprovider",
                     file
-            );
-            uris.add(uri);
+            ));
         }
 
         if (uris.isEmpty()) throw new IllegalArgumentException("Selected photos are missing.");
 
+        Intent send;
         if (uris.size() == 1) {
-            sharePhoto(context, sourceFiles.get(0), chooserTitle);
-            return;
+            send = new Intent(Intent.ACTION_SEND);
+            send.setType("image/*");
+            send.putExtra(Intent.EXTRA_STREAM, uris.get(0));
+        } else {
+            send = new Intent(Intent.ACTION_SEND_MULTIPLE);
+            send.setType("image/*");
+            send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
         }
-
-        Intent send = new Intent(Intent.ACTION_SEND_MULTIPLE);
-        send.setType("image/*");
-        send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
         context.startActivity(Intent.createChooser(
