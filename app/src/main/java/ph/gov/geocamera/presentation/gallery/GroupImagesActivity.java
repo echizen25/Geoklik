@@ -13,6 +13,7 @@ import android.view.MenuItem;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -32,6 +33,7 @@ import com.journeyapps.barcodescanner.ScanOptions;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -53,18 +55,25 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     private com.google.android.material.appbar.MaterialToolbar toolbar;
     private RecyclerView rv;
+    private View emptyState;
+    private TextView tvEmptyTitle;
+    private TextView tvEmptySubtitle;
 
     private ImageMetaRepository imageRepo;
     private GroupRepository groupRepo;
     private GroupImagesAdapter adapter;
+
+    private final List<GroupImagesAdapter.ImageItem> allImages = new ArrayList<>();
 
     private String groupId;
     private String siteId;
     private String sessionDate;
     private String description;
 
-    private ActionMode actionMode;
+    private int statusFilter = 0;
+    private int sortMode = 0;
 
+    private ActionMode actionMode;
     private ActivityResultLauncher<ScanOptions> changeSiteQrLauncher;
     private MaterialAutoCompleteTextView activeChangeSiteInput;
 
@@ -89,6 +98,9 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
         toolbar = findViewById(R.id.toolbar);
         rv = findViewById(R.id.rvImages);
+        emptyState = findViewById(R.id.emptyState);
+        tvEmptyTitle = findViewById(R.id.tvEmptyTitle);
+        tvEmptySubtitle = findViewById(R.id.tvEmptySubtitle);
 
         Intent i = getIntent();
         groupId = i != null ? i.getStringExtra(EXTRA_GROUP_ID) : null;
@@ -111,6 +123,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             else finish();
         });
         toolbar.setTitle(!safe(description).isEmpty() ? safe(description) : "Images");
+        toolbar.setOnMenuItemClickListener(this::onToolbarMenuItemClick);
 
         rv.setHasFixedSize(true);
         rv.setItemViewCacheSize(24);
@@ -121,8 +134,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         gridLayoutManager.setInitialPrefetchItemCount(spanCount * 3);
         rv.setLayoutManager(gridLayoutManager);
 
-        int spacingPx = dp(4);
-        gridDecoration = new GridSpacingItemDecoration(spanCount, spacingPx, true);
+        gridDecoration = new GridSpacingItemDecoration(spanCount, dp(4), true);
         rv.addItemDecoration(gridDecoration);
 
         adapter = new GroupImagesAdapter(this, this, groupId, spanCount);
@@ -141,8 +153,55 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         loadImages();
     }
 
+    private boolean onToolbarMenuItemClick(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_filter_status) {
+            showStatusFilterDialog();
+            return true;
+        }
+        if (id == R.id.action_sort_photos) {
+            showSortDialog();
+            return true;
+        }
+        return false;
+    }
+
+    private void showStatusFilterDialog() {
+        String[] options = new String[]{
+                "All photos", "Pending", "Synced", "Failed", "Uploading", "Saved to device"
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Filter photos")
+                .setSingleChoiceItems(options, statusFilter, (dialog, which) -> {
+                    statusFilter = which;
+                    dialog.dismiss();
+                    if (actionMode != null) actionMode.finish();
+                    applyFilterAndSort();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showSortDialog() {
+        String[] options = new String[]{
+                "Newest first", "Oldest first", "Pending first", "Failed first"
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Sort photos")
+                .setSingleChoiceItems(options, sortMode, (dialog, which) -> {
+                    sortMode = which;
+                    dialog.dismiss();
+                    if (actionMode != null) actionMode.finish();
+                    applyFilterAndSort();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void loadImages() {
-        List<GroupImagesAdapter.ImageItem> out = new ArrayList<>();
+        allImages.clear();
         Cursor c = null;
         try {
             c = imageRepo.getImagesForGroup(groupId);
@@ -152,14 +211,74 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 it.filename = c.getString(1);
                 it.timestamp = c.getString(2);
                 it.status = c.getInt(3);
-                out.add(it);
+
+                if (it.filename != null && !it.filename.trim().isEmpty()) {
+                    File f = new File(it.filename);
+                    if (f.exists()) {
+                        it.savedToDevice = PhotoExportManager.findExistingInGallery(this, f) != null;
+                    }
+                }
+                allImages.add(it);
             }
         } finally {
             if (c != null) c.close();
         }
 
-        adapter.submit(out);
+        applyFilterAndSort();
         if (actionMode != null) onSelectionCountChanged(adapter.getSelectedCount());
+    }
+
+    private void applyFilterAndSort() {
+        List<GroupImagesAdapter.ImageItem> visible = new ArrayList<>();
+
+        for (GroupImagesAdapter.ImageItem it : allImages) {
+            if (matchesStatusFilter(it)) visible.add(it);
+        }
+
+        Comparator<GroupImagesAdapter.ImageItem> newest =
+                (a, b) -> safe(b.timestamp).compareTo(safe(a.timestamp));
+        Comparator<GroupImagesAdapter.ImageItem> oldest =
+                (a, b) -> safe(a.timestamp).compareTo(safe(b.timestamp));
+
+        if (sortMode == 1) {
+            visible.sort(oldest);
+        } else if (sortMode == 2) {
+            visible.sort(Comparator
+                    .comparingInt((GroupImagesAdapter.ImageItem it) -> it.status == 0 ? 0 : 1)
+                    .thenComparing(newest));
+        } else if (sortMode == 3) {
+            visible.sort(Comparator
+                    .comparingInt((GroupImagesAdapter.ImageItem it) -> it.status == 2 ? 0 : 1)
+                    .thenComparing(newest));
+        } else {
+            visible.sort(newest);
+        }
+
+        adapter.submit(visible);
+        updateEmptyState(visible.isEmpty());
+    }
+
+    private boolean matchesStatusFilter(GroupImagesAdapter.ImageItem it) {
+        if (statusFilter == 1) return it.status == 0;
+        if (statusFilter == 2) return it.status == 1;
+        if (statusFilter == 3) return it.status == 2;
+        if (statusFilter == 4) return it.status == 3;
+        if (statusFilter == 5) return it.savedToDevice;
+        return true;
+    }
+
+    private void updateEmptyState(boolean empty) {
+        if (rv != null) rv.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (emptyState != null) emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
+        if (!empty) return;
+
+        if (allImages.isEmpty()) {
+            tvEmptyTitle.setText("No photos yet");
+            tvEmptySubtitle.setText("Captured photos for this inspection will appear here.");
+        } else {
+            tvEmptyTitle.setText("No matching photos");
+            tvEmptySubtitle.setText("Try another status filter to see more photos.");
+        }
     }
 
     @Override
@@ -280,7 +399,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 if (selected.isEmpty()) return true;
 
                 if (imageRepo.hasLockedPhotosForChangeSite(selected)) {
-                    Toast.makeText(thisActivity(),
+                    Toast.makeText(GroupImagesActivity.this,
                             "Only unsynced photos can be reassigned. Synced/uploading photos are locked.",
                             Toast.LENGTH_LONG).show();
                     return true;
@@ -294,7 +413,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 final Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 if (selected.isEmpty()) return true;
 
-                new AlertDialog.Builder(thisActivity())
+                new AlertDialog.Builder(GroupImagesActivity.this)
                         .setTitle("Delete photos?")
                         .setMessage("Delete " + selected.size() + " selected item(s)? This cannot be undone.")
                         .setNegativeButton("Cancel", null)
@@ -313,10 +432,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             adapter.setSelectionMode(false);
         }
     };
-
-    private GroupImagesActivity thisActivity() {
-        return GroupImagesActivity.this;
-    }
 
     private void saveSelectedToDevice() {
         Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
@@ -367,6 +482,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         if (missing > 0) msg += " • Missing: " + missing;
         if (failed > 0) msg += " • Failed: " + failed;
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+        loadImages();
     }
 
     private void shareSelectedPhotos() {
@@ -445,10 +561,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setView(view)
                 .create();
-
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
 
         btnClose.setOnClickListener(v -> dialog.dismiss());
         btnScanQr.setOnClickListener(v -> {
