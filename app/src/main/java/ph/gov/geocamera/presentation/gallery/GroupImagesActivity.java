@@ -36,7 +36,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.export.PhotoExportManager;
@@ -87,6 +90,10 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     private ScaleGestureDetector scaleDetector;
     private float scaleAccumulator = 1f;
+
+    // Saved-to-device checks are storage I/O. Keep them off the UI thread.
+    private final ExecutorService savedStateExecutor = Executors.newSingleThreadExecutor();
+    private int savedStateGeneration = 0;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -153,6 +160,13 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         loadImages();
     }
 
+    @Override
+    protected void onDestroy() {
+        savedStateGeneration++;
+        savedStateExecutor.shutdownNow();
+        super.onDestroy();
+    }
+
     private boolean onToolbarMenuItemClick(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_filter_status) {
@@ -200,8 +214,14 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 .show();
     }
 
+    /**
+     * Fast path: read SQLite + in-memory saved-state cache only, render immediately.
+     * The authoritative MediaStore/public Pictures check runs afterwards in one background task.
+     */
     private void loadImages() {
+        final int generation = ++savedStateGeneration;
         allImages.clear();
+
         Cursor c = null;
         try {
             c = imageRepo.getImagesForGroup(groupId);
@@ -214,9 +234,8 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
                 if (it.filename != null && !it.filename.trim().isEmpty()) {
                     File f = new File(it.filename);
-                    if (f.exists()) {
-                        it.savedToDevice = PhotoExportManager.findExistingInGallery(this, f) != null;
-                    }
+                    Boolean cached = PhotoExportManager.peekSavedState(f);
+                    it.savedToDevice = Boolean.TRUE.equals(cached);
                 }
                 allImages.add(it);
             }
@@ -226,6 +245,53 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
         applyFilterAndSort();
         if (actionMode != null) onSelectionCountChanged(adapter.getSelectedCount());
+
+        refreshSavedStateAsync(generation);
+    }
+
+    private void refreshSavedStateAsync(final int generation) {
+        final List<File> files = new ArrayList<>();
+        for (GroupImagesAdapter.ImageItem it : allImages) {
+            if (it.filename == null || it.filename.trim().isEmpty()) continue;
+            File f = new File(it.filename);
+            if (f.exists()) files.add(f);
+        }
+
+        if (files.isEmpty() || savedStateExecutor.isShutdown()) return;
+
+        final Context appContext = getApplicationContext();
+        savedStateExecutor.execute(() -> {
+            Map<String, Boolean> states = PhotoExportManager.refreshSavedStates(appContext, files);
+            if (Thread.currentThread().isInterrupted()) return;
+
+            runOnUiThread(() -> {
+                if (generation != savedStateGeneration || isFinishing() || isDestroyed()) return;
+
+                boolean changed = false;
+                for (GroupImagesAdapter.ImageItem it : allImages) {
+                    if (it.filename == null || it.filename.trim().isEmpty()) continue;
+                    File f = new File(it.filename);
+                    Boolean saved = states.get(cacheKey(f));
+                    if (saved == null) continue;
+                    boolean value = Boolean.TRUE.equals(saved);
+                    if (it.savedToDevice != value) {
+                        it.savedToDevice = value;
+                        changed = true;
+                    }
+                }
+
+                // Re-apply because the active filter may be "Saved to device".
+                if (changed || statusFilter == 5) applyFilterAndSort();
+            });
+        });
+    }
+
+    private String cacheKey(File file) {
+        try {
+            return file.getCanonicalPath();
+        } catch (Exception ignored) {
+            return file.getAbsolutePath();
+        }
     }
 
     private void applyFilterAndSort() {
