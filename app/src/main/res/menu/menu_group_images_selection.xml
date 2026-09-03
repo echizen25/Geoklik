@@ -3,13 +3,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_save_selected"
-        android:title="Save to Device"
-        app:showAsAction="never" />
+        android:id="@+id/action_share_selected"
+        android:icon="@drawable/ic_share_24"
+        android:title="Share Selected"
+        app:showAsAction="always" />
 
     <item
-        android:id="@+id/action_share_selected"
-        android:title="Share Selected"
+        android:id="@+id/action_save_selected"
+        android:title="Save to Device"
         app:showAsAction="never" />
 
     <item
