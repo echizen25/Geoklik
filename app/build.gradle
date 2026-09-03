@@ -2,6 +2,39 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+// Full offline province + city/municipality fallback data.
+// Source: Open Admin Data Philippines (CC BY 4.0)
+// https://github.com/open-admin-data/philippines-administrative-divisions
+// The generated file is packaged into the APK, so runtime lookup works offline.
+def phAdminAssetsDir = layout.buildDirectory.dir("generated/phAdminAssets")
+def phAdminDataUrl = "https://raw.githubusercontent.com/open-admin-data/philippines-administrative-divisions/main/data/all-flat.csv"
+
+tasks.register("preparePhAdminData") {
+    def outputDir = phAdminAssetsDir.get().asFile
+    def outputFile = new File(outputDir, "ph_admin_all_flat.csv")
+    outputs.file(outputFile)
+
+    doLast {
+        outputDir.mkdirs()
+        if (outputFile.exists() && outputFile.length() > 200000) return
+
+        try {
+            logger.lifecycle("GeoKlik: preparing offline Philippine province/city dataset...")
+            new URL(phAdminDataUrl).withInputStream { input ->
+                outputFile.withOutputStream { output -> output << input }
+            }
+
+            if (outputFile.length() < 200000) {
+                outputFile.delete()
+                logger.warn("GeoKlik: downloaded Philippine admin dataset was incomplete; compact fallback will be used.")
+            }
+        } catch (Exception ex) {
+            if (outputFile.exists()) outputFile.delete()
+            logger.warn("GeoKlik: unable to refresh full offline admin dataset (${ex.message}). Compact fallback remains available.")
+        }
+    }
+}
+
 android {
     namespace = "ph.gov.geocamera"
     compileSdk = 36
@@ -14,6 +47,12 @@ android {
         versionName = "2.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        main {
+            assets.srcDir(phAdminAssetsDir)
+        }
     }
 
     buildTypes {
@@ -31,6 +70,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("preparePhAdminData")
 }
 
 dependencies {
@@ -87,7 +130,7 @@ dependencies {
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 
-    //playstore
+    // Play Store
     implementation libs.app.update
     implementation libs.app.update.ktx
 }
