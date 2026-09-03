@@ -12,14 +12,12 @@
         android:clickable="true"
         android:focusable="true"
         android:foreground="?attr/selectableItemBackground"
-
         app:cardCornerRadius="0dp"
         app:cardUseCompatPadding="false"
         app:cardElevation="0dp"
         app:strokeWidth="0.5dp"
         app:strokeColor="#12000000"
         app:cardBackgroundColor="?attr/colorSurface"
-
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -28,7 +26,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <!-- ✅ Thumbnail area (perfect square) -->
             <FrameLayout
                 android:id="@+id/thumbFrame"
                 android:layout_width="0dp"
@@ -45,7 +42,6 @@
                     android:scaleType="centerCrop"
                     android:contentDescription="@string/app_name" />
 
-                <!-- subtle bottom gradient (ok for readability) -->
                 <View
                     android:id="@+id/viewBottomShade"
                     android:layout_width="match_parent"
@@ -53,7 +49,6 @@
                     android:background="@drawable/bg_bottom_fade"
                     android:visibility="visible"/>
 
-                <!-- selection overlay -->
                 <View
                     android:id="@+id/viewSelectionOverlay"
                     android:layout_width="match_parent"
@@ -61,7 +56,6 @@
                     android:background="@drawable/bg_selected_overlay_green"
                     android:visibility="gone" />
 
-                <!-- ✅ Material3 badge -->
                 <TextView
                     android:id="@+id/tvBadge"
                     android:layout_width="wrap_content"
@@ -83,44 +77,23 @@
 
             </FrameLayout>
 
-            <!-- ✅ File name (make tighter like gallery) -->
             <TextView
                 android:id="@+id/tvFileName"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:layout_marginBottom="2dp"
+                android:layout_marginBottom="8dp"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:textSize="11sp"
-                android:textStyle="normal"
                 android:textColor="?attr/colorOnSurface"
                 app:layout_constraintTop_toBottomOf="@id/thumbFrame"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- Optional meta line -->
-            <TextView
-                android:id="@+id/tvCapturedAt"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="8dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:alpha="0.70"
-                android:ellipsize="end"
-                android:visibility="gone"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:textSize="10sp"
-                android:textColor="?attr/colorOnSurface"
-                app:layout_constraintTop_toBottomOf="@id/tvFileName"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

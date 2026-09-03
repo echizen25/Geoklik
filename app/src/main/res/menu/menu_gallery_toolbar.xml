@@ -8,18 +8,10 @@
         app:showAsAction="always"/>
 
     <item
-        android:id="@+id/action_export"
-        android:title="Export"
-        android:icon="@drawable/ic_export_24"
-        app:showAsAction="always"/>
-
-    <item
         android:id="@+id/action_filter"
         android:title="Filter"
         android:icon="@drawable/ic_filter_list_24"
         app:showAsAction="always"/>
-
-
 
     <item
         android:id="@+id/action_search"
@@ -27,10 +19,15 @@
         android:icon="@drawable/searchw"
         app:showAsAction="always"/>
 
-
     <item
         android:id="@+id/action_home"
         android:title="Home"
         android:icon="@drawable/ic_home_24"
         app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_export"
+        android:title="Export Selected Sites"
+        android:icon="@drawable/ic_export_24"
+        app:showAsAction="never"/>
 </menu>

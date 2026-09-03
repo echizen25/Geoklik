@@ -24,9 +24,9 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Photo actions"
+                android:text="Photo Actions"
                 android:textStyle="bold"
-                android:textSize="14sp"
+                android:textSize="16sp"
                 android:textColor="?attr/colorOnSurface"
                 android:includeFontPadding="false"/>
 
@@ -34,7 +34,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Preview or pin on map"
+                android:text="Preview, locate, save, or share this photo"
                 android:textSize="12sp"
                 android:alpha="0.75"
                 android:textColor="?attr/colorOnSurface"
@@ -62,6 +62,32 @@
                 android:text="View on Map"
                 app:cornerRadius="14dp"
                 app:icon="@drawable/ic_map_24"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="24dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSave"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:text="Save to Device"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_export_24"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="24dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShare"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:text="Share Photo"
+                app:cornerRadius="14dp"
+                app:icon="@android:drawable/ic_menu_share"
                 app:iconGravity="textStart"
                 app:iconPadding="10dp"
                 app:iconSize="24dp"/>
