@@ -20,6 +20,7 @@
             android:layout_height="wrap_content"
             android:title=""
             android:background="?attr/colorPrimary"
+            android:theme="@style/ThemeOverlay.GeoCamera.GalleryToolbar"
             app:titleCentered="true"
             app:titleTextColor="@android:color/white"
             app:navigationIcon="@drawable/ic_menu_24"
