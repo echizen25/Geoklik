@@ -12,16 +12,53 @@
         android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
         app:titleTextColor="@android:color/white"
-        app:navigationIconTint="@android:color/white" />
+        app:navigationIconTint="@android:color/white"
+        app:menu="@menu/menu_group_images" />
 
-    <!-- Grid -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvImages"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        android:scrollbars="vertical" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvImages"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="vertical" />
+
+        <LinearLayout
+            android:id="@+id/emptyState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvEmptyTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No photos yet"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvEmptySubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="Captured photos for this inspection will appear here."
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="13sp"
+                android:alpha="0.70" />
+
+        </LinearLayout>
+
+    </FrameLayout>
 
 </LinearLayout>
