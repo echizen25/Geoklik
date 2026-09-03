@@ -24,6 +24,7 @@
             app:titleTextColor="@android:color/white"
             app:navigationIcon="@drawable/ic_menu_24"
             app:navigationIconTint="@android:color/white"
+            app:overflowIcon="@drawable/ic_more_vert_black_24"
             app:menu="@menu/menu_gallery_toolbar" />
 
         <com.google.android.material.card.MaterialCardView
