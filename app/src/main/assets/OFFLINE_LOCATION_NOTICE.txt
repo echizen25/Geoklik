@@ -1,0 +1,8 @@
+GeoKlik offline Province + City/Municipality lookup
+
+Full administrative reference data is sourced from Open Admin Data Philippines:
+https://github.com/open-admin-data/philippines-administrative-divisions
+
+License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+The dataset is packaged at build time and used only as an offline reverse-location fallback.
+Coordinates are representative administrative points and are not survey-grade boundary determinations.
