@@ -91,6 +91,7 @@ public class GeoCameraActivity extends AppCompatActivity {
     private ImageCapture imageCapture;
     private Executor mainExecutor;
     private CameraStateManager cameraStateManager;
+    private CameraGestureController cameraGestureController;
 
     private LocationManager locationManager;
     private FusedLocationProviderClient fusedLocationClient;
@@ -188,6 +189,7 @@ public class GeoCameraActivity extends AppCompatActivity {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         previewView = findViewById(R.id.previewView);
+        cameraGestureController = new CameraGestureController(this, previewView);
         btnCapture = findViewById(R.id.btnCapture);
         btnCamSettings = findViewById(R.id.btnCamSettings);
         tvCaptureStatus = findViewById(R.id.tvCaptureStatus);
@@ -706,7 +708,14 @@ public class GeoCameraActivity extends AppCompatActivity {
                         .build();
 
                 provider.unbindAll();
-                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, previewUseCase, imageCapture);
+                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
+                        this,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        previewUseCase,
+                        imageCapture);
+                if (cameraGestureController != null) {
+                    cameraGestureController.attachCamera(boundCamera);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 finishCaptureError("Camera failed to start.");
