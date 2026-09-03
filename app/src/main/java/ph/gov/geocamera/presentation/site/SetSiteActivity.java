@@ -2,6 +2,8 @@ package ph.gov.geocamera.presentation.site;
 
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -9,6 +11,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -19,8 +22,12 @@ import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
+import ph.gov.geocamera.data.local.db.GeoDbHelper;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 
 public class SetSiteActivity extends AppCompatActivity {
@@ -30,12 +37,11 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private ProjectRepository projectRepo;
     private CameraPrefs cameraPrefs;
+    private GeoDbHelper dbHelper;
 
     private ActivityResultLauncher<ScanOptions> qrLauncher;
-
-    // Keep same XML id/layout: actSite
-    // But no adapter, no suggestions, no dropdown.
     private MaterialAutoCompleteTextView actSite;
+    private ArrayAdapter<String> localProjectsAdapter;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -46,6 +52,7 @@ public class SetSiteActivity extends AppCompatActivity {
 
         projectRepo = new ProjectRepository(this);
         cameraPrefs = new CameraPrefs(this);
+        dbHelper = new GeoDbHelper(this);
 
         actSite = findViewById(R.id.actSite);
 
@@ -54,7 +61,7 @@ public class SetSiteActivity extends AppCompatActivity {
         MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
         MaterialButton btnClose = findViewById(R.id.btnClose);
 
-        setupManualInputOnly();
+        setupLocalProjectSelector();
 
         btnUseSelected.setOnClickListener(v -> {
             hideKeyboard();
@@ -65,7 +72,7 @@ public class SetSiteActivity extends AppCompatActivity {
             raw = normalizeScannedValue(raw);
 
             if (raw.isEmpty()) {
-                Toast.makeText(this, "Please type or scan a Project ID.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please select, type, or scan a Project Code.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -89,13 +96,11 @@ public class SetSiteActivity extends AppCompatActivity {
             actSite.clearFocus();
 
             Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
-
-            // Auto resolve after scan
             handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
         });
 
         btnScanQr.setOnClickListener(v -> startQrScan());
-        btnUncategorized.setOnClickListener(v -> selectUncategorized());
+        btnUncategorized.setOnClickListener(v -> selectMyPhotos());
 
         btnClose.setOnClickListener(v -> {
             Intent i = new Intent(SetSiteActivity.this, ph.gov.geocamera.presentation.home.HomeActivity.class);
@@ -105,23 +110,42 @@ public class SetSiteActivity extends AppCompatActivity {
         });
     }
 
-    private void setupManualInputOnly() {
+    private void setupLocalProjectSelector() {
         if (actSite == null) return;
 
-        // No dropdown / suggestions
-        actSite.setAdapter(null);
-        actSite.setThreshold(Integer.MAX_VALUE);
-        actSite.dismissDropDown();
+        List<String> localProjects = getProjectsAlreadyOnDevice();
+        localProjectsAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                localProjects
+        );
+
+        actSite.setAdapter(localProjectsAdapter);
+        actSite.setThreshold(0);
 
         actSite.setOnClickListener(v -> {
-            // Do nothing. User can type only.
-            actSite.dismissDropDown();
+            if (localProjectsAdapter != null && localProjectsAdapter.getCount() > 0) {
+                actSite.showDropDown();
+            }
         });
 
         actSite.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                actSite.dismissDropDown();
+            if (hasFocus && localProjectsAdapter != null && localProjectsAdapter.getCount() > 0) {
+                actSite.showDropDown();
             }
+        });
+
+        actSite.setOnItemClickListener((parent, view, position, id) -> {
+            Object item = parent.getItemAtPosition(position);
+            if (item == null) return;
+
+            String selected = normalizeScannedValue(String.valueOf(item));
+            if (selected.isEmpty()) return;
+
+            hideKeyboard();
+            actSite.clearFocus();
+            actSite.dismissDropDown();
+            selectSiteFromInput(selected);
         });
 
         actSite.setOnEditorActionListener((v, actionId, event) -> {
@@ -149,6 +173,58 @@ public class SetSiteActivity extends AppCompatActivity {
 
             return true;
         });
+    }
+
+    /**
+     * Only suggests projects that already have photos in this device's local gallery.
+     * This keeps the public app from exposing a global infrastructure/project directory.
+     * Manual project-code entry and QR scan remain available for future server-side validation.
+     */
+    private List<String> getProjectsAlreadyOnDevice() {
+        List<String> list = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor c = null;
+
+        try {
+            String sql =
+                    "SELECT im.siteid, " +
+                            "COALESCE(NULLIF(trim(p.coda), ''), NULLIF(trim(s.name), ''), im.siteid) AS title, " +
+                            "MAX(im.timestamp) AS last_used " +
+                            "FROM tbl_imagemeta im " +
+                            "LEFT JOIN tbl_site s ON trim(s.siteid) = trim(im.siteid) COLLATE NOCASE " +
+                            "LEFT JOIN tbl_projects p ON (" +
+                            " trim(p.projectid) = trim(im.siteid) COLLATE NOCASE " +
+                            " OR trim(p.code) = trim(im.siteid) COLLATE NOCASE " +
+                            " OR trim(p.projectid) = trim(s.projectid) COLLATE NOCASE" +
+                            ") " +
+                            "WHERE im.siteid IS NOT NULL " +
+                            "AND trim(im.siteid) <> '' " +
+                            "AND upper(trim(im.siteid)) <> 'UNCAT' " +
+                            "GROUP BY im.siteid " +
+                            "ORDER BY last_used DESC " +
+                            "LIMIT 50";
+
+            c = db.rawQuery(sql, null);
+            while (c.moveToNext()) {
+                String projectId = c.isNull(0) ? "" : c.getString(0).trim();
+                String title = c.isNull(1) ? "" : c.getString(1).trim();
+                if (projectId.isEmpty()) continue;
+
+                String label = projectId;
+                if (!title.isEmpty() && !title.equalsIgnoreCase(projectId)) {
+                    label = projectId + " — " + title;
+                }
+
+                if (!list.contains(label)) list.add(label);
+            }
+        } catch (Exception ignored) {
+            // Selector still supports manual entry / QR if local gallery lookup fails.
+        } finally {
+            if (c != null) c.close();
+            db.close();
+        }
+
+        return list;
     }
 
     @Override
@@ -226,15 +302,14 @@ public class SetSiteActivity extends AppCompatActivity {
         String raw = normalizeScannedValue(rawInput);
 
         if (raw.isEmpty()) {
-            Toast.makeText(this, "Invalid project/site.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Invalid project.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String projectId = null;
 
-        // Offline-first:
-        // Try local resolution only. Do NOT block capture if it is not found locally.
-        // Server-side existence check happens during UploadWorker/API sync.
+        // Offline-first: resolve locally when possible. A manually entered code can still
+        // be captured offline and will be verified by the server when API support is ready.
         try {
             if (projectRepo.existsProjectId(raw)) {
                 projectId = raw.trim();
@@ -248,7 +323,7 @@ public class SetSiteActivity extends AppCompatActivity {
         }
 
         boolean foundLocal = projectId != null && !projectId.trim().isEmpty();
-        String finalSiteId = foundLocal ? projectId.trim() : raw.trim();
+        String finalSiteId = foundLocal ? projectId.trim() : extractLeadingReference(raw);
 
         cameraPrefs.saveSite(finalSiteId, false);
 
@@ -263,7 +338,7 @@ public class SetSiteActivity extends AppCompatActivity {
         } else {
             Toast.makeText(
                     this,
-                    "Offline site selected. It will be verified during sync.",
+                    "Project selected offline. It will be verified during sync.",
                     Toast.LENGTH_LONG
             ).show();
         }
@@ -271,8 +346,19 @@ public class SetSiteActivity extends AppCompatActivity {
         finishWithResult(finalSiteId, false);
     }
 
-    private void selectUncategorized() {
+    private String extractLeadingReference(String value) {
+        String s = value == null ? "" : value.trim();
+        int idx = s.indexOf(" — ");
+        if (idx < 0) idx = s.indexOf(" - ");
+        if (idx > 0) s = s.substring(0, idx).trim();
+        return s;
+    }
+
+    private void selectMyPhotos() {
+        // Keep the existing uncategorized storage flag/value for backward compatibility.
+        // Only the user-facing label changes to "My Photos".
         cameraPrefs.saveSite(null, true);
+        Toast.makeText(this, "My Photos selected", Toast.LENGTH_SHORT).show();
         finishWithResult(null, true);
     }
 
