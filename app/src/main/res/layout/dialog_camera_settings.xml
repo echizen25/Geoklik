@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingTop="18dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Camera settings"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvCameraSettingsMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Infrastructure"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCameraDocMode"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="16dp"
+        android:text="Documentation mode"
+        android:textAllCaps="false"
+        app:cornerRadius="14dp"
+        app:icon="@drawable/ic_project_activity_24"
+        app:iconGravity="textStart"
+        app:iconPadding="10dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCameraProjectSelection"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="8dp"
+        android:text="Change Project / Site"
+        android:textAllCaps="false"
+        app:cornerRadius="14dp"
+        app:icon="@drawable/ic_infrastructure_24"
+        app:iconGravity="textStart"
+        app:iconPadding="10dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCameraIndoorAssist"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="8dp"
+        android:text="Indoor Assist: OFF"
+        android:textAllCaps="false"
+        app:cornerRadius="14dp"
+        app:icon="@drawable/ic_location_24"
+        app:iconGravity="textStart"
+        app:iconPadding="10dp" />
+
+</LinearLayout>
