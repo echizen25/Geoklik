@@ -16,9 +16,11 @@ public class GeoDbHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "geocamera.db";
 
-    // v115 adds local-only documentation_type + shot_type metadata.
-    // No API/server schema change is required for this migration.
-    public static final int DB_VERSION = 115;
+    // v116 keeps the existing capture/upload contract intact while adding:
+    // - monitoring_type (INFRA / PROJECT_ACTIVITY)
+    // - activity_project_id for local Project Activity grouping
+    // Project Activity rows are status=4 (LOCAL_ONLY) until API support is added.
+    public static final int DB_VERSION = 116;
 
     public GeoDbHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -111,6 +113,7 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         "server_path TEXT," +
                         "last_sync_at TEXT," +
                         "monitoring_type TEXT," +
+                        "activity_project_id TEXT," +
                         "shot_type TEXT," +
                         "FOREIGN KEY(userid) REFERENCES tbl_users(userid)," +
                         "FOREIGN KEY(groupid) REFERENCES tbl_groups(groupid)" +
@@ -126,21 +129,30 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                 "CREATE TABLE IF NOT EXISTS tbl_capture_context (" +
                         "context_id INTEGER PRIMARY KEY," +
                         "monitoring_type TEXT," +
+                        "activity_project_id TEXT," +
                         "shot_type TEXT," +
                         "pending_monitoring_type TEXT," +
+                        "pending_activity_project_id TEXT," +
                         "pending_shot_type TEXT," +
                         "updated_at TEXT" +
                         ");"
         );
 
+        // Needed when upgrading from the first v115 prototype.
+        ensureColumnExists(db, TABLE_CAPTURE_CONTEXT, "activity_project_id", "TEXT");
+        ensureColumnExists(db, TABLE_CAPTURE_CONTEXT, "pending_activity_project_id", "TEXT");
+
         db.execSQL(
                 "INSERT OR IGNORE INTO tbl_capture_context(" +
-                        "context_id, monitoring_type, shot_type, pending_monitoring_type, pending_shot_type, updated_at" +
-                        ") VALUES (1, 'UNSPECIFIED', 'GENERAL', 'UNSPECIFIED', 'GENERAL', datetime('now'));"
+                        "context_id, monitoring_type, activity_project_id, shot_type, " +
+                        "pending_monitoring_type, pending_activity_project_id, pending_shot_type, updated_at" +
+                        ") VALUES (1, 'UNSPECIFIED', NULL, 'GENERAL', 'UNSPECIFIED', NULL, 'GENERAL', datetime('now'));"
         );
 
-        // The existing ImageMetaRepository/API contract stays untouched. The trigger
-        // only enriches the newly inserted local row with the capture context.
+        // Keep ImageMetaRepository and the API request contract unchanged.
+        // The trigger enriches only the LOCAL row after the normal insert.
+        // status=4 means LOCAL_ONLY and is not selected by the existing uploader,
+        // which only uploads status 0/eligible status 2 records.
         db.execSQL("DROP TRIGGER IF EXISTS trg_imagemeta_capture_context;");
         db.execSQL(
                 "CREATE TRIGGER trg_imagemeta_capture_context " +
@@ -148,7 +160,14 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         "BEGIN " +
                         "UPDATE tbl_imagemeta SET " +
                         "monitoring_type = COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), 'UNSPECIFIED'), " +
-                        "shot_type = COALESCE((SELECT pending_shot_type FROM tbl_capture_context WHERE context_id=1), 'GENERAL') " +
+                        "activity_project_id = CASE " +
+                        "  WHEN COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), '') = 'PROJECT_ACTIVITY' " +
+                        "  THEN (SELECT pending_activity_project_id FROM tbl_capture_context WHERE context_id=1) " +
+                        "  ELSE NULL END, " +
+                        "shot_type = 'GENERAL', " +
+                        "status = CASE " +
+                        "  WHEN COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), '') = 'PROJECT_ACTIVITY' " +
+                        "  THEN 4 ELSE status END " +
                         "WHERE imagemetaid = NEW.imagemetaid; " +
                         "END;"
         );
@@ -159,6 +178,8 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_siteid ON tbl_imagemeta(siteid);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_status ON tbl_imagemeta(status);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_site_time ON tbl_imagemeta(siteid, timestamp);");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_monitoring_type ON tbl_imagemeta(monitoring_type);");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_activity_project ON tbl_imagemeta(activity_project_id);");
 
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_groups_site_date ON tbl_groups(siteid, sessiondate);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_groups_desc ON tbl_groups(description);");
@@ -202,6 +223,7 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         ensureColumnExists(db, "tbl_imagemeta", "last_sync_at", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "description", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "monitoring_type", "TEXT");
+        ensureColumnExists(db, "tbl_imagemeta", "activity_project_id", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "shot_type", "TEXT");
 
         ensureColumnExists(db, "tbl_projects", "code", "TEXT");
