@@ -10,7 +10,6 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -53,7 +52,9 @@ public class DocumentationModeChip extends MaterialButton {
             Activity activity = findActivity(getContext());
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
 
-            // Let Android permission dialogs / the existing site selector finish first.
+            // Wait only for Android permission dialogs. The temporary selection
+            // placeholder prevents the legacy Site picker from jumping ahead of
+            // this first Infrastructure / Project Activity question.
             if (!activity.hasWindowFocus()) {
                 postDelayed(this, 250);
                 return;
@@ -72,7 +73,7 @@ public class DocumentationModeChip extends MaterialButton {
                 return;
             }
 
-            applyCurrentMode(false);
+            applyCurrentMode(true);
         }
     };
 
@@ -93,6 +94,11 @@ public class DocumentationModeChip extends MaterialButton {
 
     private void init(Context context) {
         cameraPrefs = new CameraPrefs(context);
+
+        // This runs during setContentView(), before GeoCameraActivity performs
+        // its legacy first-site check. It does not alter a real saved selection.
+        cameraPrefs.primeDocumentationSelectionPlaceholder();
+
         captureContextRepo = new CaptureContextRepository(context);
         projectRepo = new ProjectRepository(context);
 
@@ -195,10 +201,13 @@ public class DocumentationModeChip extends MaterialButton {
                 .setTitle("What are you documenting?")
                 .setItems(labels, (dialog, which) -> {
                     if (which == 0) {
+                        // On the very first use, remove the temporary blocker so
+                        // the existing Infrastructure Project/Site picker can run.
+                        cameraPrefs.clearDocumentationPlaceholderIfPresent();
                         cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
 
                         // If coming back from Activity mode, restore the previous
-                        // Infrastructure site/project selection instead of losing it.
+                        // Infrastructure Project/Site instead of losing it.
                         if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previousType)) {
                             cameraPrefs.restoreInfrastructureSelection();
                         }
@@ -206,10 +215,15 @@ public class DocumentationModeChip extends MaterialButton {
                         captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
                         refreshLabel();
 
+                        // Reload GeoCameraActivity so its existing Project/Site
+                        // logic sees the restored/cleared Infrastructure selection.
                         if (!CameraPrefs.DOC_INFRA.equals(previousType)) {
                             post(this::recreateCameraOnce);
                         }
                     } else {
+                        // Do not save the internal placeholder as an Infra site.
+                        cameraPrefs.clearDocumentationPlaceholderIfPresent();
+
                         if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previousType)) {
                             cameraPrefs.rememberInfrastructureSelection();
                         }
@@ -217,7 +231,7 @@ public class DocumentationModeChip extends MaterialButton {
                         cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
                         refreshLabel();
 
-                        // The type chooser closes first; then ask for the Project ID.
+                        // The type chooser closes first; then ask for Project ID.
                         postDelayed(() -> showActivityProjectChooser(true), 120);
                     }
                 });
@@ -304,9 +318,10 @@ public class DocumentationModeChip extends MaterialButton {
             cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
             cameraPrefs.saveActivityProjectId(projectId);
 
-            // Reuse the existing local site/group key only inside the app so the
-            // current Gallery → Date → Photos hierarchy continues to work.
-            // API sync is blocked locally for PROJECT_ACTIVITY rows in DB v116.
+            // Reuse the existing local site/group key so the current
+            // Gallery → Date → Photos hierarchy continues to work.
+            // DB v116 marks PROJECT_ACTIVITY captures LOCAL_ONLY, so this does
+            // not send the new activity metadata to the current API.
             cameraPrefs.saveSite(projectId, false);
 
             captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, projectId);
@@ -336,6 +351,7 @@ public class DocumentationModeChip extends MaterialButton {
             captureContextRepo.setCurrent(type, projectId);
             if (mismatch && recreateIfNeeded) recreateCameraOnce();
         } else if (CameraPrefs.DOC_INFRA.equals(type)) {
+            cameraPrefs.clearDocumentationPlaceholderIfPresent();
             captureContextRepo.setCurrent(type, null);
         }
 
