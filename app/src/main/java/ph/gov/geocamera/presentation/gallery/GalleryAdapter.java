@@ -96,12 +96,11 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 item.pendingCount = safeInt(c, 10);
                 item.uploadingCount = safeInt(c, 11);
                 item.failedCount = safeInt(c, 12);
-                item.projectCode = safeString(c, 13);      // tbl_projects.code
-                item.beneficiary = safeString(c, 14);      // tbl_projects.beneficiary
-                item.projectId = safeString(c, 15);        // tbl_projects.projectid
-                item.coda = safeString(c, 16);             // tbl_projects.coda
+                item.projectCode = safeString(c, 13);
+                item.beneficiary = safeString(c, 14);
+                item.projectId = safeString(c, 15);
+                item.coda = safeString(c, 16);
 
-                // ✅ detect if may NO_PROJECT_FOUND sa site na ito
                 item.noProjectFoundCount = imageRepo.countFailedByErrorForSite(
                         item.siteId,
                         ImageMetaRepository.ERR_NO_PROJECT_FOUND
@@ -188,17 +187,15 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         SiteItem item = items.get(position);
         preloadSizeProvider.setView(h.imgLatest);
 
-        // Main title: show readable project code/display code first, not raw project/site id.
         String title = firstNonEmpty(
-                item.projectCode,   // from ImageMetaRepository displayCode, usually p.code / s.code
-                item.project,       // project label / coda / funding display
-                item.siteName,      // site name if available
-                item.siteId         // fallback only
+                item.projectCode,
+                item.project,
+                item.siteName,
+                item.siteId
         );
 
         h.tvSite.setText(safe(title, "SITE"));
 
-        // Second line: show beneficiary from tbl_projects.
         String beneficiaryLine = firstNonEmpty(item.beneficiary);
         h.tvProjectLabel.setText("FCA: " + safe(beneficiaryLine, "—"));
 
@@ -249,8 +246,17 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         h.selectionOverlay.setVisibility(isSelected ? View.VISIBLE : View.GONE);
     }
 
+    private boolean isLocalOnly(@NonNull SiteItem item) {
+        return item.totalPhotos > 0
+                && item.unsyncedPhotos > 0
+                && item.pendingCount == 0
+                && item.uploadingCount == 0
+                && item.failedCount == 0
+                && item.noProjectFoundCount == 0;
+    }
+
     private void bindUnsyncedBadge(@NonNull SiteVH h, @NonNull SiteItem item) {
-        if (item.uploadingCount > 0) {
+        if (item.uploadingCount > 0 || isLocalOnly(item)) {
             h.tvUnsyncedBadge.setVisibility(View.GONE);
             return;
         }
@@ -302,6 +308,13 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
             return;
         }
 
+        if (isLocalOnly(item)) {
+            h.tvStatusChip.setText("LOCAL");
+            h.tvStatusChip.setAlpha(1f);
+            h.tvStatusChip.setTextColor(Color.parseColor("#546E7A"));
+            return;
+        }
+
         h.tvStatusChip.setText("SYNCED");
         h.tvStatusChip.setAlpha(0.9f);
         h.tvStatusChip.setTextColor(Color.parseColor("#2E7D32"));
@@ -322,7 +335,6 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         }
     }
 
-
     private void showProjectDetails(@NonNull SiteItem item) {
         String status;
 
@@ -330,6 +342,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         else if (item.noProjectFoundCount > 0) status = "NO PROJECT";
         else if (item.failedCount > 0) status = "FAILED";
         else if (item.pendingCount > 0) status = "PENDING";
+        else if (isLocalOnly(item)) status = "LOCAL";
         else status = "SYNCED";
 
         String message =
@@ -359,7 +372,6 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 .setNegativeButton("Close", null)
                 .show();
     }
-
 
     private String formatMonthDayYearFromDb(String dbTimestamp) {
         if (dbTimestamp == null || dbTimestamp.trim().isEmpty()) {
@@ -466,7 +478,6 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         int failedCount;
         int noProjectFoundCount;
     }
-
 
     private static String safeString(Cursor c, int idx) {
         try {
