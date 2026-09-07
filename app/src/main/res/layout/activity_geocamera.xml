@@ -134,6 +134,31 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <ph.gov.geocamera.presentation.geocamera.DocumentationModeChip
+            android:id="@+id/documentationModeChip"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="@dimen/gc_screen_margin"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:maxWidth="@dimen/gc_top_card_max_width"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="TYPE / SHOT"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/gc_text_xsmall"
+            app:backgroundTint="#B3000000"
+            app:cornerRadius="17dp"
+            app:insetBottom="0dp"
+            app:insetTop="0dp"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/gpsOverlay" />
+
         <LinearLayout
             android:id="@+id/controlPanel"
             android:layout_width="wrap_content"
