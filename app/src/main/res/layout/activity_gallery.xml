@@ -171,6 +171,7 @@
                 android:visibility="gone">
 
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardFirstCaptureIcon"
                     android:layout_width="96dp"
                     android:layout_height="96dp"
                     app:cardCornerRadius="48dp"
@@ -200,24 +201,36 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="Capture your first field photo from a project card. Your photos will be organized here automatically by project and date."
+                    android:text="No field photos yet. Start your first capture and GeoKlik will organize your photos here automatically by project and date."
                     android:textSize="14sp"
                     android:lineSpacingExtra="2dp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFirstCapture"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="22dp"
+                    android:minWidth="180dp"
+                    android:text="Start first capture"
+                    android:textAllCaps="false"
+                    android:textStyle="bold"
+                    android:contentDescription="Start your first field photo capture"
+                    app:cornerRadius="18dp"
+                    app:icon="@drawable/ic_camera_alt_24"
+                    app:iconGravity="textStart"
+                    app:iconPadding="10dp"
+                    app:iconSize="22dp" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
-                    android:paddingTop="7dp"
-                    android:paddingBottom="7dp"
-                    android:text="FIRST CAPTURE → PROJECT CAMERA"
-                    android:textStyle="bold"
-                    android:textSize="11sp"
-                    android:letterSpacing="0.06"
-                    android:textColor="?attr/colorPrimary" />
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="Choose the project or site before capturing."
+                    android:textSize="12sp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
             </LinearLayout>
 
