@@ -197,6 +197,9 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         } else if (status == 3) {
             badge.setText("UPLOADING");
             badge.setBackgroundResource(R.drawable.bg_gallery_badge_uploading);
+        } else if (status == 4) {
+            badge.setText("LOCAL");
+            badge.setBackgroundResource(R.drawable.bg_gallery_badge_local);
         } else {
             badge.setText("PENDING");
             badge.setBackgroundResource(R.drawable.bg_gallery_badge_pending);
