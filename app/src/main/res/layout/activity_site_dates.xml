@@ -13,6 +13,7 @@
         android:layout_height="wrap_content"
         android:title="Dates"
         android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.GeoCamera.GalleryToolbar"
         app:titleTextColor="@android:color/white"
         app:navigationIcon="@drawable/ic_arrow_back_24"
         app:navigationIconTint="@android:color/white"
@@ -30,7 +31,7 @@
         app:cardCornerRadius="16dp"
         app:cardElevation="1dp"
         app:strokeWidth="1dp"
-        app:strokeColor="#14004B24"
+        app:strokeColor="?attr/colorOutline"
         app:cardBackgroundColor="?attr/colorSurface">
 
         <LinearLayout
@@ -55,7 +56,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:baselineAligned="false">
 
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
