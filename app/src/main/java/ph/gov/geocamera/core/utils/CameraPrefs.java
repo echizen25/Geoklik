@@ -23,6 +23,10 @@ public class CameraPrefs {
     private static final String KEY_INFRA_UNCATEGORIZED = "infra_uncategorized";
     private static final String KEY_INFRA_SELECTION_SAVED = "infra_selection_saved";
 
+    // Internal placeholder used only to prevent the legacy Site picker from
+    // appearing before the first Infrastructure/Project Activity question.
+    public static final String DOC_SELECTION_PLACEHOLDER = "__DOC_MODE_PENDING__";
+
     // Retained only for backward compatibility with the first local prototype.
     // The current UI no longer asks for a shot type.
     private static final String KEY_SHOT_TYPE = "shot_type";
@@ -49,6 +53,26 @@ public class CameraPrefs {
                 .remove(KEY_SITE_ID)
                 .remove(KEY_UNCATEGORIZED)
                 .apply();
+    }
+
+    /**
+     * Called during camera layout inflation on a brand-new configuration.
+     * It suppresses the existing Site picker just long enough for the new
+     * documentation-type question to appear first.
+     */
+    public void primeDocumentationSelectionPlaceholder() {
+        if (!hasDocumentationType() && !hasSelection()) {
+            saveSite(DOC_SELECTION_PLACEHOLDER, false);
+        }
+    }
+
+    public boolean isDocumentationPlaceholderSelection() {
+        String siteId = getSiteId();
+        return siteId != null && DOC_SELECTION_PLACEHOLDER.equals(siteId);
+    }
+
+    public void clearDocumentationPlaceholderIfPresent() {
+        if (isDocumentationPlaceholderSelection()) clearSiteSelection();
     }
 
     public void saveDescription(String description) {
@@ -138,7 +162,7 @@ public class CameraPrefs {
 
     /** Save the current legacy Project/Site selection before entering Activity mode. */
     public void rememberInfrastructureSelection() {
-        if (!hasSelection()) return;
+        if (!hasSelection() || isDocumentationPlaceholderSelection()) return;
 
         sp.edit()
                 .putBoolean(KEY_INFRA_SELECTION_SAVED, true)
