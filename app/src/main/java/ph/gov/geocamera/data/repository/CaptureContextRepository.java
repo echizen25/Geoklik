@@ -12,10 +12,11 @@ import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.local.db.GeoDbHelper;
 
 /**
- * Stores the current local-only documentation metadata used by the camera.
+ * Local-only capture classification state.
  *
- * This repository deliberately does not touch the upload/API layer. A local
- * SQLite trigger copies the pending values onto a newly inserted image row.
+ * Infrastructure keeps the existing Project/Site workflow. Project Activity
+ * stores a local activity_project_id and is intentionally excluded from the
+ * current API sync until server support is added later.
  */
 public class CaptureContextRepository {
 
@@ -25,36 +26,33 @@ public class CaptureContextRepository {
         dbHelper = new GeoDbHelper(context.getApplicationContext());
     }
 
-    /** Update what the camera UI currently shows, without changing a capture already in progress. */
-    public void setCurrent(String documentationType, String shotType) {
+    public void setCurrent(String documentationType, String activityProjectId) {
         String type = normalizeType(documentationType);
-        String shot = normalizeShot(shotType);
+        String activityId = normalizeActivityProjectId(type, activityProjectId);
 
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         ensureRow(db);
 
         ContentValues cv = new ContentValues();
         cv.put("monitoring_type", type);
-        cv.put("shot_type", shot);
+        cv.put("activity_project_id", activityId);
+        cv.put("shot_type", CameraPrefs.SHOT_GENERAL); // legacy column; no UI choice anymore
         cv.put("updated_at", now());
         db.update(GeoDbHelper.TABLE_CAPTURE_CONTEXT, cv, "context_id=1", null);
     }
 
-    /**
-     * Snapshot the values that should be attached to the next captured photo.
-     * This is called on shutter touch so changing the UI afterwards will not
-     * change the metadata intended for that capture.
-     */
-    public void snapshotForCapture(String documentationType, String shotType) {
+    /** Snapshot the local metadata intended for the next shutter press. */
+    public void snapshotForCapture(String documentationType, String activityProjectId) {
         String type = normalizeType(documentationType);
-        String shot = normalizeShot(shotType);
+        String activityId = normalizeActivityProjectId(type, activityProjectId);
 
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         ensureRow(db);
 
         ContentValues cv = new ContentValues();
         cv.put("pending_monitoring_type", type);
-        cv.put("pending_shot_type", shot);
+        cv.put("pending_activity_project_id", activityId);
+        cv.put("pending_shot_type", CameraPrefs.SHOT_GENERAL); // compatibility only
         cv.put("updated_at", now());
         db.update(GeoDbHelper.TABLE_CAPTURE_CONTEXT, cv, "context_id=1", null);
     }
@@ -62,8 +60,9 @@ public class CaptureContextRepository {
     private void ensureRow(SQLiteDatabase db) {
         db.execSQL(
                 "INSERT OR IGNORE INTO " + GeoDbHelper.TABLE_CAPTURE_CONTEXT +
-                        "(context_id, monitoring_type, shot_type, pending_monitoring_type, pending_shot_type, updated_at) " +
-                        "VALUES (1, 'UNSPECIFIED', 'GENERAL', 'UNSPECIFIED', 'GENERAL', datetime('now'))"
+                        "(context_id, monitoring_type, activity_project_id, shot_type, " +
+                        "pending_monitoring_type, pending_activity_project_id, pending_shot_type, updated_at) " +
+                        "VALUES (1, 'UNSPECIFIED', NULL, 'GENERAL', 'UNSPECIFIED', NULL, 'GENERAL', datetime('now'))"
         );
     }
 
@@ -77,9 +76,10 @@ public class CaptureContextRepository {
         return "UNSPECIFIED";
     }
 
-    private String normalizeShot(String value) {
-        if (value == null || value.trim().isEmpty()) return CameraPrefs.SHOT_GENERAL;
-        return value.trim().toUpperCase(Locale.US);
+    private String normalizeActivityProjectId(String type, String value) {
+        if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) return null;
+        if (value == null || value.trim().isEmpty()) return null;
+        return value.trim();
     }
 
     private String now() {
