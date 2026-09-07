@@ -7,17 +7,24 @@ public class CameraPrefs {
 
     private static final String PREF = "camera_prefs";
 
-    // compatibility:
-    // existing code still uses getSiteId()/saveSite(...)
-    // sa current flow, KEY_SITE_ID stores the selected project/site code used by upload
+    // Existing camera selection keys. Keep these unchanged for compatibility.
     private static final String KEY_SITE_ID = "site_id";
     private static final String KEY_UNCATEGORIZED = "uncategorized";
     private static final String KEY_DESCRIPTION = "photo_description";
     private static final String KEY_INDOOR_ASSIST = "indoor_assist_enabled";
 
-    // Local-only documentation metadata. These are intentionally not part of
-    // the current API/upload contract yet.
+    // Local-only documentation metadata. API/server support comes later.
     private static final String KEY_DOCUMENTATION_TYPE = "documentation_type";
+    private static final String KEY_ACTIVITY_PROJECT_ID = "activity_project_id";
+
+    // Preserve the last Infrastructure selection when temporarily switching
+    // the camera to Project Activity mode.
+    private static final String KEY_INFRA_SITE_ID = "infra_site_id";
+    private static final String KEY_INFRA_UNCATEGORIZED = "infra_uncategorized";
+    private static final String KEY_INFRA_SELECTION_SAVED = "infra_selection_saved";
+
+    // Retained only for backward compatibility with the first local prototype.
+    // The current UI no longer asks for a shot type.
     private static final String KEY_SHOT_TYPE = "shot_type";
 
     public static final String DOC_INFRA = "INFRA";
@@ -34,6 +41,13 @@ public class CameraPrefs {
         sp.edit()
                 .putString(KEY_SITE_ID, siteId == null ? null : siteId.trim())
                 .putBoolean(KEY_UNCATEGORIZED, uncategorized)
+                .apply();
+    }
+
+    public void clearSiteSelection() {
+        sp.edit()
+                .remove(KEY_SITE_ID)
+                .remove(KEY_UNCATEGORIZED)
                 .apply();
     }
 
@@ -77,9 +91,7 @@ public class CameraPrefs {
     }
 
     public void saveIndoorAssistEnabled(boolean enabled) {
-        sp.edit()
-                .putBoolean(KEY_INDOOR_ASSIST, enabled)
-                .apply();
+        sp.edit().putBoolean(KEY_INDOOR_ASSIST, enabled).apply();
     }
 
     public boolean isIndoorAssistEnabled() {
@@ -88,37 +100,82 @@ public class CameraPrefs {
 
     public void saveDocumentationType(String type) {
         String value = normalizeDocumentationType(type);
-        sp.edit()
-                .putString(KEY_DOCUMENTATION_TYPE, value)
-                .putString(KEY_SHOT_TYPE, SHOT_GENERAL)
-                .apply();
+        SharedPreferences.Editor editor = sp.edit();
+        if (value == null) editor.remove(KEY_DOCUMENTATION_TYPE);
+        else editor.putString(KEY_DOCUMENTATION_TYPE, value);
+        editor.apply();
     }
 
     public boolean hasDocumentationType() {
-        String type = sp.getString(KEY_DOCUMENTATION_TYPE, null);
-        return DOC_INFRA.equals(type) || DOC_PROJECT_ACTIVITY.equals(type);
+        return normalizeDocumentationType(sp.getString(KEY_DOCUMENTATION_TYPE, null)) != null;
     }
 
     public String getDocumentationType() {
-        String type = sp.getString(KEY_DOCUMENTATION_TYPE, null);
-        return normalizeDocumentationType(type);
+        return normalizeDocumentationType(sp.getString(KEY_DOCUMENTATION_TYPE, null));
     }
 
+    public void saveActivityProjectId(String projectId) {
+        String value = projectId == null ? "" : projectId.trim();
+        SharedPreferences.Editor editor = sp.edit();
+        if (value.isEmpty()) editor.remove(KEY_ACTIVITY_PROJECT_ID);
+        else editor.putString(KEY_ACTIVITY_PROJECT_ID, value);
+        editor.apply();
+    }
+
+    public String getActivityProjectId() {
+        String value = sp.getString(KEY_ACTIVITY_PROJECT_ID, null);
+        return value == null ? null : value.trim();
+    }
+
+    public boolean hasActivityProjectId() {
+        String value = getActivityProjectId();
+        return value != null && !value.isEmpty();
+    }
+
+    public void clearActivityProjectId() {
+        sp.edit().remove(KEY_ACTIVITY_PROJECT_ID).apply();
+    }
+
+    /** Save the current legacy Project/Site selection before entering Activity mode. */
+    public void rememberInfrastructureSelection() {
+        if (!hasSelection()) return;
+
+        sp.edit()
+                .putBoolean(KEY_INFRA_SELECTION_SAVED, true)
+                .putString(KEY_INFRA_SITE_ID, getSiteId())
+                .putBoolean(KEY_INFRA_UNCATEGORIZED, isUncategorized())
+                .apply();
+    }
+
+    /** Restore the last Infrastructure Project/Site selection, if one was saved. */
+    public boolean restoreInfrastructureSelection() {
+        if (!sp.getBoolean(KEY_INFRA_SELECTION_SAVED, false)) {
+            clearSiteSelection();
+            return false;
+        }
+
+        boolean uncategorized = sp.getBoolean(KEY_INFRA_UNCATEGORIZED, false);
+        String siteId = sp.getString(KEY_INFRA_SITE_ID, null);
+        saveSite(siteId, uncategorized);
+        return uncategorized || (siteId != null && !siteId.trim().isEmpty());
+    }
+
+    // ---------------------------------------------------------------------
+    // Legacy shot-type helpers retained so an older branch/class can still
+    // compile. Current workflow always treats it as GENERAL and does not ask.
+    // ---------------------------------------------------------------------
     public void saveShotType(String shotType) {
-        String value = shotType == null ? SHOT_GENERAL : shotType.trim().toUpperCase();
-        if (value.isEmpty()) value = SHOT_GENERAL;
-        sp.edit().putString(KEY_SHOT_TYPE, value).apply();
+        sp.edit().putString(KEY_SHOT_TYPE, SHOT_GENERAL).apply();
     }
 
     public String getShotType() {
-        String value = sp.getString(KEY_SHOT_TYPE, SHOT_GENERAL);
-        if (value == null || value.trim().isEmpty()) return SHOT_GENERAL;
-        return value.trim().toUpperCase();
+        return SHOT_GENERAL;
     }
 
     public void clearDocumentationMode() {
         sp.edit()
                 .remove(KEY_DOCUMENTATION_TYPE)
+                .remove(KEY_ACTIVITY_PROJECT_ID)
                 .remove(KEY_SHOT_TYPE)
                 .apply();
     }
@@ -126,7 +183,7 @@ public class CameraPrefs {
     private String normalizeDocumentationType(String type) {
         if (type != null && DOC_INFRA.equalsIgnoreCase(type.trim())) return DOC_INFRA;
         if (type != null && DOC_PROJECT_ACTIVITY.equalsIgnoreCase(type.trim())) return DOC_PROJECT_ACTIVITY;
-        return DOC_PROJECT_ACTIVITY;
+        return null;
     }
 
     public void clear() {
