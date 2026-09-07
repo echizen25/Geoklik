@@ -37,7 +37,7 @@
             app:cardCornerRadius="16dp"
             app:cardElevation="1dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#14004B24"
+            app:strokeColor="?attr/colorOutline"
             app:cardBackgroundColor="?attr/colorSurface">
 
             <LinearLayout
@@ -65,6 +65,8 @@
                         android:singleLine="true"
                         android:imeOptions="actionSearch"
                         android:inputType="text"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
                         android:textSize="14sp" />
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -81,7 +83,7 @@
             app:cardCornerRadius="16dp"
             app:cardElevation="1dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#14004B24"
+            app:strokeColor="?attr/colorOutline"
             app:cardBackgroundColor="?attr/colorSurface">
 
             <LinearLayout
@@ -190,12 +192,13 @@
         android:layout_width="320dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#fffcf2"
+        android:background="?attr/colorSurface"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/nav_header_home"
         app:menu="@menu/drawer_menu"
-        app:itemIconTint="@android:color/black"
-        app:itemTextColor="@android:color/black"
+        app:itemIconTint="?attr/colorOnSurface"
+        app:itemTextColor="?attr/colorOnSurface"
+        app:itemRippleColor="?attr/colorControlHighlight"
         app:itemHorizontalPadding="18dp"
         app:itemVerticalPadding="10dp" />
 
