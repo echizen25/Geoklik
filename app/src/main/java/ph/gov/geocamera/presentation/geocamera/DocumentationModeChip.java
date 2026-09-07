@@ -96,11 +96,7 @@ public class DocumentationModeChip extends MaterialButton {
 
     private void init(Context context) {
         cameraPrefs = new CameraPrefs(context);
-
-        // Prevent the legacy Site picker from appearing before the very first
-        // Infrastructure / Project Activity question.
         cameraPrefs.primeDocumentationSelectionPlaceholder();
-
         captureContextRepo = new CaptureContextRepository(context);
         projectRepo = new ProjectRepository(context);
 
@@ -132,8 +128,6 @@ public class DocumentationModeChip extends MaterialButton {
         captureButton = root.findViewById(R.id.btnCapture);
         if (captureButton == null) return;
 
-        // Do not replace the existing shutter click. This only snapshots the
-        // local documentation metadata before the normal capture starts.
         captureButton.setOnTouchListener((v, event) -> {
             if (event.getAction() != MotionEvent.ACTION_DOWN) return false;
 
@@ -154,7 +148,6 @@ public class DocumentationModeChip extends MaterialButton {
         });
     }
 
-    /** Opened by tapping the MODE chip. Safe to call from Camera Settings later. */
     public void showDocumentationSettings() {
         if (isDialogOpen()) return;
 
@@ -205,6 +198,15 @@ public class DocumentationModeChip extends MaterialButton {
         dialog.show();
     }
 
+    public void showActivityProjectSettings() {
+        if (isDialogOpen()) return;
+        if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(cameraPrefs.getDocumentationType())) {
+            showDocumentationSettings();
+            return;
+        }
+        showActivityProjectChooser(false);
+    }
+
     private void showDocumentationTypeChooser(boolean required) {
         if (isDialogOpen()) return;
 
@@ -236,8 +238,6 @@ public class DocumentationModeChip extends MaterialButton {
             refreshLabel();
             dialog.dismiss();
 
-            // On first Infrastructure use, this reload lets the existing Site
-            // selector run normally. Returning from Activity restores the prior site.
             if (!CameraPrefs.DOC_INFRA.equals(previousType)) {
                 postDelayed(this::recreateCameraOnce, 100);
             }
@@ -276,8 +276,6 @@ public class DocumentationModeChip extends MaterialButton {
         TextView resolvedLabel = content.findViewById(R.id.tvProjectResolved);
         MaterialButton btnUse = content.findViewById(R.id.btnUseActivityProject);
 
-        // Keep landscape keyboards in normal in-place mode instead of Android's
-        // full-screen extract editor, and make the IME Done key submit the form.
         input.setSingleLine(true);
         input.setRawInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         input.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
@@ -314,14 +312,15 @@ public class DocumentationModeChip extends MaterialButton {
         dialog.setCanceledOnTouchOutside(!required);
         trackDialog(dialog);
 
-        View.OnClickListener submit = v -> submitActivityProject(input, til, dialog);
-        btnUse.setOnClickListener(submit);
+        btnUse.setOnClickListener(v -> submitActivityProject(input, til, dialog));
 
         input.setOnEditorActionListener((v, actionId, event) -> {
-            boolean imeDone = actionId == EditorInfo.IME_ACTION_DONE;
+            boolean imeDone = actionId == EditorInfo.IME_ACTION_DONE
+                    || actionId == EditorInfo.IME_ACTION_GO
+                    || actionId == EditorInfo.IME_ACTION_SEARCH;
             boolean enter = event != null
                     && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
-                    && event.getAction() == KeyEvent.ACTION_UP;
+                    && event.getAction() == KeyEvent.ACTION_DOWN;
             if (!imeDone && !enter) return false;
 
             submitActivityProject(input, til, dialog);
@@ -356,9 +355,6 @@ public class DocumentationModeChip extends MaterialButton {
         til.setError(null);
         cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
         cameraPrefs.saveActivityProjectId(projectId);
-
-        // Reuse the existing local site/group key so Gallery → Date → Photos
-        // remains intact. DB v116 marks Project Activity captures LOCAL_ONLY.
         cameraPrefs.saveSite(projectId, false);
         captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, projectId);
 
