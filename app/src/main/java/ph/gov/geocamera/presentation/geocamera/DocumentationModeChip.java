@@ -3,12 +3,15 @@ package ph.gov.geocamera.presentation.geocamera;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
-import android.util.AttributeSet;
+import android.text.InputType;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,6 +20,8 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.List;
 
@@ -26,12 +31,10 @@ import ph.gov.geocamera.data.repository.CaptureContextRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 
 /**
- * Lightweight local documentation-mode control.
+ * Local-only selector for Infrastructure vs Project Activity.
  *
- * First camera use asks only Infrastructure vs Project Activity. The choice is
- * remembered. Infrastructure keeps the existing Project/Site flow unchanged.
- * Project Activity asks for a Project ID once and uses that ID as the local
- * grouping key. No shot-type prompt is used anymore.
+ * Infrastructure keeps GeoKlik's existing Project/Site flow. Project Activity
+ * stores a local Project ID and remains excluded from the current API sync.
  */
 public class DocumentationModeChip extends MaterialButton {
 
@@ -40,9 +43,9 @@ public class DocumentationModeChip extends MaterialButton {
     private ProjectRepository projectRepo;
 
     private boolean initialCheckDone = false;
-    private boolean dialogShowing = false;
     private boolean recreatePosted = false;
     private View captureButton;
+    private AlertDialog activeDialog;
 
     private final Runnable initialPromptRunnable = new Runnable() {
         @Override
@@ -52,9 +55,6 @@ public class DocumentationModeChip extends MaterialButton {
             Activity activity = findActivity(getContext());
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
 
-            // Wait only for Android permission dialogs. The temporary selection
-            // placeholder prevents the legacy Site picker from jumping ahead of
-            // this first Infrastructure / Project Activity question.
             if (!activity.hasWindowFocus()) {
                 postDelayed(this, 250);
                 return;
@@ -82,12 +82,14 @@ public class DocumentationModeChip extends MaterialButton {
         init(context);
     }
 
-    public DocumentationModeChip(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public DocumentationModeChip(@NonNull Context context, @Nullable android.util.AttributeSet attrs) {
         super(context, attrs);
         init(context);
     }
 
-    public DocumentationModeChip(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public DocumentationModeChip(@NonNull Context context,
+                                 @Nullable android.util.AttributeSet attrs,
+                                 int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init(context);
     }
@@ -95,8 +97,8 @@ public class DocumentationModeChip extends MaterialButton {
     private void init(Context context) {
         cameraPrefs = new CameraPrefs(context);
 
-        // This runs during setContentView(), before GeoCameraActivity performs
-        // its legacy first-site check. It does not alter a real saved selection.
+        // Prevent the legacy Site picker from appearing before the very first
+        // Infrastructure / Project Activity question.
         cameraPrefs.primeDocumentationSelectionPlaceholder();
 
         captureContextRepo = new CaptureContextRepository(context);
@@ -119,6 +121,7 @@ public class DocumentationModeChip extends MaterialButton {
     @Override
     protected void onDetachedFromWindow() {
         removeCallbacks(initialPromptRunnable);
+        hideKeyboard(this);
         super.onDetachedFromWindow();
     }
 
@@ -129,8 +132,8 @@ public class DocumentationModeChip extends MaterialButton {
         captureButton = root.findViewById(R.id.btnCapture);
         if (captureButton == null) return;
 
-        // Existing shutter click stays untouched. This listener only snapshots
-        // the local metadata immediately before the normal capture begins.
+        // Do not replace the existing shutter click. This only snapshots the
+        // local documentation metadata before the normal capture starts.
         captureButton.setOnTouchListener((v, event) -> {
             if (event.getAction() != MotionEvent.ACTION_DOWN) return false;
 
@@ -146,16 +149,14 @@ public class DocumentationModeChip extends MaterialButton {
                 return true;
             }
 
-            captureContextRepo.snapshotForCapture(
-                    type,
-                    cameraPrefs.getActivityProjectId()
-            );
+            captureContextRepo.snapshotForCapture(type, cameraPrefs.getActivityProjectId());
             return false;
         });
     }
 
-    private void showDocumentationSettings() {
-        if (dialogShowing) return;
+    /** Opened by tapping the MODE chip. Safe to call from Camera Settings later. */
+    public void showDocumentationSettings() {
+        if (isDialogOpen()) return;
 
         String type = cameraPrefs.getDocumentationType();
         if (type == null) {
@@ -163,109 +164,123 @@ public class DocumentationModeChip extends MaterialButton {
             return;
         }
 
-        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) {
-            String projectId = cameraPrefs.getActivityProjectId();
-            new MaterialAlertDialogBuilder(getContext())
-                    .setTitle("Documentation Settings")
-                    .setItems(new String[]{
-                            "Documentation Type: Project Activity",
-                            "Project ID: " + (projectId == null ? "Not selected" : projectId)
-                    }, (dialog, which) -> {
-                        if (which == 0) showDocumentationTypeChooser(false);
-                        else showActivityProjectChooser(false);
-                    })
-                    .setNegativeButton("Close", null)
-                    .show();
+        View content = LayoutInflater.from(getContext())
+                .inflate(R.layout.dialog_documentation_settings, null, false);
+
+        TextView tvMode = content.findViewById(R.id.tvCurrentDocMode);
+        TextView tvProject = content.findViewById(R.id.tvCurrentActivityProject);
+        MaterialButton btnSwitch = content.findViewById(R.id.btnChangeDocumentationType);
+        MaterialButton btnProject = content.findViewById(R.id.btnChangeActivityProject);
+
+        boolean activityMode = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type);
+        tvMode.setText(activityMode ? "Project Activity" : "Infrastructure");
+
+        if (activityMode) {
+            String id = cameraPrefs.getActivityProjectId();
+            String label = getActivityDisplayLabel(id);
+            tvProject.setVisibility(View.VISIBLE);
+            tvProject.setText(label == null ? "No project selected" : label);
+            btnProject.setVisibility(View.VISIBLE);
         } else {
-            new MaterialAlertDialogBuilder(getContext())
-                    .setTitle("Documentation Settings")
-                    .setItems(new String[]{
-                            "Documentation Type: Infrastructure"
-                    }, (dialog, which) -> showDocumentationTypeChooser(false))
-                    .setNegativeButton("Close", null)
-                    .show();
+            tvProject.setVisibility(View.GONE);
+            btnProject.setVisibility(View.GONE);
         }
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(getContext())
+                .setView(content)
+                .setNegativeButton("Close", null)
+                .create();
+        trackDialog(dialog);
+
+        btnSwitch.setOnClickListener(v -> {
+            dialog.dismiss();
+            postDelayed(() -> showDocumentationTypeChooser(false), 100);
+        });
+
+        btnProject.setOnClickListener(v -> {
+            dialog.dismiss();
+            postDelayed(() -> showActivityProjectChooser(false), 100);
+        });
+
+        dialog.show();
     }
 
     private void showDocumentationTypeChooser(boolean required) {
-        if (dialogShowing) return;
-        dialogShowing = true;
+        if (isDialogOpen()) return;
 
         final String previousType = cameraPrefs.getDocumentationType();
-        final String[] labels = new String[]{
-                "Infrastructure\nUse the existing Project / Site field documentation workflow",
-                "Project Activity\nTraining, field activity, demo, meeting, event or similar documentation"
-        };
+        View content = LayoutInflater.from(getContext())
+                .inflate(R.layout.dialog_documentation_type, null, false);
+
+        View infra = content.findViewById(R.id.optionInfrastructure);
+        View activity = content.findViewById(R.id.optionProjectActivity);
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(getContext())
-                .setTitle("What are you documenting?")
-                .setItems(labels, (dialog, which) -> {
-                    if (which == 0) {
-                        // On the very first use, remove the temporary blocker so
-                        // the existing Infrastructure Project/Site picker can run.
-                        cameraPrefs.clearDocumentationPlaceholderIfPresent();
-                        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
-
-                        // If coming back from Activity mode, restore the previous
-                        // Infrastructure Project/Site instead of losing it.
-                        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previousType)) {
-                            cameraPrefs.restoreInfrastructureSelection();
-                        }
-
-                        captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
-                        refreshLabel();
-
-                        // Reload GeoCameraActivity so its existing Project/Site
-                        // logic sees the restored/cleared Infrastructure selection.
-                        if (!CameraPrefs.DOC_INFRA.equals(previousType)) {
-                            post(this::recreateCameraOnce);
-                        }
-                    } else {
-                        // Do not save the internal placeholder as an Infra site.
-                        cameraPrefs.clearDocumentationPlaceholderIfPresent();
-
-                        if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previousType)) {
-                            cameraPrefs.rememberInfrastructureSelection();
-                        }
-
-                        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
-                        refreshLabel();
-
-                        // The type chooser closes first; then ask for Project ID.
-                        postDelayed(() -> showActivityProjectChooser(true), 120);
-                    }
-                });
-
-        if (required) {
-            builder.setCancelable(false);
-        } else {
-            builder.setNegativeButton("Cancel", null);
-        }
+                .setView(content)
+                .setCancelable(!required);
+        if (!required) builder.setNegativeButton("Cancel", null);
 
         AlertDialog dialog = builder.create();
-        dialog.setOnDismissListener(d -> {
-            dialogShowing = false;
-            refreshLabel();
-        });
         dialog.setCanceledOnTouchOutside(!required);
+        trackDialog(dialog);
+
+        infra.setOnClickListener(v -> {
+            cameraPrefs.clearDocumentationPlaceholderIfPresent();
+
+            if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previousType)) {
+                cameraPrefs.restoreInfrastructureSelection();
+            }
+
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+            captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
+            refreshLabel();
+            dialog.dismiss();
+
+            // On first Infrastructure use, this reload lets the existing Site
+            // selector run normally. Returning from Activity restores the prior site.
+            if (!CameraPrefs.DOC_INFRA.equals(previousType)) {
+                postDelayed(this::recreateCameraOnce, 100);
+            }
+        });
+
+        activity.setOnClickListener(v -> {
+            cameraPrefs.clearDocumentationPlaceholderIfPresent();
+
+            if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previousType)) {
+                cameraPrefs.rememberInfrastructureSelection();
+            }
+
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
+            refreshLabel();
+            dialog.dismiss();
+
+            if (cameraPrefs.hasActivityProjectId()) {
+                applyCurrentMode(false);
+                postDelayed(this::recreateCameraOnce, 100);
+            } else {
+                postDelayed(() -> showActivityProjectChooser(true), 120);
+            }
+        });
+
         dialog.show();
     }
 
     private void showActivityProjectChooser(boolean required) {
-        if (dialogShowing) {
-            postDelayed(() -> showActivityProjectChooser(required), 120);
-            return;
-        }
-        dialogShowing = true;
+        if (isDialogOpen()) return;
 
-        LinearLayout container = new LinearLayout(getContext());
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(dp(24), dp(8), dp(24), 0);
+        View content = LayoutInflater.from(getContext())
+                .inflate(R.layout.dialog_activity_project, null, false);
 
-        AutoCompleteTextView input = new AutoCompleteTextView(getContext());
+        TextInputLayout til = content.findViewById(R.id.tilActivityProject);
+        MaterialAutoCompleteTextView input = content.findViewById(R.id.etActivityProject);
+        TextView resolvedLabel = content.findViewById(R.id.tvProjectResolved);
+        MaterialButton btnUse = content.findViewById(R.id.btnUseActivityProject);
+
+        // Keep landscape keyboards in normal in-place mode instead of Android's
+        // full-screen extract editor, and make the IME Done key submit the form.
         input.setSingleLine(true);
-        input.setHint("Project ID / code / project name");
-        input.setThreshold(0);
+        input.setRawInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        input.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
 
         List<String> suggestions = projectRepo.getProjectSuggestions("", 100);
         input.setAdapter(new ArrayAdapter<>(
@@ -273,68 +288,102 @@ public class DocumentationModeChip extends MaterialButton {
                 android.R.layout.simple_dropdown_item_1line,
                 suggestions
         ));
+        input.setThreshold(0);
         input.setOnClickListener(v -> input.showDropDown());
+        input.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && !suggestions.isEmpty()) input.postDelayed(input::showDropDown, 120);
+        });
 
         String current = cameraPrefs.getActivityProjectId();
-        if (current != null && !current.isEmpty()) input.setText(current, false);
+        if (current != null && !current.isEmpty()) {
+            input.setText(current, false);
+            updateResolvedProjectLabel(resolvedLabel, current);
+        }
 
-        container.addView(input, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-
-        TextView note = new TextView(getContext());
-        note.setText("Saved locally only for now. Project Activity photos will not be sent to the current API yet.");
-        note.setTextSize(12f);
-        note.setPadding(0, dp(10), 0, 0);
-        container.addView(note, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
+        input.setOnItemClickListener((parent, view, position, id) -> {
+            String raw = input.getText() == null ? "" : input.getText().toString().trim();
+            updateResolvedProjectLabel(resolvedLabel, raw);
+        });
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Project Activity")
-                .setMessage("Select an existing project or enter its Project ID.")
-                .setView(container)
-                .setPositiveButton("Use Project", null);
-
+                .setView(content)
+                .setCancelable(!required);
         if (!required) builder.setNegativeButton("Cancel", null);
-        builder.setCancelable(!required);
 
         AlertDialog dialog = builder.create();
         dialog.setCanceledOnTouchOutside(!required);
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String raw = input.getText() == null ? "" : input.getText().toString().trim();
-            if (raw.isEmpty()) {
-                input.setError("Enter or select a Project ID");
-                return;
-            }
+        trackDialog(dialog);
 
-            String resolved = projectRepo.resolveProjectId(raw);
-            String projectId = (resolved == null || resolved.trim().isEmpty())
-                    ? raw
-                    : resolved.trim();
+        View.OnClickListener submit = v -> submitActivityProject(input, til, dialog);
+        btnUse.setOnClickListener(submit);
 
-            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
-            cameraPrefs.saveActivityProjectId(projectId);
+        input.setOnEditorActionListener((v, actionId, event) -> {
+            boolean imeDone = actionId == EditorInfo.IME_ACTION_DONE;
+            boolean enter = event != null
+                    && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
+                    && event.getAction() == KeyEvent.ACTION_UP;
+            if (!imeDone && !enter) return false;
 
-            // Reuse the existing local site/group key so the current
-            // Gallery → Date → Photos hierarchy continues to work.
-            // DB v116 marks PROJECT_ACTIVITY captures LOCAL_ONLY, so this does
-            // not send the new activity metadata to the current API.
-            cameraPrefs.saveSite(projectId, false);
-
-            captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, projectId);
-            refreshLabel();
-            dialog.dismiss();
-            recreateCameraOnce();
-        }));
-
-        dialog.setOnDismissListener(d -> {
-            dialogShowing = false;
-            refreshLabel();
+            submitActivityProject(input, til, dialog);
+            return true;
         });
+
+        dialog.setOnShowListener(d -> {
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            }
+        });
+
         dialog.show();
+    }
+
+    private void submitActivityProject(MaterialAutoCompleteTextView input,
+                                       TextInputLayout til,
+                                       AlertDialog dialog) {
+        String raw = input.getText() == null ? "" : input.getText().toString().trim();
+        if (raw.isEmpty()) {
+            til.setError("Enter or select a Project ID");
+            input.requestFocus();
+            return;
+        }
+
+        String resolved = projectRepo.resolveProjectId(raw);
+        String projectId = (resolved == null || resolved.trim().isEmpty())
+                ? raw
+                : resolved.trim();
+
+        til.setError(null);
+        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
+        cameraPrefs.saveActivityProjectId(projectId);
+
+        // Reuse the existing local site/group key so Gallery → Date → Photos
+        // remains intact. DB v116 marks Project Activity captures LOCAL_ONLY.
+        cameraPrefs.saveSite(projectId, false);
+        captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, projectId);
+
+        hideKeyboard(input);
+        refreshLabel();
+        dialog.dismiss();
+        postDelayed(this::recreateCameraOnce, 100);
+    }
+
+    private void updateResolvedProjectLabel(TextView view, String raw) {
+        if (view == null) return;
+        String resolved = projectRepo.resolveProjectId(raw);
+        if (resolved == null || resolved.trim().isEmpty()) {
+            view.setVisibility(View.GONE);
+            return;
+        }
+
+        String label = getActivityDisplayLabel(resolved);
+        if (label == null || label.trim().isEmpty()) {
+            view.setVisibility(View.GONE);
+            return;
+        }
+
+        view.setText("Selected: " + label);
+        view.setVisibility(View.VISIBLE);
     }
 
     private void applyCurrentMode(boolean recreateIfNeeded) {
@@ -361,18 +410,67 @@ public class DocumentationModeChip extends MaterialButton {
     private void refreshLabel() {
         String type = cameraPrefs.getDocumentationType();
         if (type == null) {
-            setText("CHOOSE TYPE");
+            setText("CHOOSE MODE");
             return;
         }
 
         if (CameraPrefs.DOC_INFRA.equals(type)) {
-            setText("INFRASTRUCTURE");
+            setText("MODE  •  INFRASTRUCTURE");
+            setIconResource(R.drawable.ic_infrastructure_24);
             return;
         }
 
         String projectId = cameraPrefs.getActivityProjectId();
-        if (projectId == null || projectId.isEmpty()) setText("PROJECT ACTIVITY");
-        else setText("ACTIVITY  •  " + projectId);
+        String label = getActivityDisplayLabel(projectId);
+        if (label == null || label.isEmpty()) {
+            setText("MODE  •  PROJECT ACTIVITY");
+        } else {
+            setText("ACTIVITY  •  " + compactLabel(label));
+        }
+        setIconResource(R.drawable.ic_project_activity_24);
+    }
+
+    private String getActivityDisplayLabel(String projectId) {
+        if (projectId == null || projectId.trim().isEmpty()) return null;
+        String full = projectRepo.getProjectDisplayLabel(projectId.trim());
+        if (full == null || full.trim().isEmpty()) return projectId.trim();
+
+        String value = full.trim();
+        int sep = value.indexOf(" — ");
+        if (sep >= 0 && sep + 3 < value.length()) {
+            String name = value.substring(sep + 3).trim();
+            if (!name.isEmpty()) return name;
+        }
+        return value;
+    }
+
+    private String compactLabel(String value) {
+        if (value == null) return "PROJECT ACTIVITY";
+        String v = value.trim();
+        return v.length() <= 24 ? v : v.substring(0, 23) + "…";
+    }
+
+    private boolean isDialogOpen() {
+        return activeDialog != null && activeDialog.isShowing();
+    }
+
+    private void trackDialog(AlertDialog dialog) {
+        activeDialog = dialog;
+        dialog.setOnDismissListener(d -> {
+            if (activeDialog == dialog) activeDialog = null;
+            refreshLabel();
+        });
+    }
+
+    private void hideKeyboard(View view) {
+        try {
+            InputMethodManager imm = (InputMethodManager)
+                    getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null && view != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private void recreateCameraOnce() {
@@ -384,10 +482,6 @@ public class DocumentationModeChip extends MaterialButton {
         postDelayed(() -> {
             if (!activity.isFinishing() && !activity.isDestroyed()) activity.recreate();
         }, 120);
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private Activity findActivity(Context context) {
