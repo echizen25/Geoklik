@@ -178,8 +178,6 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_siteid ON tbl_imagemeta(siteid);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_status ON tbl_imagemeta(status);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_site_time ON tbl_imagemeta(siteid, timestamp);");
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_monitoring_type ON tbl_imagemeta(monitoring_type);");
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_activity_project ON tbl_imagemeta(activity_project_id);");
 
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_groups_site_date ON tbl_groups(siteid, sessiondate);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_groups_desc ON tbl_groups(description);");
@@ -225,6 +223,18 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         ensureColumnExists(db, "tbl_imagemeta", "monitoring_type", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "activity_project_id", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "shot_type", "TEXT");
+
+        // Protect any PROJECT_ACTIVITY photos created by the brief v115 prototype
+        // before this local-only rule existed.
+        try {
+            db.execSQL(
+                    "UPDATE tbl_imagemeta SET " +
+                            "activity_project_id = COALESCE(NULLIF(activity_project_id,''), NULLIF(siteid,'')), " +
+                            "status = CASE WHEN status IN (0,2,3) THEN 4 ELSE status END " +
+                            "WHERE monitoring_type = 'PROJECT_ACTIVITY'"
+            );
+        } catch (Exception ignored) {
+        }
 
         ensureColumnExists(db, "tbl_projects", "code", "TEXT");
         ensureColumnExists(db, "tbl_projects", "coda", "TEXT");
