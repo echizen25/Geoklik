@@ -26,7 +26,7 @@
             android:id="@+id/rvImages"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="8dp"
+            android:padding="10dp"
             android:clipToPadding="false"
             android:scrollbars="vertical" />
 
@@ -36,16 +36,35 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="32dp"
+            android:paddingStart="36dp"
+            android:paddingEnd="36dp"
+            android:paddingBottom="32dp"
             android:visibility="gone">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="92dp"
+                android:layout_height="92dp"
+                app:cardCornerRadius="46dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_camera_alt_24"
+                    android:contentDescription="No photos"
+                    app:tint="?attr/colorPrimary" />
+            </com.google.android.material.card.MaterialCardView>
 
             <TextView
                 android:id="@+id/tvEmptyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
                 android:text="No photos yet"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="18sp"
+                android:textSize="19sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -54,9 +73,24 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="Captured photos for this inspection will appear here."
+                android:lineSpacingExtra="2dp"
+                android:text="Start your first field capture. Photos from this inspection will appear here automatically."
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp" />
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="7dp"
+                android:paddingBottom="7dp"
+                android:text="READY FOR FIRST CAPTURE"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.06" />
 
         </LinearLayout>
 
