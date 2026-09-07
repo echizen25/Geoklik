@@ -104,6 +104,12 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         String status;
         int color;
 
+        boolean localOnly = total > 0
+                && it.unsyncedPhotos > 0
+                && it.pendingPhotos == 0
+                && it.uploadingPhotos == 0
+                && it.failedPhotos == 0;
+
         if (total <= 0) {
             status = "NO PHOTOS";
             color = ContextCompat.getColor(context, android.R.color.darker_gray);
@@ -113,6 +119,9 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         } else if (it.failedPhotos > 0) {
             status = "FAILED";
             color = Color.parseColor("#D32F2F");
+        } else if (localOnly) {
+            status = "LOCAL";
+            color = Color.parseColor("#546E7A");
         } else if (it.unsyncedPhotos > 0 || it.pendingPhotos > 0) {
             status = "PENDING";
             color = Color.parseColor("#004B24");
