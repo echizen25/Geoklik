@@ -1,7 +1,54 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Geocamera" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+
+    <!-- Dark-mode override for the actual app theme used by AndroidManifest. -->
+    <style name="Theme.GeoCamera" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#0B6B3A</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#52C985</item>
+        <item name="colorOnSecondary">#062312</item>
+
+        <item name="android:colorBackground">#0F1411</item>
+        <item name="colorSurface">#151C18</item>
+        <item name="colorOnSurface">#F2F6F3</item>
+        <item name="colorSurfaceVariant">#202923</item>
+        <item name="colorOnSurfaceVariant">#CCD7D0</item>
+        <item name="colorOutline">#7E9185</item>
+        <item name="colorError">#FFB4AB</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#0F1411</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        <item name="colorControlNormal">#F2F6F3</item>
+        <item name="colorControlActivated">#52C985</item>
+        <item name="colorControlHighlight">#3352C985</item>
+        <item name="colorAccent">#52C985</item>
+
+        <item name="android:spinnerStyle">@style/Widget.GeoCamera.Spinner</item>
     </style>
+
+    <style name="ThemeOverlay.GeoCamera.GalleryToolbar" parent="ThemeOverlay.Material3.Dark.ActionBar">
+        <item name="colorControlNormal">@android:color/white</item>
+        <item name="android:colorControlNormal">@android:color/white</item>
+    </style>
+
+    <style name="Widget.GeoCamera.Spinner" parent="@android:style/Widget.Holo.Spinner">
+        <item name="android:popupBackground">#202923</item>
+        <item name="android:textColor">#F2F6F3</item>
+    </style>
+
+    <style name="Theme.GeoCamera.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#01361A</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/geoklik_splash_safe_512</item>
+        <item name="windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.GeoCamera</item>
+    </style>
+
+    <style name="Theme.GeoCamera.DialogActivity" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
 </resources>
