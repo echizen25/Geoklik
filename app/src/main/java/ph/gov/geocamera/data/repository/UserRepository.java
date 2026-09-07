@@ -9,14 +9,17 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.local.db.GeoDbHelper;
 
 public class UserRepository {
 
     private final GeoDbHelper dbHelper;
+    private final Context sourceContext;
 
     public UserRepository(Context context) {
-        dbHelper = new GeoDbHelper(context);
+        sourceContext = context;
+        dbHelper = new GeoDbHelper(context.getApplicationContext());
     }
 
     // -------------------------------------
@@ -82,6 +85,14 @@ public class UserRepository {
     }
 
     public String getProject() {
+        // Only GeoCameraActivity changes its displayed/captured project label in
+        // Project Activity mode. Everywhere else still receives the user's
+        // original funding/program value (RCEF, CTF, PHILMECH, etc.).
+        String activityLabel = getCameraActivityProjectLabel();
+        if (activityLabel != null && !activityLabel.trim().isEmpty()) {
+            return activityLabel.trim();
+        }
+
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = db.rawQuery("SELECT project FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
 
@@ -89,6 +100,60 @@ public class UserRepository {
         if (c.moveToFirst()) val = c.getString(0);
         c.close();
         return val;
+    }
+
+    private String getCameraActivityProjectLabel() {
+        if (sourceContext == null
+                || !"ph.gov.geocamera.presentation.geocamera.GeoCameraActivity"
+                .equals(sourceContext.getClass().getName())) {
+            return null;
+        }
+
+        CameraPrefs prefs = new CameraPrefs(sourceContext);
+        if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(prefs.getDocumentationType())) {
+            return null;
+        }
+
+        String projectId = prefs.getActivityProjectId();
+        if (projectId == null || projectId.trim().isEmpty()) return "PROJECT ACTIVITY";
+        projectId = projectId.trim();
+
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor c = null;
+        try {
+            c = db.rawQuery(
+                    "SELECT coda, code FROM tbl_projects " +
+                            "WHERE trim(projectid)=trim(?) COLLATE NOCASE " +
+                            "   OR trim(code)=trim(?) COLLATE NOCASE " +
+                            "LIMIT 1",
+                    new String[]{projectId, projectId}
+            );
+
+            if (c.moveToFirst()) {
+                String coda = c.isNull(0) ? "" : clean(c.getString(0));
+                String code = c.isNull(1) ? "" : clean(c.getString(1));
+                if (!coda.isEmpty()) return safeCameraProjectLabel(coda);
+                if (!code.isEmpty()) return safeCameraProjectLabel(code);
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+
+        return safeCameraProjectLabel(projectId);
+    }
+
+    /** Keep the label usable both on the watermark and as the local photo folder name. */
+    private String safeCameraProjectLabel(String value) {
+        String v = clean(value);
+        if (v.isEmpty()) return "PROJECT ACTIVITY";
+        v = v.replaceAll("[\\\\/:*?\"<>|]", "-");
+        while (v.contains("  ")) v = v.replace("  ", " ");
+        return v.trim();
+    }
+
+    private String clean(String value) {
+        if (value == null) return "";
+        return value.replace('\n', ' ').replace('\r', ' ').trim();
     }
 
     public String getUserId() {
