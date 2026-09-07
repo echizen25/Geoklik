@@ -37,6 +37,13 @@ public class CaptureContextRepository {
         cv.put("monitoring_type", type);
         cv.put("activity_project_id", activityId);
         cv.put("shot_type", CameraPrefs.SHOT_GENERAL); // legacy column; no UI choice anymore
+
+        // Seed the next capture as well. The shutter listener snapshots again,
+        // but this keeps accessibility/programmatic capture paths safe.
+        cv.put("pending_monitoring_type", type);
+        cv.put("pending_activity_project_id", activityId);
+        cv.put("pending_shot_type", CameraPrefs.SHOT_GENERAL);
+
         cv.put("updated_at", now());
         db.update(GeoDbHelper.TABLE_CAPTURE_CONTEXT, cv, "context_id=1", null);
     }
