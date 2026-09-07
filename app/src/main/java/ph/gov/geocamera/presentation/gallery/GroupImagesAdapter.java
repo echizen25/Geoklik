@@ -6,6 +6,7 @@ import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -116,8 +117,7 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         h.tvSaved.setVisibility(it.savedToDevice ? View.VISIBLE : View.GONE);
 
         boolean isSelected = it.uuid != null && selectedUuids.contains(it.uuid);
-        h.selectionOverlay.setVisibility(isSelected ? View.VISIBLE : View.GONE);
-        h.card.setStrokeWidth(dp(isSelected ? 2 : 1));
+        bindSelectionState(h, isSelected);
 
         View.OnClickListener click = v -> {
             if (it.uuid == null) return;
@@ -138,6 +138,53 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         h.card.setOnLongClickListener(longClick);
         h.img.setOnClickListener(click);
         h.img.setOnLongClickListener(longClick);
+    }
+
+    private void bindSelectionState(@NonNull VH h, boolean selected) {
+        h.card.animate().cancel();
+        h.selectionOverlay.animate().cancel();
+
+        if (selected) {
+            boolean entering = h.selectionOverlay.getVisibility() != View.VISIBLE;
+            h.selectionOverlay.setVisibility(View.VISIBLE);
+            if (entering) h.selectionOverlay.setAlpha(0f);
+
+            h.selectionOverlay.animate()
+                    .alpha(1f)
+                    .setDuration(120)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .start();
+
+            h.card.animate()
+                    .scaleX(0.975f)
+                    .scaleY(0.975f)
+                    .setDuration(120)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .start();
+            h.card.setStrokeWidth(dp(2));
+        } else {
+            if (h.selectionOverlay.getVisibility() == View.VISIBLE) {
+                h.selectionOverlay.animate()
+                        .alpha(0f)
+                        .setDuration(100)
+                        .withEndAction(() -> {
+                            h.selectionOverlay.setVisibility(View.GONE);
+                            h.selectionOverlay.setAlpha(1f);
+                        })
+                        .start();
+            } else {
+                h.selectionOverlay.setVisibility(View.GONE);
+                h.selectionOverlay.setAlpha(1f);
+            }
+
+            h.card.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(110)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .start();
+            h.card.setStrokeWidth(dp(1));
+        }
     }
 
     private void bindStatusBadge(TextView badge, int status) {
@@ -196,7 +243,18 @@ public class GroupImagesAdapter extends RecyclerView.Adapter<GroupImagesAdapter.
         if (selectedUuids.contains(uuid)) selectedUuids.remove(uuid);
         else selectedUuids.add(uuid);
         if (callback != null) callback.onSelectionCountChanged(selectedUuids.size());
-        notifyDataSetChanged();
+
+        int position = findPositionByUuid(uuid);
+        if (position >= 0) notifyItemChanged(position);
+        else notifyDataSetChanged();
+    }
+
+    private int findPositionByUuid(String uuid) {
+        for (int i = 0; i < items.size(); i++) {
+            ImageItem item = items.get(i);
+            if (item != null && uuid.equals(item.uuid)) return i;
+        }
+        return -1;
     }
 
     public void clearSelection() {
