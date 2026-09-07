@@ -31,10 +31,10 @@
             android:id="@+id/cardSearch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="10dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="10dp"
             android:visibility="gone"
-            app:cardCornerRadius="16dp"
+            app:cardCornerRadius="18dp"
             app:cardElevation="1dp"
             app:strokeWidth="1dp"
             app:strokeColor="?attr/colorOutline"
@@ -51,7 +51,7 @@
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Search site id / name"
+                    android:hint="Search project or site"
                     app:boxCornerRadiusTopStart="14dp"
                     app:boxCornerRadiusTopEnd="14dp"
                     app:boxCornerRadiusBottomStart="14dp"
@@ -77,10 +77,10 @@
             android:id="@+id/cardFilter"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="10dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="10dp"
             android:visibility="gone"
-            app:cardCornerRadius="16dp"
+            app:cardCornerRadius="18dp"
             app:cardElevation="1dp"
             app:strokeWidth="1dp"
             app:strokeColor="?attr/colorOutline"
@@ -89,7 +89,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="12dp"
+                android:padding="14dp"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -101,9 +101,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Year:"
-                        android:textSize="12sp"
-                        android:alpha="0.75"
+                        android:text="YEAR"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.08"
+                        android:textSize="11sp"
+                        android:alpha="0.72"
                         android:textColor="?attr/colorOnSurface" />
 
                     <Spinner
@@ -111,17 +113,16 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginStart="10dp" />
+                        android:layout_marginStart="12dp" />
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvNetworkStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:text="No internet. Sync disabled."
                     android:textSize="12sp"
-                    android:alpha="0.85"
                     android:textColor="?attr/colorError"
                     android:visibility="gone" />
 
@@ -129,39 +130,107 @@
                     android:id="@+id/tvFilterHint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="Long-press to select sites. Export uses selected sites."
+                    android:layout_marginTop="8dp"
+                    android:text="Long-press a project card to select it for export."
                     android:textSize="12sp"
-                    android:alpha="0.75"
-                    android:textColor="?attr/colorOnSurface" />
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-            android:id="@+id/swipeRefresh"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvGallery"
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/swipeRefresh"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ph.gov.geocamera.presentation.gallery.EmptyAwareRecyclerView
+                    android:id="@+id/rvGallery"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="12dp" />
+
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+            <LinearLayout
+                android:id="@+id/galleryEmptyState"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingBottom="6dp" />
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="36dp"
+                android:paddingEnd="36dp"
+                android:paddingBottom="36dp"
+                android:visibility="gone">
 
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    app:cardCornerRadius="48dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+                    <ImageView
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_camera_alt_24"
+                        android:contentDescription="Start capture"
+                        app:tint="?attr/colorPrimary" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Your gallery is ready"
+                    android:textStyle="bold"
+                    android:textSize="20sp"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Capture your first field photo from a project card. Your photos will be organized here automatically by project and date."
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="2dp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:text="FIRST CAPTURE → PROJECT CAMERA"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.06"
+                    android:textColor="?attr/colorPrimary" />
+
+            </LinearLayout>
+
+        </FrameLayout>
 
         <LinearLayout
             android:id="@+id/syncStatusRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_marginEnd="10dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
             android:layout_marginBottom="10dp"
+            android:padding="10dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:visibility="gone">
@@ -181,8 +250,7 @@
                 android:layout_weight="1"
                 android:text="Sync: 0/0"
                 android:textSize="12sp"
-                android:alpha="0.80"
-                android:textColor="?attr/colorOnSurface" />
+                android:textColor="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
     </LinearLayout>
