@@ -11,8 +11,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.GeoCamera.GalleryToolbar"
         app:titleTextColor="@android:color/white"
         app:navigationIconTint="@android:color/white"
+        app:itemIconTint="@android:color/white"
         app:menu="@menu/menu_group_images" />
 
     <FrameLayout
@@ -53,9 +55,8 @@
                 android:layout_marginTop="8dp"
                 android:gravity="center"
                 android:text="Captured photos for this inspection will appear here."
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="13sp"
-                android:alpha="0.70" />
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
 
         </LinearLayout>
 
