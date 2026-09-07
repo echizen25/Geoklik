@@ -54,8 +54,6 @@ public class CameraSettingsButton extends AppCompatImageButton {
 
     @Override
     public void setOnClickListener(@Nullable OnClickListener l) {
-        // GeoCameraActivity still assigns its legacy menu listener. Keep it as a
-        // safe fallback, but preserve this button's mode-aware front page.
         legacyListener = l;
     }
 
@@ -118,12 +116,8 @@ public class CameraSettingsButton extends AppCompatImageButton {
         btnProject.setOnClickListener(v -> {
             dialog.dismiss();
             if (activityMode) {
-                // The mode panel exposes a dedicated "Change activity project"
-                // action while keeping the type switch available in the same place.
-                modeChip.postDelayed(modeChip::showDocumentationSettings, 100);
+                modeChip.postDelayed(modeChip::showActivityProjectSettings, 100);
             } else {
-                // SetSiteActivity already saves CameraPrefs itself; GeoCameraActivity
-                // reloads the selection in onResume, so no legacy callback is lost.
                 activity.startActivity(new Intent(activity, SetSiteActivity.class));
             }
         });
