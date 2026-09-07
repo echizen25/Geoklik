@@ -25,6 +25,7 @@ public class CaptureContextRepository {
         dbHelper = new GeoDbHelper(context.getApplicationContext());
     }
 
+    /** Update what the camera UI currently shows, without changing a capture already in progress. */
     public void setCurrent(String documentationType, String shotType) {
         String type = normalizeType(documentationType);
         String shot = normalizeShot(shotType);
@@ -35,8 +36,6 @@ public class CaptureContextRepository {
         ContentValues cv = new ContentValues();
         cv.put("monitoring_type", type);
         cv.put("shot_type", shot);
-        cv.put("pending_monitoring_type", type);
-        cv.put("pending_shot_type", shot);
         cv.put("updated_at", now());
         db.update(GeoDbHelper.TABLE_CAPTURE_CONTEXT, cv, "context_id=1", null);
     }
