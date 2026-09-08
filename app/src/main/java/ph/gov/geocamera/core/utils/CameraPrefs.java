@@ -13,7 +13,7 @@ public class CameraPrefs {
     private static final String KEY_DESCRIPTION = "photo_description";
     private static final String KEY_INDOOR_ASSIST = "indoor_assist_enabled";
 
-    // Local-only documentation metadata. API/server support comes later.
+    // Capture classification persisted locally and stamped into each photo.
     private static final String KEY_DOCUMENTATION_TYPE = "documentation_type";
     private static final String KEY_ACTIVITY_PROJECT_ID = "activity_project_id";
 
@@ -24,7 +24,7 @@ public class CameraPrefs {
     private static final String KEY_INFRA_SELECTION_SAVED = "infra_selection_saved";
 
     // Internal placeholder used only to prevent the legacy Site picker from
-    // appearing before the first Infrastructure/Project Activity question.
+    // appearing before the first capture-target selection.
     public static final String DOC_SELECTION_PLACEHOLDER = "__DOC_MODE_PENDING__";
 
     // Retained only for backward compatibility with the first local prototype.
@@ -33,6 +33,7 @@ public class CameraPrefs {
 
     public static final String DOC_INFRA = "INFRA";
     public static final String DOC_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
+    public static final String DOC_PERSONAL = "PERSONAL";
     public static final String SHOT_GENERAL = "GENERAL";
 
     private final SharedPreferences sp;
@@ -58,7 +59,7 @@ public class CameraPrefs {
     /**
      * Called during camera layout inflation on a brand-new configuration.
      * It suppresses the existing Site picker just long enough for the new
-     * documentation-type question to appear first.
+     * capture-target question to appear first.
      */
     public void primeDocumentationSelectionPlaceholder() {
         if (!hasDocumentationType() && !hasSelection()) {
@@ -207,6 +208,7 @@ public class CameraPrefs {
     private String normalizeDocumentationType(String type) {
         if (type != null && DOC_INFRA.equalsIgnoreCase(type.trim())) return DOC_INFRA;
         if (type != null && DOC_PROJECT_ACTIVITY.equalsIgnoreCase(type.trim())) return DOC_PROJECT_ACTIVITY;
+        if (type != null && DOC_PERSONAL.equalsIgnoreCase(type.trim())) return DOC_PERSONAL;
         return null;
     }
 
