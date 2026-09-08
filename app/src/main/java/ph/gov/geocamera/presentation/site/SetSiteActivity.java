@@ -1,5 +1,7 @@
 package ph.gov.geocamera.presentation.site;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -69,6 +71,7 @@ public class SetSiteActivity extends AppCompatActivity {
         actSite = findViewById(R.id.actSite);
 
         MaterialButton btnUseSelected = findViewById(R.id.btnUseSelected);
+        MaterialButton btnPasteCode = findViewById(R.id.btnPasteCode);
         MaterialButton btnScanQr = findViewById(R.id.btnScanQr);
         MaterialButton btnUploadQr = findViewById(R.id.btnUploadQr);
         MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
@@ -77,11 +80,12 @@ public class SetSiteActivity extends AppCompatActivity {
         setupProjectCodeInput();
         setupQrLaunchers();
 
-        // Keep the local capture-target cache current for code/type resolution,
-        // but never expose the synced project list in this screen.
+        // Keep capture targets in the local cache for code/type resolution,
+        // but never expose the full synced project list on this screen.
         ProjectBackgroundSync.syncIfNeeded(this, false, null);
 
         btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
+        btnPasteCode.setOnClickListener(v -> pasteProjectCodeFromClipboard());
         btnScanQr.setOnClickListener(v -> startQrScan());
         btnUploadQr.setOnClickListener(v -> qrImageLauncher.launch("image/*"));
         btnUncategorized.setOnClickListener(v -> selectPersonalCapture());
@@ -114,6 +118,35 @@ public class SetSiteActivity extends AppCompatActivity {
             submitCurrentProjectCode();
             return true;
         });
+    }
+
+    private void pasteProjectCodeFromClipboard() {
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+        if (clipboard == null || !clipboard.hasPrimaryClip()) {
+            Toast.makeText(this, "Clipboard is empty.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ClipData clip = clipboard.getPrimaryClip();
+        if (clip == null || clip.getItemCount() == 0) {
+            Toast.makeText(this, "Clipboard is empty.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CharSequence value = clip.getItemAt(0).coerceToText(this);
+        String pasted = normalizeScannedValue(value == null ? "" : value.toString());
+
+        if (pasted.isEmpty()) {
+            Toast.makeText(this, "Clipboard does not contain a project code.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        actSite.setText(pasted);
+        actSite.setSelection(pasted.length());
+        actSite.requestFocus();
+        Toast.makeText(this, "Project code pasted", Toast.LENGTH_SHORT).show();
     }
 
     private void setupQrLaunchers() {
@@ -176,7 +209,7 @@ public class SetSiteActivity extends AppCompatActivity {
         raw = normalizeScannedValue(raw);
 
         if (raw.isEmpty()) {
-            Toast.makeText(this, "Enter or scan a Project Code.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Enter, paste, or scan a Project Code.", Toast.LENGTH_SHORT).show();
             return;
         }
 
