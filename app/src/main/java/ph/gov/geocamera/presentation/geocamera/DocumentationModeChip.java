@@ -52,6 +52,10 @@ public class DocumentationModeChip extends MaterialButton {
 
     private void init(Context context) {
         cameraPrefs = new CameraPrefs(context);
+        // The old manual mode prototype used a fake site value to delay the
+        // Site picker. It is no longer needed now that project type is automatic.
+        cameraPrefs.clearDocumentationPlaceholderIfPresent();
+
         captureContextRepo = new CaptureContextRepository(context);
         projectRepo = new ProjectRepository(context);
 
