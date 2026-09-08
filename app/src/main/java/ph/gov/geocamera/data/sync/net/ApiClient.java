@@ -2,14 +2,14 @@ package ph.gov.geocamera.data.sync.net;
 
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
+import ph.gov.geocamera.data.remote.ApiEndpoints;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
 
-   //server
-   private static final String BASE_URL =
-           "https://app.philmech.gov.ph/geomap_api/";
+    // Centralized migrated GeoKlik API base URL.
+    private static final String BASE_URL = ApiEndpoints.API_BASE_URL;
 
     private static Retrofit retrofit;
 
