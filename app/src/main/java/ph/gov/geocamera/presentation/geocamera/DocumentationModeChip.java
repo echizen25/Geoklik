@@ -270,15 +270,21 @@ public class DocumentationModeChip extends MaterialButton {
 
         View content = LayoutInflater.from(getContext())
                 .inflate(R.layout.dialog_activity_project, null, false);
+        content.requestFocus();
 
         TextInputLayout til = content.findViewById(R.id.tilActivityProject);
         MaterialAutoCompleteTextView input = content.findViewById(R.id.etActivityProject);
         TextView resolvedLabel = content.findViewById(R.id.tvProjectResolved);
+        View currentCard = content.findViewById(R.id.cardCurrentActivityProject);
+        TextView currentLabel = content.findViewById(R.id.tvCurrentActivityProject);
+        MaterialButton btnCancel = content.findViewById(R.id.btnCancelActivityProject);
         MaterialButton btnUse = content.findViewById(R.id.btnUseActivityProject);
 
         input.setSingleLine(true);
         input.setRawInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         input.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        input.setDropDownHeight(dp(180));
+        input.setDropDownVerticalOffset(dp(4));
 
         List<String> suggestions = projectRepo.getProjectSuggestions("", 100);
         input.setAdapter(new ArrayAdapter<>(
@@ -287,31 +293,39 @@ public class DocumentationModeChip extends MaterialButton {
                 suggestions
         ));
         input.setThreshold(0);
-        input.setOnClickListener(v -> input.showDropDown());
-        input.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus && !suggestions.isEmpty()) input.postDelayed(input::showDropDown, 120);
+        input.setOnClickListener(v -> {
+            if (!suggestions.isEmpty()) input.showDropDown();
         });
 
         String current = cameraPrefs.getActivityProjectId();
         if (current != null && !current.isEmpty()) {
+            String currentDisplay = getActivityDisplayLabel(current);
+            currentCard.setVisibility(View.VISIBLE);
+            currentLabel.setText(currentDisplay == null || currentDisplay.trim().isEmpty()
+                    ? current
+                    : currentDisplay + "\n" + current);
             input.setText(current, false);
             updateResolvedProjectLabel(resolvedLabel, current);
+        } else {
+            currentCard.setVisibility(View.GONE);
         }
 
         input.setOnItemClickListener((parent, view, position, id) -> {
             String raw = input.getText() == null ? "" : input.getText().toString().trim();
+            til.setError(null);
             updateResolvedProjectLabel(resolvedLabel, raw);
         });
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(getContext())
                 .setView(content)
                 .setCancelable(!required);
-        if (!required) builder.setNegativeButton("Cancel", null);
 
         AlertDialog dialog = builder.create();
         dialog.setCanceledOnTouchOutside(!required);
         trackDialog(dialog);
 
+        btnCancel.setVisibility(required ? View.GONE : View.VISIBLE);
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnUse.setOnClickListener(v -> submitActivityProject(input, til, dialog));
 
         input.setOnEditorActionListener((v, actionId, event) -> {
@@ -330,8 +344,10 @@ public class DocumentationModeChip extends MaterialButton {
         dialog.setOnShowListener(d -> {
             if (dialog.getWindow() != null) {
                 dialog.getWindow().setSoftInputMode(
-                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                                | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
             }
+            configureResponsiveDialog(dialog);
         });
 
         dialog.show();
@@ -378,8 +394,32 @@ public class DocumentationModeChip extends MaterialButton {
             return;
         }
 
-        view.setText("Selected: " + label);
+        view.setText("Selected  •  " + label);
         view.setVisibility(View.VISIBLE);
+    }
+
+    private void configureResponsiveDialog(AlertDialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+
+        android.view.Window window = dialog.getWindow();
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        int width = Math.min(Math.max(1, screenWidth - dp(20)), dp(560));
+        int maxHeight = Math.max(1, screenHeight - dp(16));
+
+        window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.getDecorView().post(() -> {
+            if (dialog.getWindow() == null || !dialog.isShowing()) return;
+            int measuredHeight = dialog.getWindow().getDecorView().getHeight();
+            dialog.getWindow().setLayout(
+                    width,
+                    measuredHeight > maxHeight ? maxHeight : WindowManager.LayoutParams.WRAP_CONTENT
+            );
+        });
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void applyCurrentMode(boolean recreateIfNeeded) {
