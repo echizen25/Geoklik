@@ -2,6 +2,7 @@ package ph.gov.geocamera.data.sync;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -16,6 +17,7 @@ import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
+import ph.gov.geocamera.data.local.db.GeoDbHelper;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.data.sync.net.ApiClient;
 import ph.gov.geocamera.data.sync.net.ApiService;
@@ -27,6 +29,9 @@ public class UploadWorker extends Worker {
     private static final String TAG = "UPLOAD";
     private static final int BATCH_LIMIT = 5;
     private static final String ERR_NO_PROJECT_FOUND = "NO_PROJECT_FOUND";
+    private static final String ERR_NO_PROJECT_ACTIVITY_FOUND = "NO_PROJECT_ACTIVITY_FOUND";
+    private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
+    private static final int STATUS_LOCAL_ONLY = 4;
 
     public UploadWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -39,6 +44,12 @@ public class UploadWorker extends Worker {
         Log.d(TAG, "Worker START");
 
         ImageMetaRepository repo = new ImageMetaRepository(getApplicationContext());
+
+        // v117 originally kept Project Activity rows at status=4 (LOCAL_ONLY).
+        // The API now has a dedicated activity upload route, so promote those
+        // rows into the existing pending queue without changing INFRA records.
+        promoteProjectActivityRowsForSync();
+
         repo.resetStuckUploading();
 
         ApiService api = ApiClient.get().create(ApiService.class);
@@ -97,6 +108,9 @@ public class UploadWorker extends Worker {
                 String progressTimestamp = safe(c.getString(16));
                 String groupRemarks      = safe(c.getString(17));
 
+                CaptureMeta captureMeta = loadCaptureMeta(uuid);
+                boolean projectActivity = captureMeta.isProjectActivity();
+
                 String motherfolder = folderRel;
                 if (motherfolder.contains("/")) {
                     motherfolder = motherfolder.split("/")[0];
@@ -108,6 +122,8 @@ public class UploadWorker extends Worker {
                 Log.d(TAG, "Processing uuid=" + uuid
                         + ", siteId=" + siteId
                         + ", groupId=" + groupId
+                        + ", monitoringType=" + captureMeta.monitoringType
+                        + ", activityProjectId=" + captureMeta.activityProjectId
                         + ", project(funding)=" + project
                         + ", fundingCode=" + fundingCode
                         + ", filePath=" + filePath);
@@ -123,7 +139,9 @@ public class UploadWorker extends Worker {
                     repo.markUploadFail(uuid, lastError);
                 }
                 else if (siteId.isEmpty()) {
-                    lastError = ERR_NO_PROJECT_FOUND;
+                    lastError = projectActivity
+                            ? ERR_NO_PROJECT_ACTIVITY_FOUND
+                            : ERR_NO_PROJECT_FOUND;
                     hadFailure = true;
                     repo.markUploadFail(uuid, lastError);
                 }
@@ -147,31 +165,55 @@ public class UploadWorker extends Worker {
                             MultipartBody.Part photoPart =
                                     MultipartBody.Part.createFormData("file", file.getName(), fileBody);
 
-                            Response<UploadResponse> resp = api.uploadPhoto(
-                                    photoPart,
-                                    text(uuid),
-                                    text(project),
-                                    text(siteId),
-                                    text(userId),
-                                    text(groupId),
-                                    text(motherfolder),
-                                    text(sessionDate),
-                                    text(description),
-                                    text(groupRemarks),
-                                    text(timestamp),
-                                    text(lat == null ? "" : String.valueOf(lat)),
-                                    text(lng == null ? "" : String.valueOf(lng)),
-                                    text(acc == null ? "" : String.valueOf(acc)),
-                                    text(location),
-                                    text(errorAtLoc),
-                                    text(fundingCode),
-                                    text(progressTimestamp)
-                            ).execute();
+                            Response<UploadResponse> resp;
+
+                            if (projectActivity) {
+                                resp = api.uploadProjectActivityPhoto(
+                                        photoPart,
+                                        text(uuid),
+                                        text(siteId),
+                                        text(captureMeta.activityProjectId),
+                                        text(userId),
+                                        text(groupId),
+                                        text(sessionDate),
+                                        text(description),
+                                        text(groupRemarks),
+                                        text(timestamp),
+                                        text(lat == null ? "" : String.valueOf(lat)),
+                                        text(lng == null ? "" : String.valueOf(lng)),
+                                        text(acc == null ? "" : String.valueOf(acc)),
+                                        text(location),
+                                        text(errorAtLoc)
+                                ).execute();
+                            } else {
+                                // Proven INFRA upload contract remains untouched.
+                                resp = api.uploadPhoto(
+                                        photoPart,
+                                        text(uuid),
+                                        text(project),
+                                        text(siteId),
+                                        text(userId),
+                                        text(groupId),
+                                        text(motherfolder),
+                                        text(sessionDate),
+                                        text(description),
+                                        text(groupRemarks),
+                                        text(timestamp),
+                                        text(lat == null ? "" : String.valueOf(lat)),
+                                        text(lng == null ? "" : String.valueOf(lng)),
+                                        text(acc == null ? "" : String.valueOf(acc)),
+                                        text(location),
+                                        text(errorAtLoc),
+                                        text(fundingCode),
+                                        text(progressTimestamp)
+                                ).execute();
+                            }
 
                             if (resp.isSuccessful() && resp.body() != null) {
                                 UploadResponse body = resp.body();
 
                                 Log.d(TAG, "API response uuid=" + uuid
+                                        + ", activity=" + projectActivity
                                         + ", ok=" + body.ok
                                         + ", error=" + body.error
                                         + ", path=" + body.path
@@ -188,7 +230,7 @@ public class UploadWorker extends Worker {
                                     hadFailure = true;
                                     repo.markUploadFail(uuid, err);
 
-                                    if (!ERR_NO_PROJECT_FOUND.equalsIgnoreCase(err)) {
+                                    if (!isMissingProjectError(err)) {
                                         shouldRetry = true;
                                     }
                                 }
@@ -198,6 +240,7 @@ public class UploadWorker extends Worker {
                                 String rawErr = readErrorBody(resp.errorBody());
 
                                 Log.d(TAG, "HTTP error uuid=" + uuid
+                                        + ", activity=" + projectActivity
                                         + ", code=" + code
                                         + ", body=" + rawErr);
 
@@ -207,9 +250,6 @@ public class UploadWorker extends Worker {
                                 hadFailure = true;
                                 repo.markUploadFail(uuid, finalErr);
 
-                                // Retry only transient server/rate-limit errors.
-                                // 4xx such as 403 are configuration/auth failures and must be
-                                // surfaced immediately instead of pretending sync completed.
                                 if (code >= 500 || code == 429) {
                                     shouldRetry = true;
                                 }
@@ -249,8 +289,6 @@ public class UploadWorker extends Worker {
                 return Result.retry();
             }
 
-            // Any non-retryable failure (for example HTTP 403) must make the
-            // WorkManager job FAILED so the UI cannot show "Sync complete".
             if (hadFailure) {
                 Data output = new Data.Builder()
                         .putString("ERROR", safe(lastError))
@@ -278,6 +316,72 @@ public class UploadWorker extends Worker {
 
         } finally {
             if (c != null) c.close();
+        }
+    }
+
+    private void promoteProjectActivityRowsForSync() {
+        GeoDbHelper helper = new GeoDbHelper(getApplicationContext());
+        SQLiteDatabase db = null;
+        try {
+            db = helper.getWritableDatabase();
+            db.execSQL(
+                    "UPDATE tbl_imagemeta " +
+                            "SET status = 0, sync_attempts = 0, last_sync_error = NULL " +
+                            "WHERE status = ? " +
+                            "AND upper(trim(COALESCE(monitoring_type,''))) = ?",
+                    new Object[]{STATUS_LOCAL_ONLY, TYPE_PROJECT_ACTIVITY}
+            );
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to promote local Project Activity rows", e);
+        } finally {
+            try { helper.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private CaptureMeta loadCaptureMeta(String uuid) {
+        if (uuid == null || uuid.trim().isEmpty()) return new CaptureMeta("", "");
+
+        GeoDbHelper helper = new GeoDbHelper(getApplicationContext());
+        SQLiteDatabase db = null;
+        Cursor c = null;
+        try {
+            db = helper.getReadableDatabase();
+            c = db.rawQuery(
+                    "SELECT COALESCE(monitoring_type,''), COALESCE(activity_project_id,'') " +
+                            "FROM tbl_imagemeta WHERE uuid=? LIMIT 1",
+                    new String[]{uuid.trim()}
+            );
+
+            if (c.moveToFirst()) {
+                return new CaptureMeta(safe(c.getString(0)), safe(c.getString(1)));
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to read capture metadata for uuid=" + uuid, e);
+        } finally {
+            if (c != null) c.close();
+            try { helper.close(); } catch (Exception ignored) {}
+        }
+
+        return new CaptureMeta("", "");
+    }
+
+    private static boolean isMissingProjectError(String error) {
+        return ERR_NO_PROJECT_FOUND.equalsIgnoreCase(error)
+                || ERR_NO_PROJECT_ACTIVITY_FOUND.equalsIgnoreCase(error);
+    }
+
+    private static final class CaptureMeta {
+        final String monitoringType;
+        final String activityProjectId;
+
+        CaptureMeta(String monitoringType, String activityProjectId) {
+            this.monitoringType = safe(monitoringType);
+            this.activityProjectId = safe(activityProjectId);
+        }
+
+        boolean isProjectActivity() {
+            return TYPE_PROJECT_ACTIVITY.equalsIgnoreCase(monitoringType)
+                    || !activityProjectId.isEmpty();
         }
     }
 
