@@ -54,6 +54,9 @@ import ph.gov.geocamera.presentation.settings.SettingsActivity;
 
 public class GalleryActivity extends AppCompatActivity implements GalleryAdapter.Callback {
 
+    private static final String TYPE_PERSONAL = "PERSONAL";
+    private static final String ERR_NO_PROJECT_ACTIVITY_FOUND = "NO_PROJECT_ACTIVITY_FOUND";
+
     private MaterialToolbar toolbar;
     private View cardSearch;
     private View cardFilter;
@@ -325,16 +328,9 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
     }
 
     private int ensureRetryablePendingIfNeeded() {
-        int pending = imageRepo.countPendingForSync();
-        if (pending > 0) return pending;
-
-        int noProjectFailed = imageRepo.countNoProjectFoundFailed();
-        if (noProjectFailed > 0) {
-            int reset = imageRepo.retryNoProjectFound();
-            pending = imageRepo.countPendingForSync();
-            Toast.makeText(this, "Retrying " + reset + " failed item(s)...", Toast.LENGTH_SHORT).show();
-        }
-        return pending;
+        // Missing-project errors are intentionally not auto-reset here. Retrying a
+        // permanent resolver error repeatedly only hides the actual cause.
+        return imageRepo.countPendingForSync();
     }
 
     private void startSyncAll() {
@@ -350,12 +346,21 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         }
         int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
-            Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
+            int failed = imageRepo.countFailedForSyncCenter();
+            if (failed > 0) {
+                Toast.makeText(this,
+                        "Nothing retryable. " + failed + " failed item(s). " + latestFailureSummary(),
+                        Toast.LENGTH_LONG).show();
+            } else if (TYPE_PERSONAL.equals(selectedType)) {
+                Toast.makeText(this, "Personal Capture stays on this device and does not sync.", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
         toastShownRunning = false;
         setSyncUi(true, "Sync: starting...");
-        Toast.makeText(this, "Preparing sync...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Preparing " + pending + " photo(s) for sync...", Toast.LENGTH_SHORT).show();
         SyncScheduler.enqueueUploadNow(getApplicationContext());
     }
 
@@ -433,9 +438,16 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
                     if (runningOrQueued) {
                         int done = info.getProgress().getInt("DONE", 0);
                         int total = info.getProgress().getInt("TOTAL", 0);
-                        String site = info.getProgress().getString("SITE");
-                        String label = total > 0 ? "Sync: " + done + "/" + total : "Sync: working...";
-                        if (site != null && !site.trim().isEmpty()) label += " • " + site.trim();
+                        String label;
+
+                        if (state == WorkInfo.State.BLOCKED) {
+                            label = "Sync: waiting for requirements...";
+                        } else if (state == WorkInfo.State.ENQUEUED) {
+                            label = done > 0 ? "Sync: waiting to retry..." : "Sync: queued...";
+                        } else {
+                            label = total > 0 ? "Sync: " + done + "/" + total : "Sync: working...";
+                        }
+
                         setSyncUi(true, label);
 
                         if (state == WorkInfo.State.RUNNING && !toastShownRunning) {
@@ -444,10 +456,10 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
                         }
                     } else if (state == WorkInfo.State.SUCCEEDED) {
                         setSyncUi(false, null);
-                        int noProjectCount = imageRepo.countNoProjectFoundFailed();
-                        if (noProjectCount > 0) {
+                        int failed = imageRepo.countFailedForSyncCenter();
+                        if (failed > 0) {
                             Toast.makeText(this,
-                                    noProjectCount + " item(s) failed: No project found for the site ID.",
+                                    "Sync finished • " + failed + " failed item(s). " + latestFailureSummary(),
                                     Toast.LENGTH_LONG).show();
                         } else {
                             Toast.makeText(this, "Sync complete", Toast.LENGTH_SHORT).show();
@@ -455,14 +467,10 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
                         loadRoot();
                     } else if (state == WorkInfo.State.FAILED) {
                         setSyncUi(false, null);
-                        int noProjectCount = imageRepo.countNoProjectFoundFailed();
-                        if (noProjectCount > 0) {
-                            Toast.makeText(this,
-                                    noProjectCount + " item(s) failed: No project found for the site ID.",
-                                    Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(this, "Sync failed", Toast.LENGTH_LONG).show();
-                        }
+                        String raw = info.getOutputData().getString("ERROR");
+                        int httpCode = info.getOutputData().getInt("HTTP_CODE", 0);
+                        String message = friendlySyncError(raw, httpCode);
+                        Toast.makeText(this, "Sync failed: " + message, Toast.LENGTH_LONG).show();
                         loadRoot();
                     } else if (state == WorkInfo.State.CANCELLED) {
                         setSyncUi(false, null);
@@ -474,16 +482,57 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
                 });
     }
 
+    private String latestFailureSummary() {
+        Cursor c = null;
+        try {
+            c = imageRepo.getFailedSyncItems(1);
+            if (c != null && c.moveToFirst()) {
+                String error = c.isNull(4) ? "" : c.getString(4);
+                return friendlySyncError(error, 0);
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (c != null) c.close();
+        }
+        return "Open the failed item to review its status.";
+    }
+
+    private String friendlySyncError(String raw, int httpCode) {
+        String error = raw == null ? "" : raw.trim();
+        if (ImageMetaRepository.ERR_NO_PROJECT_FOUND.equalsIgnoreCase(error)) {
+            return "Project was not found on the server. Verify the project code.";
+        }
+        if (ERR_NO_PROJECT_ACTIVITY_FOUND.equalsIgnoreCase(error)) {
+            return "Project Activity was not found on the server. Refresh projects and verify the code.";
+        }
+        if (httpCode == 403 || error.startsWith("HTTP_403")) {
+            return "Server denied the upload (HTTP 403).";
+        }
+        if (httpCode == 404 || error.startsWith("HTTP_404")) {
+            return "Upload endpoint was not found (HTTP 404).";
+        }
+        if (httpCode >= 500 || error.startsWith("HTTP_5")) {
+            return "Server error. Try again when the API is available.";
+        }
+        if (error.startsWith("IO_")) return "Network connection was interrupted.";
+        if (error.startsWith("FILE_MISSING")) return "The local photo file is missing.";
+        if (error.startsWith("MISSING_GROUPID")) return "The local album/group information is incomplete.";
+        if (error.isEmpty()) return "Check the failed photo status and try again.";
+        return error.length() > 160 ? error.substring(0, 160) + "…" : error;
+    }
+
     private void loadFilters() {
         List<String> typeLabels = new ArrayList<>();
         typeLabels.add("All types");
         typeLabels.add("Infrastructure");
         typeLabels.add("Project Activity");
+        typeLabels.add("Personal");
 
         List<String> typeValues = new ArrayList<>();
         typeValues.add("ALL");
         typeValues.add("INFRA");
         typeValues.add("PROJECT_ACTIVITY");
+        typeValues.add(TYPE_PERSONAL);
 
         if (spType != null) {
             spType.setAdapter(new ArrayAdapter<>(
@@ -520,10 +569,17 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
     private void loadRoot() {
         adapter.loadSites("ALL", selectedYear, selectedType, searchText);
+        if (tvFilterHint != null && selectedCount == 0 && TYPE_PERSONAL.equals(selectedType)) {
+            tvFilterHint.setText("Personal Capture is stored on this device and is not uploaded.");
+        }
     }
 
     @Override
     public void onSyncSiteClicked(String siteId, String year, boolean alreadySynced) {
+        if (siteId != null && "UNCAT".equalsIgnoreCase(siteId.trim())) {
+            Toast.makeText(this, "Personal Capture stays on this device and does not sync.", Toast.LENGTH_LONG).show();
+            return;
+        }
         if (!hasInternet) {
             Toast.makeText(this, "No internet connection.", Toast.LENGTH_SHORT).show();
             return;
@@ -534,11 +590,11 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         }
         int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
-            Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Nothing retryable for this project.", Toast.LENGTH_SHORT).show();
             return;
         }
         toastShownRunning = false;
-        setSyncUi(true, "Sync: starting... • " + siteId);
+        setSyncUi(true, "Sync: starting...");
         SyncScheduler.enqueueUploadNow(getApplicationContext());
     }
 
@@ -550,7 +606,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
     @Override
     public void onBulkSyncRequested(List<String> siteIds) {
         if (siteIds == null || siteIds.isEmpty()) {
-            Toast.makeText(this, "No sites selected.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No items selected.", Toast.LENGTH_SHORT).show();
             return;
         }
         if (!hasInternet) {
@@ -559,11 +615,11 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         }
         int pending = ensureRetryablePendingIfNeeded();
         if (pending <= 0) {
-            Toast.makeText(this, "Nothing to sync.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Nothing retryable to sync.", Toast.LENGTH_SHORT).show();
             return;
         }
         toastShownRunning = false;
-        setSyncUi(true, "Sync: starting... (" + siteIds.size() + " site(s))");
+        setSyncUi(true, "Sync: starting...");
         SyncScheduler.enqueueUploadNow(getApplicationContext());
         adapter.clearSelection();
     }
@@ -589,7 +645,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
 
         List<String> siteIds = adapter.getSelectedSiteIds();
         if (siteIds == null || siteIds.isEmpty()) {
-            Toast.makeText(this, "No sites selected.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No items selected.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -653,7 +709,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
                 + "\nOnly new photos will be copied.";
 
         new MaterialAlertDialogBuilder(this)
-                .setTitle("Export Selected Sites")
+                .setTitle("Export Selected Photos")
                 .setMessage(message)
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Export " + pending.size(), (d, w) -> runBatchExport(pending, totalExisting, totalMissing))
@@ -737,9 +793,13 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         selectedCount = count;
         boolean hasSelection = count > 0;
         if (tvFilterHint != null) {
-            tvFilterHint.setText(hasSelection
-                    ? "Selected: " + count + " • Export available in More"
-                    : "Long-press a card to select it for optional batch export.");
+            if (hasSelection) {
+                tvFilterHint.setText("Selected: " + count + " • Export available in More");
+            } else if (TYPE_PERSONAL.equals(selectedType)) {
+                tvFilterHint.setText("Personal Capture is stored on this device and is not uploaded.");
+            } else {
+                tvFilterHint.setText("Long-press a card to select it for optional batch export.");
+            }
         }
         if (tvNetworkStatus != null) {
             tvNetworkStatus.setVisibility(hasInternet ? View.GONE : View.VISIBLE);
