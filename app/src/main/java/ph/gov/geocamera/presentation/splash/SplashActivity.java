@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import ph.gov.geocamera.data.remote.AppVersionService;
 import ph.gov.geocamera.data.repository.UserRepository;
+import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.home.HomeActivity;
 import ph.gov.geocamera.presentation.permissions.PermissionActivity;
 
@@ -28,6 +29,16 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         userRepo = new UserRepository(this);
+
+        // Resume any pending Infrastructure photo uploads whenever GeoKlik starts.
+        // WorkManager keeps the request waiting if the device is offline and starts
+        // it automatically once a network connection is available.
+        try {
+            SyncScheduler.enqueueUploadNow(getApplicationContext());
+        } catch (Exception ignored) {
+            // Sync must never block app startup.
+        }
+
         getWindow().getDecorView().postDelayed(this::checkAppVersion, 650);
     }
 
