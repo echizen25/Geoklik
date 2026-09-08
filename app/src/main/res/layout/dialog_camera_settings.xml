@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:clipToPadding="false"
     android:fillViewport="true"
     android:overScrollMode="ifContentScrolls">
 
@@ -10,9 +11,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingStart="18dp"
-        android:paddingTop="16dp"
-        android:paddingEnd="18dp"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
         android:paddingBottom="14dp">
 
         <com.google.android.material.textview.MaterialTextView
@@ -21,8 +22,8 @@
             android:text="Camera Settings"
             android:textColor="?attr/colorOnSurface"
             android:textStyle="bold"
-            app:autoSizeMaxTextSize="22sp"
-            app:autoSizeMinTextSize="18sp"
+            app:autoSizeMaxTextSize="21sp"
+            app:autoSizeMinTextSize="17sp"
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform" />
 
@@ -30,80 +31,216 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="Set the documentation context before capturing. Changes apply to new photos only."
+            android:text="Choose what you are documenting, then select the project."
             android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
 
-        <com.google.android.material.card.MaterialCardView
+        <com.google.android.material.textview.MaterialTextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            app:cardBackgroundColor="?attr/colorSurfaceVariant"
-            app:cardCornerRadius="18dp"
+            android:letterSpacing="0.08"
+            android:text="DOCUMENTATION TYPE"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/optionInfrastructureSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:minHeight="58dp"
+            app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
+            app:rippleColor="?attr/colorPrimary"
             app:strokeColor="?attr/colorOutline"
             app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="9dp">
+
+                <FrameLayout
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_mode_icon_circle"
+                    android:padding="8dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="Infrastructure"
+                        android:src="@drawable/ic_infrastructure_24" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Infrastructure"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="2"
+                        android:text="Buildings, facilities, installations and project sites"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/checkInfrastructureSettings"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="Selected"
+                    android:src="@drawable/ic_check_24"
+                    android:tint="?attr/colorPrimary"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/optionProjectActivitySettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:minHeight="58dp"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:rippleColor="?attr/colorPrimary"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="9dp">
+
+                <FrameLayout
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_mode_icon_circle"
+                    android:padding="8dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="Project Activity"
+                        android:src="@drawable/ic_project_activity_24" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Project Activity"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="2"
+                        android:text="Trainings, meetings, demonstrations and field activities"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/checkProjectActivitySettings"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="Selected"
+                    android:src="@drawable/ic_check_24"
+                    android:tint="?attr/colorPrimary"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardCameraProjectSelection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="14dp">
+                android:padding="12dp">
 
                 <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvCameraSettingsProjectLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.08"
-                    android:text="DOCUMENTATION MODE"
+                    android:text="PROJECT / SITE"
                     android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp"
+                    android:textSize="9sp"
                     android:textStyle="bold" />
-
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/tvCameraSettingsMode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:text="Infrastructure"
-                    android:textColor="?attr/colorPrimary"
-                    android:textStyle="bold"
-                    app:autoSizeMaxTextSize="18sp"
-                    app:autoSizeMinTextSize="13sp"
-                    app:autoSizeStepGranularity="1sp"
-                    app:autoSizeTextType="uniform" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switchDocumentationMode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:minHeight="48dp"
-                    android:text="Project Activity"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
-                    app:useMaterialThemeColors="true" />
-
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/tvDocumentationModeHint"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Switch OFF = Infrastructure • ON = Project Activity"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="11sp" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/tvCameraSettingsSelection"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="3dp"
                     android:ellipsize="end"
                     android:maxLines="2"
                     android:text="No project selected"
                     android:textColor="?attr/colorOnSurface"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    app:autoSizeMaxTextSize="15sp"
+                    app:autoSizeMinTextSize="11sp"
+                    app:autoSizeStepGranularity="1sp"
+                    app:autoSizeTextType="uniform" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tvCameraSettingsProjectId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnCameraProjectSelection"
@@ -111,14 +248,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:minHeight="48dp"
-                    android:text="Change Project / Site"
+                    android:minHeight="46dp"
+                    android:text="Choose project"
                     android:textAllCaps="false"
-                    app:cornerRadius="14dp"
+                    android:textStyle="bold"
+                    app:cornerRadius="12dp"
                     app:icon="@drawable/ic_infrastructure_24"
                     app:iconGravity="textStart"
                     app:iconPadding="8dp" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -126,7 +263,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            app:cardCornerRadius="18dp"
+            app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
             app:strokeColor="?attr/colorOutline"
             app:strokeWidth="1dp">
@@ -135,34 +272,29 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="14dp">
-
-                <com.google.android.material.textview.MaterialTextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:letterSpacing="0.08"
-                    android:text="LOCATION"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="9dp">
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/switchIndoorAssist"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:minHeight="48dp"
+                    android:minHeight="46dp"
                     android:text="Indoor Assist"
                     android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
                     app:useMaterialThemeColors="true" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Use assisted/network location only when GPS is weak. GPS-only remains the default."
+                    android:maxLines="2"
+                    android:text="Use assisted location only when GPS is weak."
                     android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="11sp" />
-
+                    android:textSize="10sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
