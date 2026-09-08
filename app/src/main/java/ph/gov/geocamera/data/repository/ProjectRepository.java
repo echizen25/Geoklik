@@ -45,6 +45,14 @@ public class ProjectRepository {
                     cv.put("beneficiary", safeNull(p.beneficiary));
                     cv.put("location", safeNull(p.location));
                     cv.put("cost", p.cost);
+                    cv.put("project_type", normalizeProjectType(p.projectType));
+                    cv.put("division_id", safeNull(p.divisionId));
+                    cv.put("division_code", safeNull(p.divisionCode));
+                    cv.put("division_name", safeNull(p.divisionName));
+                    cv.put("project_implementors", safeNull(p.projectImplementors));
+                    cv.put("project_description", safeNull(p.projectDescription));
+                    cv.put("date_from", safeNull(p.dateFrom));
+                    cv.put("date_to", safeNull(p.dateTo));
                     cv.put("timestamp", now);
 
                     db.insertWithOnConflict(
@@ -132,10 +140,8 @@ public class ProjectRepository {
         Cursor c = null;
         try {
             c = db.rawQuery(
-                    "SELECT projectid " +
-                            "FROM tbl_projects " +
-                            "WHERE trim(projectid) = trim(?) COLLATE NOCASE " +
-                            "LIMIT 1",
+                    "SELECT projectid FROM tbl_projects " +
+                            "WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
                     new String[]{value}
             );
             return c.moveToFirst();
@@ -145,6 +151,7 @@ public class ProjectRepository {
         }
     }
 
+    /** Resolve a GUID, project code, project title, or a displayed "CODE — Title" label. */
     public String resolveProjectId(String rawInput) {
         String input = normalize(rawInput);
         if (input.isEmpty()) return null;
@@ -153,96 +160,72 @@ public class ProjectRepository {
         Cursor c = null;
 
         try {
-            // 0) exact projectid
-            c = db.rawQuery(
-                    "SELECT projectid " +
-                            "FROM tbl_projects " +
-                            "WHERE trim(projectid) = trim(?) COLLATE NOCASE " +
-                            "LIMIT 1",
-                    new String[]{input}
-            );
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-            c.close();
-            c = null;
-
-            // 1) exact coda
-            c = db.rawQuery(
-                    "SELECT projectid " +
-                            "FROM tbl_projects " +
-                            "WHERE trim(coda) = trim(?) COLLATE NOCASE " +
-                            "LIMIT 1",
-                    new String[]{input}
-            );
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-            c.close();
-            c = null;
-
-            // 2) exact code
-            c = db.rawQuery(
-                    "SELECT projectid " +
-                            "FROM tbl_projects " +
-                            "WHERE trim(code) = trim(?) COLLATE NOCASE " +
-                            "LIMIT 1",
-                    new String[]{input}
-            );
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-            c.close();
-            c = null;
-
-            // 3) label format: "projectid — coda" or "projectid - coda"
-            String extracted = extractLeadingProjectId(input);
-            if (!extracted.isEmpty()) {
+            String leading = extractLeadingReference(input);
+            if (!leading.isEmpty()) {
                 c = db.rawQuery(
-                        "SELECT projectid " +
-                                "FROM tbl_projects " +
+                        "SELECT projectid FROM tbl_projects " +
                                 "WHERE trim(projectid) = trim(?) COLLATE NOCASE " +
+                                "   OR trim(code) = trim(?) COLLATE NOCASE " +
+                                "ORDER BY CASE WHEN trim(code)=trim(?) COLLATE NOCASE THEN 0 ELSE 1 END " +
                                 "LIMIT 1",
-                        new String[]{extracted}
+                        new String[]{leading, leading, leading}
                 );
-                if (c.moveToFirst()) {
-                    return c.isNull(0) ? null : normalize(c.getString(0));
-                }
+                if (c.moveToFirst()) return valueAt(c, 0);
                 c.close();
                 c = null;
             }
 
-            // 4) partial fallback
+            // Project Code is the primary human-facing identifier.
             c = db.rawQuery(
-                    "SELECT projectid " +
-                            "FROM tbl_projects " +
-                            "WHERE projectid LIKE ? COLLATE NOCASE " +
-                            "   OR code LIKE ? COLLATE NOCASE " +
+                    "SELECT projectid FROM tbl_projects " +
+                            "WHERE trim(code) = trim(?) COLLATE NOCASE LIMIT 1",
+                    new String[]{input}
+            );
+            if (c.moveToFirst()) return valueAt(c, 0);
+            c.close();
+            c = null;
+
+            // Still accept GUIDs for old QR codes / existing workflows.
+            c = db.rawQuery(
+                    "SELECT projectid FROM tbl_projects " +
+                            "WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
+                    new String[]{input}
+            );
+            if (c.moveToFirst()) return valueAt(c, 0);
+            c.close();
+            c = null;
+
+            c = db.rawQuery(
+                    "SELECT projectid FROM tbl_projects " +
+                            "WHERE trim(coda) = trim(?) COLLATE NOCASE LIMIT 1",
+                    new String[]{input}
+            );
+            if (c.moveToFirst()) return valueAt(c, 0);
+            c.close();
+            c = null;
+
+            c = db.rawQuery(
+                    "SELECT projectid FROM tbl_projects " +
+                            "WHERE code LIKE ? COLLATE NOCASE " +
                             "   OR coda LIKE ? COLLATE NOCASE " +
+                            "   OR projectid LIKE ? COLLATE NOCASE " +
                             "ORDER BY " +
                             "CASE " +
-                            "  WHEN trim(projectid) = trim(?) COLLATE NOCASE THEN 0 " +
-                            "  WHEN trim(code) = trim(?) COLLATE NOCASE THEN 1 " +
-                            "  WHEN trim(coda) = trim(?) COLLATE NOCASE THEN 2 " +
+                            "  WHEN trim(code) = trim(?) COLLATE NOCASE THEN 0 " +
+                            "  WHEN trim(coda) = trim(?) COLLATE NOCASE THEN 1 " +
+                            "  WHEN trim(projectid) = trim(?) COLLATE NOCASE THEN 2 " +
                             "  ELSE 3 " +
-                            "END, " +
-                            "coda COLLATE NOCASE ASC, " +
-                            "projectid COLLATE NOCASE ASC " +
+                            "END, code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC " +
                             "LIMIT 1",
                     new String[]{
                             "%" + input + "%",
                             "%" + input + "%",
                             "%" + input + "%",
-                            input,
-                            input,
-                            input
+                            input, input, input
                     }
             );
 
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-
+            if (c.moveToFirst()) return valueAt(c, 0);
             return null;
 
         } finally {
@@ -251,9 +234,13 @@ public class ProjectRepository {
         }
     }
 
+    /**
+     * Human-facing suggestions intentionally lead with Project Code instead of
+     * the internal GUID. Both tbl_project.code and tbl_project_activity.project_code
+     * arrive in this same local code column.
+     */
     public List<String> getProjectSuggestions(String query, int limit) {
         List<String> list = new ArrayList<>();
-
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = null;
 
@@ -262,66 +249,54 @@ public class ProjectRepository {
 
             if (q.isEmpty()) {
                 c = db.rawQuery(
-                        "SELECT projectid, code, coda " +
-                                "FROM tbl_projects " +
-                                "ORDER BY coda COLLATE NOCASE ASC, code COLLATE NOCASE ASC, projectid COLLATE NOCASE ASC " +
+                        "SELECT projectid, code, coda FROM tbl_projects " +
+                                "ORDER BY code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC " +
                                 "LIMIT ?",
                         new String[]{String.valueOf(limit)}
                 );
             } else {
                 c = db.rawQuery(
-                        "SELECT projectid, code, coda " +
-                                "FROM tbl_projects " +
-                                "WHERE projectid LIKE ? COLLATE NOCASE " +
-                                "   OR code LIKE ? COLLATE NOCASE " +
+                        "SELECT projectid, code, coda FROM tbl_projects " +
+                                "WHERE code LIKE ? COLLATE NOCASE " +
                                 "   OR coda LIKE ? COLLATE NOCASE " +
+                                "   OR projectid LIKE ? COLLATE NOCASE " +
                                 "ORDER BY " +
                                 "CASE " +
-                                "  WHEN trim(projectid) = trim(?) COLLATE NOCASE THEN 0 " +
-                                "  WHEN trim(code) = trim(?) COLLATE NOCASE THEN 1 " +
-                                "  WHEN trim(coda) = trim(?) COLLATE NOCASE THEN 2 " +
+                                "  WHEN trim(code) = trim(?) COLLATE NOCASE THEN 0 " +
+                                "  WHEN code LIKE ? COLLATE NOCASE THEN 1 " +
+                                "  WHEN coda LIKE ? COLLATE NOCASE THEN 2 " +
                                 "  ELSE 3 " +
-                                "END, " +
-                                "coda COLLATE NOCASE ASC, " +
-                                "code COLLATE NOCASE ASC, " +
-                                "projectid COLLATE NOCASE ASC " +
+                                "END, code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC " +
                                 "LIMIT ?",
                         new String[]{
                                 "%" + q + "%",
                                 "%" + q + "%",
                                 "%" + q + "%",
                                 q,
-                                q,
-                                q,
+                                q + "%",
+                                q + "%",
                                 String.valueOf(limit)
                         }
                 );
             }
 
             while (c.moveToNext()) {
-                String projectId = c.isNull(0) ? "" : normalize(c.getString(0));
-                String code = c.isNull(1) ? "" : normalize(c.getString(1));
-                String coda = c.isNull(2) ? "" : normalize(c.getString(2));
+                String projectId = valueAt(c, 0);
+                String code = valueAt(c, 1);
+                String coda = valueAt(c, 2);
 
                 String label;
-                if (!coda.isEmpty()) {
-                    label = coda;
+                if (!code.isEmpty() && !coda.isEmpty()) {
+                    label = code + " — " + coda;
                 } else if (!code.isEmpty()) {
                     label = code;
+                } else if (!coda.isEmpty()) {
+                    label = coda;
                 } else {
                     label = projectId;
                 }
 
-                if (!label.isEmpty() && !list.contains(label)) {
-                    list.add(label);
-                }
-
-                if (!projectId.isEmpty()
-                        && !list.contains(projectId)
-                        && (q.isEmpty() || projectId.toLowerCase(Locale.US).contains(q.toLowerCase(Locale.US)))) {
-                    list.add(projectId);
-                }
-
+                if (!label.isEmpty() && !list.contains(label)) list.add(label);
                 if (list.size() >= limit) break;
             }
 
@@ -342,21 +317,19 @@ public class ProjectRepository {
 
         try {
             c = db.rawQuery(
-                    "SELECT projectid, code, coda " +
-                            "FROM tbl_projects " +
-                            "WHERE trim(projectid) = trim(?) COLLATE NOCASE " +
-                            "LIMIT 1",
+                    "SELECT projectid, code, coda FROM tbl_projects " +
+                            "WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
                     new String[]{id}
             );
-
             if (!c.moveToFirst()) return null;
 
-            String pid = c.isNull(0) ? "" : normalize(c.getString(0));
-            String code = c.isNull(1) ? "" : normalize(c.getString(1));
-            String coda = c.isNull(2) ? "" : normalize(c.getString(2));
+            String pid = valueAt(c, 0);
+            String code = valueAt(c, 1);
+            String coda = valueAt(c, 2);
 
-            if (!coda.isEmpty()) return pid + " — " + coda;
-            if (!code.isEmpty()) return pid + " — " + code;
+            if (!code.isEmpty() && !coda.isEmpty()) return code + " — " + coda;
+            if (!code.isEmpty()) return code;
+            if (!coda.isEmpty()) return coda;
             return pid;
         } finally {
             if (c != null) c.close();
@@ -364,28 +337,21 @@ public class ProjectRepository {
         }
     }
 
+    public String getProjectCodeById(String projectId) {
+        return getStringColumnByProjectId(projectId, "code");
+    }
+
+    public String getProjectTypeById(String projectId) {
+        String type = getStringColumnByProjectId(projectId, "project_type");
+        return normalizeProjectType(type);
+    }
+
+    public String getDivisionCodeByProjectId(String projectId) {
+        return getStringColumnByProjectId(projectId, "division_code");
+    }
+
     public String getProjectCodaById(String projectId) {
-        String id = normalize(projectId);
-        if (id.isEmpty()) return null;
-
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = null;
-
-        try {
-            c = db.rawQuery(
-                    "SELECT coda FROM tbl_projects WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
-                    new String[]{id}
-            );
-
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-            return null;
-
-        } finally {
-            if (c != null) c.close();
-            db.close();
-        }
+        return getStringColumnByProjectId(projectId, "coda");
     }
 
     public String getLatestProjectDisplay() {
@@ -394,27 +360,23 @@ public class ProjectRepository {
 
         try {
             c = db.rawQuery(
-                    "SELECT coda, projectid, code " +
-                            "FROM tbl_projects " +
+                    "SELECT coda, projectid, code FROM tbl_projects " +
                             "ORDER BY " +
                             "CASE WHEN timestamp IS NULL OR trim(timestamp) = '' THEN 1 ELSE 0 END, " +
-                            "timestamp DESC, coda COLLATE NOCASE ASC " +
-                            "LIMIT 1",
+                            "timestamp DESC, coda COLLATE NOCASE ASC LIMIT 1",
                     null
             );
 
             if (c.moveToFirst()) {
-                String coda = c.isNull(0) ? "" : normalize(c.getString(0));
-                String projectId = c.isNull(1) ? "" : normalize(c.getString(1));
-                String code = c.isNull(2) ? "" : normalize(c.getString(2));
+                String coda = valueAt(c, 0);
+                String projectId = valueAt(c, 1);
+                String code = valueAt(c, 2);
 
                 if (!coda.isEmpty()) return coda;
                 if (!code.isEmpty()) return code;
                 if (!projectId.isEmpty()) return projectId;
             }
-
             return null;
-
         } finally {
             if (c != null) c.close();
             db.close();
@@ -422,61 +384,41 @@ public class ProjectRepository {
     }
 
     public String getProjectBeneficiaryById(String projectId) {
-        String id = normalize(projectId);
-        if (id.isEmpty()) return null;
-
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = null;
-
-        try {
-            c = db.rawQuery(
-                    "SELECT beneficiary FROM tbl_projects WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
-                    new String[]{id}
-            );
-
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-            return null;
-
-        } finally {
-            if (c != null) c.close();
-            db.close();
-        }
+        return getStringColumnByProjectId(projectId, "beneficiary");
     }
 
     public String getProjectLocationById(String projectId) {
+        return getStringColumnByProjectId(projectId, "location");
+    }
+
+    private String getStringColumnByProjectId(String projectId, String column) {
         String id = normalize(projectId);
         if (id.isEmpty()) return null;
 
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = null;
-
         try {
             c = db.rawQuery(
-                    "SELECT location FROM tbl_projects WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
+                    "SELECT " + column + " FROM tbl_projects " +
+                            "WHERE trim(projectid)=trim(?) COLLATE NOCASE LIMIT 1",
                     new String[]{id}
             );
-
-            if (c.moveToFirst()) {
-                return c.isNull(0) ? null : normalize(c.getString(0));
-            }
-            return null;
-
+            if (!c.moveToFirst() || c.isNull(0)) return null;
+            String value = normalize(c.getString(0));
+            return value.isEmpty() ? null : value;
         } finally {
             if (c != null) c.close();
             db.close();
         }
     }
 
-    private String extractLeadingProjectId(String input) {
+    private String extractLeadingReference(String input) {
         String s = normalize(input);
         if (s.isEmpty()) return "";
 
         int idx = s.indexOf(" — ");
         if (idx < 0) idx = s.indexOf(" - ");
         if (idx < 0) return "";
-
         return normalize(s.substring(0, idx));
     }
 
@@ -485,13 +427,22 @@ public class ProjectRepository {
         return value.trim();
     }
 
+    private static String normalizeProjectType(String value) {
+        String type = normalize(value).toUpperCase(Locale.US);
+        if ("PROJECT_ACTIVITY".equals(type)) return "PROJECT_ACTIVITY";
+        return "INFRA";
+    }
+
+    private static String valueAt(Cursor c, int index) {
+        if (c == null || c.isNull(index)) return "";
+        return normalize(c.getString(index));
+    }
+
     private static String normalize(String s) {
         if (s == null) return "";
         s = s.trim();
         s = s.replace("\n", " ").replace("\r", " ").trim();
-        while (s.contains("  ")) {
-            s = s.replace("  ", " ");
-        }
+        while (s.contains("  ")) s = s.replace("  ", " ");
         return s;
     }
 
@@ -503,6 +454,7 @@ public class ProjectRepository {
             return c != null && c.moveToFirst();
         } finally {
             if (c != null) c.close();
+            db.close();
         }
     }
 
