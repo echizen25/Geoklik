@@ -2,8 +2,10 @@ package ph.gov.geocamera.presentation.site;
 
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -15,20 +17,32 @@ import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.RGBLuminanceSource;
+import com.google.zxing.Result;
+import com.google.zxing.common.HybridBinarizer;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
-import java.util.ArrayList;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
-import ph.gov.geocamera.data.local.db.GeoDbHelper;
+import ph.gov.geocamera.data.repository.CaptureContextRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
+import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
 
 public class SetSiteActivity extends AppCompatActivity {
 
@@ -36,10 +50,11 @@ public class SetSiteActivity extends AppCompatActivity {
     public static final String EXTRA_UNCATEGORIZED = "EXTRA_UNCATEGORIZED";
 
     private ProjectRepository projectRepo;
+    private CaptureContextRepository captureContextRepo;
     private CameraPrefs cameraPrefs;
-    private GeoDbHelper dbHelper;
 
     private ActivityResultLauncher<ScanOptions> qrLauncher;
+    private ActivityResultLauncher<String> qrImageLauncher;
     private MaterialAutoCompleteTextView actSite;
     private ArrayAdapter<String> localProjectsAdapter;
 
@@ -51,73 +66,99 @@ public class SetSiteActivity extends AppCompatActivity {
         setContentView(R.layout.activity_set_site);
 
         projectRepo = new ProjectRepository(this);
+        captureContextRepo = new CaptureContextRepository(this);
         cameraPrefs = new CameraPrefs(this);
-        dbHelper = new GeoDbHelper(this);
 
         actSite = findViewById(R.id.actSite);
 
         MaterialButton btnUseSelected = findViewById(R.id.btnUseSelected);
         MaterialButton btnScanQr = findViewById(R.id.btnScanQr);
+        MaterialButton btnUploadQr = findViewById(R.id.btnUploadQr);
         MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
         MaterialButton btnClose = findViewById(R.id.btnClose);
 
-        setupLocalProjectSelector();
+        setupProjectSelector();
+        setupQrLaunchers();
 
-        btnUseSelected.setOnClickListener(v -> {
-            hideKeyboard();
-            actSite.clearFocus();
-            actSite.dismissDropDown();
+        // The picker is an explicit user action, so refresh the capture target list now.
+        // If offline, the existing local list remains fully usable.
+        ProjectBackgroundSync.syncIfNeeded(this, true, updated ->
+                runOnUiThread(this::refreshProjectSuggestions));
 
-            String raw = actSite.getText() == null ? "" : actSite.getText().toString().trim();
-            raw = normalizeScannedValue(raw);
-
-            if (raw.isEmpty()) {
-                Toast.makeText(this, "Please select, type, or scan a Project Code.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            selectSiteFromInput(raw);
-        });
-
-        qrLauncher = registerForActivityResult(new ScanContract(), result -> {
-            if (result.getContents() == null) return;
-
-            String scanned = normalizeScannedValue(result.getContents());
-
-            if (scanned.isEmpty()) {
-                Toast.makeText(this, "Invalid QR content.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            actSite.setText(scanned, false);
-            actSite.setSelection(scanned.length());
-            actSite.dismissDropDown();
-            hideKeyboard();
-            actSite.clearFocus();
-
-            Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
-            handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
-        });
-
+        btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
         btnScanQr.setOnClickListener(v -> startQrScan());
-        btnUncategorized.setOnClickListener(v -> selectMyPhotos());
+        btnUploadQr.setOnClickListener(v -> qrImageLauncher.launch("image/*"));
+        btnUncategorized.setOnClickListener(v -> selectPersonalCapture());
 
         btnClose.setOnClickListener(v -> {
-            Intent i = new Intent(SetSiteActivity.this, ph.gov.geocamera.presentation.home.HomeActivity.class);
+            Intent i = new Intent(SetSiteActivity.this,
+                    ph.gov.geocamera.presentation.home.HomeActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(i);
             finish();
         });
     }
 
-    private void setupLocalProjectSelector() {
+    private void setupQrLaunchers() {
+        qrLauncher = registerForActivityResult(new ScanContract(), result -> {
+            if (result.getContents() == null) return;
+            applyQrValue(result.getContents(), "QR scanned");
+        });
+
+        qrImageLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri == null) return;
+
+                    Toast.makeText(this, "Reading QR image…", Toast.LENGTH_SHORT).show();
+                    new Thread(() -> {
+                        String value = null;
+                        try {
+                            value = decodeQrFromImage(uri);
+                        } catch (Exception ignored) {
+                        }
+
+                        final String decoded = value;
+                        runOnUiThread(() -> {
+                            if (decoded == null || decoded.trim().isEmpty()) {
+                                Toast.makeText(
+                                        this,
+                                        "No readable QR code found in that image.",
+                                        Toast.LENGTH_LONG
+                                ).show();
+                                return;
+                            }
+                            applyQrValue(decoded, "QR image read");
+                        });
+                    }).start();
+                }
+        );
+    }
+
+    private void applyQrValue(String value, String message) {
+        String scanned = normalizeScannedValue(value);
+        if (scanned.isEmpty()) {
+            Toast.makeText(this, "Invalid QR content.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        actSite.setText(scanned, false);
+        actSite.setSelection(scanned.length());
+        actSite.dismissDropDown();
+        hideKeyboard();
+        actSite.clearFocus();
+
+        Toast.makeText(this, message + ": " + scanned, Toast.LENGTH_SHORT).show();
+        handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
+    }
+
+    private void setupProjectSelector() {
         if (actSite == null) return;
 
-        List<String> localProjects = getProjectsAlreadyOnDevice();
         localProjectsAdapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_dropdown_item_1line,
-                localProjects
+                projectRepo.getProjectSuggestions("", 300)
         );
 
         actSite.setAdapter(localProjectsAdapter);
@@ -159,72 +200,33 @@ public class SetSiteActivity extends AppCompatActivity {
                             && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
 
             if (!isDone) return false;
-
-            hideKeyboard();
-            actSite.dismissDropDown();
-            actSite.clearFocus();
-
-            String raw = actSite.getText() == null ? "" : actSite.getText().toString();
-            raw = normalizeScannedValue(raw);
-
-            if (!raw.isEmpty()) {
-                selectSiteFromInput(raw);
-            }
-
+            submitCurrentProjectCode();
             return true;
         });
     }
 
-    /**
-     * Only suggests projects that already have photos in this device's local gallery.
-     * This keeps the public app from exposing a global infrastructure/project directory.
-     * Manual project-code entry and QR scan remain available for future server-side validation.
-     */
-    private List<String> getProjectsAlreadyOnDevice() {
-        List<String> list = new ArrayList<>();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = null;
+    private void refreshProjectSuggestions() {
+        if (localProjectsAdapter == null) return;
+        List<String> items = projectRepo.getProjectSuggestions("", 300);
+        localProjectsAdapter.clear();
+        localProjectsAdapter.addAll(items);
+        localProjectsAdapter.notifyDataSetChanged();
+    }
 
-        try {
-            String sql =
-                    "SELECT im.siteid, " +
-                            "COALESCE(NULLIF(trim(p.coda), ''), NULLIF(trim(s.name), ''), im.siteid) AS title, " +
-                            "MAX(im.timestamp) AS last_used " +
-                            "FROM tbl_imagemeta im " +
-                            "LEFT JOIN tbl_site s ON trim(s.siteid) = trim(im.siteid) COLLATE NOCASE " +
-                            "LEFT JOIN tbl_projects p ON (" +
-                            " trim(p.projectid) = trim(im.siteid) COLLATE NOCASE " +
-                            " OR trim(p.code) = trim(im.siteid) COLLATE NOCASE " +
-                            " OR trim(p.projectid) = trim(s.projectid) COLLATE NOCASE" +
-                            ") " +
-                            "WHERE im.siteid IS NOT NULL " +
-                            "AND trim(im.siteid) <> '' " +
-                            "AND upper(trim(im.siteid)) <> 'UNCAT' " +
-                            "GROUP BY im.siteid " +
-                            "ORDER BY last_used DESC " +
-                            "LIMIT 50";
+    private void submitCurrentProjectCode() {
+        hideKeyboard();
+        actSite.clearFocus();
+        actSite.dismissDropDown();
 
-            c = db.rawQuery(sql, null);
-            while (c.moveToNext()) {
-                String projectId = c.isNull(0) ? "" : c.getString(0).trim();
-                String title = c.isNull(1) ? "" : c.getString(1).trim();
-                if (projectId.isEmpty()) continue;
+        String raw = actSite.getText() == null ? "" : actSite.getText().toString();
+        raw = normalizeScannedValue(raw);
 
-                String label = projectId;
-                if (!title.isEmpty() && !title.equalsIgnoreCase(projectId)) {
-                    label = projectId + " — " + title;
-                }
-
-                if (!list.contains(label)) list.add(label);
-            }
-        } catch (Exception ignored) {
-            // Selector still supports manual entry / QR if local gallery lookup fails.
-        } finally {
-            if (c != null) c.close();
-            db.close();
+        if (raw.isEmpty()) {
+            Toast.makeText(this, "Enter, select, or scan a Project Code.", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        return list;
+        selectSiteFromInput(raw);
     }
 
     @Override
@@ -235,9 +237,7 @@ public class SetSiteActivity extends AppCompatActivity {
                 getCurrentFocus().clearFocus();
             }
 
-            if (actSite != null) {
-                actSite.dismissDropDown();
-            }
+            if (actSite != null) actSite.dismissDropDown();
         }
 
         return super.dispatchTouchEvent(ev);
@@ -245,7 +245,8 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private void hideKeyboard() {
         try {
-            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            InputMethodManager imm =
+                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 
             if (imm != null && getCurrentFocus() != null) {
                 imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
@@ -270,22 +271,15 @@ public class SetSiteActivity extends AppCompatActivity {
         options.setOrientationLocked(false);
         options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
         options.setCameraId(0);
-
         qrLauncher.launch(options);
     }
 
     private String normalizeScannedValue(String input) {
         String s = input == null ? "" : input.trim();
-
         if (s.isEmpty()) return "";
 
-        s = s.replace("\n", " ")
-                .replace("\r", " ")
-                .trim();
-
-        while (s.contains("  ")) {
-            s = s.replace("  ", " ");
-        }
+        s = s.replace("\n", " ").replace("\r", " ").trim();
+        while (s.contains("  ")) s = s.replace("  ", " ");
 
         if (s.regionMatches(true, 0, "SITE:", 0, 5)) {
             s = s.substring(5).trim();
@@ -300,45 +294,54 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private void selectSiteFromInput(String rawInput) {
         String raw = normalizeScannedValue(rawInput);
-
         if (raw.isEmpty()) {
-            Toast.makeText(this, "Invalid project.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Invalid Project Code.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String projectId = null;
-
-        // Offline-first: resolve locally when possible. A manually entered code can still
-        // be captured offline and will be verified by the server when API support is ready.
         try {
-            if (projectRepo.existsProjectId(raw)) {
-                projectId = raw.trim();
-            }
-
-            if (projectId == null || projectId.trim().isEmpty()) {
-                projectId = projectRepo.resolveProjectId(raw);
-            }
+            projectId = projectRepo.resolveProjectId(raw);
         } catch (Exception ignored) {
-            projectId = null;
         }
 
         boolean foundLocal = projectId != null && !projectId.trim().isEmpty();
         String finalSiteId = foundLocal ? projectId.trim() : extractLeadingReference(raw);
 
+        // A known target determines the capture classification automatically.
+        // Unknown/offline legacy codes default to INFRA to preserve the existing upload workflow.
+        String projectType = foundLocal
+                ? projectRepo.getProjectTypeById(finalSiteId)
+                : CameraPrefs.DOC_INFRA;
+
+        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType)) {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
+            cameraPrefs.saveActivityProjectId(finalSiteId);
+            captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, finalSiteId);
+        } else {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+            cameraPrefs.clearActivityProjectId();
+            captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
+        }
+
         cameraPrefs.saveSite(finalSiteId, false);
 
         if (foundLocal) {
             String label = projectRepo.getProjectDisplayLabel(finalSiteId);
+            String typeLabel = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType)
+                    ? "Project Activity"
+                    : "Infrastructure";
 
-            if (label == null || label.trim().isEmpty()) {
-                Toast.makeText(this, "Selected project: " + finalSiteId, Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Selected project: " + label, Toast.LENGTH_SHORT).show();
-            }
+            Toast.makeText(
+                    this,
+                    (label == null || label.trim().isEmpty() ? finalSiteId : label)
+                            + "\n" + typeLabel,
+                    Toast.LENGTH_SHORT
+            ).show();
         } else {
             Toast.makeText(
                     this,
-                    "Project selected offline. It will be verified during sync.",
+                    "Project Code is not in the synced list. Using the existing Infrastructure workflow.",
                     Toast.LENGTH_LONG
             ).show();
         }
@@ -354,12 +357,87 @@ public class SetSiteActivity extends AppCompatActivity {
         return s;
     }
 
-    private void selectMyPhotos() {
-        // Keep the existing uncategorized storage flag/value for backward compatibility.
-        // Only the user-facing label changes to "My Photos".
+    private void selectPersonalCapture() {
+        // Keep the proven uncategorized storage/upload behavior. Only the
+        // user-facing concept is now "Personal Capture".
+        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+        cameraPrefs.clearActivityProjectId();
+        captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
         cameraPrefs.saveSite(null, true);
-        Toast.makeText(this, "My Photos selected", Toast.LENGTH_SHORT).show();
+
+        Toast.makeText(this, "Personal Capture selected", Toast.LENGTH_SHORT).show();
         finishWithResult(null, true);
+    }
+
+    private String decodeQrFromImage(Uri uri) throws Exception {
+        Bitmap source = decodeScaledBitmap(uri, 2200);
+        if (source == null) return null;
+
+        try {
+            int[] rotations = new int[]{0, 90, 180, 270};
+            for (int degrees : rotations) {
+                Bitmap candidate = source;
+                if (degrees != 0) {
+                    Matrix matrix = new Matrix();
+                    matrix.postRotate(degrees);
+                    candidate = Bitmap.createBitmap(
+                            source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
+                }
+
+                try {
+                    String result = decodeQrBitmap(candidate);
+                    if (result != null && !result.trim().isEmpty()) return result.trim();
+                } catch (Exception ignored) {
+                } finally {
+                    if (candidate != source && !candidate.isRecycled()) candidate.recycle();
+                }
+            }
+            return null;
+        } finally {
+            if (!source.isRecycled()) source.recycle();
+        }
+    }
+
+    private Bitmap decodeScaledBitmap(Uri uri, int maxDimension) throws Exception {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            BitmapFactory.decodeStream(input, null, bounds);
+        }
+
+        int sample = 1;
+        while (bounds.outWidth / sample > maxDimension
+                || bounds.outHeight / sample > maxDimension) {
+            sample *= 2;
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = Math.max(1, sample);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            return BitmapFactory.decodeStream(input, null, options);
+        }
+    }
+
+    private String decodeQrBitmap(Bitmap bitmap) throws Exception {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int[] pixels = new int[width * height];
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+
+        RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
+        BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
+
+        Map<DecodeHintType, Object> hints = new EnumMap<>(DecodeHintType.class);
+        hints.put(DecodeHintType.POSSIBLE_FORMATS,
+                Collections.singletonList(BarcodeFormat.QR_CODE));
+        hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
+
+        MultiFormatReader reader = new MultiFormatReader();
+        Result result = reader.decode(binaryBitmap, hints);
+        return result == null ? null : result.getText();
     }
 
     private void finishWithResult(String projectId, boolean uncategorized) {
