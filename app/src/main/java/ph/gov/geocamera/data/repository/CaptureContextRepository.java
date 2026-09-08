@@ -12,11 +12,11 @@ import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.local.db.GeoDbHelper;
 
 /**
- * Local-only capture classification state.
+ * Local capture classification state.
  *
- * Infrastructure keeps the existing Project/Site workflow. Project Activity
- * stores a local activity_project_id and is intentionally excluded from the
- * current API sync until server support is added later.
+ * INFRA and PROJECT_ACTIVITY are eligible for synchronization through their
+ * respective API routes. PERSONAL is intentionally local-only and is stamped
+ * into each photo so Gallery can keep it separate from project documentation.
  */
 public class CaptureContextRepository {
 
@@ -38,8 +38,8 @@ public class CaptureContextRepository {
         cv.put("activity_project_id", activityId);
         cv.put("shot_type", CameraPrefs.SHOT_GENERAL); // legacy column; no UI choice anymore
 
-        // Seed the next capture as well. The shutter listener snapshots again,
-        // but this keeps accessibility/programmatic capture paths safe.
+        // Seed the next capture as well. The shutter listener/context trigger
+        // keeps the final photo metadata aligned with the active capture mode.
         cv.put("pending_monitoring_type", type);
         cv.put("pending_activity_project_id", activityId);
         cv.put("pending_shot_type", CameraPrefs.SHOT_GENERAL);
@@ -79,6 +79,9 @@ public class CaptureContextRepository {
         }
         if (value != null && CameraPrefs.DOC_PROJECT_ACTIVITY.equalsIgnoreCase(value.trim())) {
             return CameraPrefs.DOC_PROJECT_ACTIVITY;
+        }
+        if (value != null && CameraPrefs.DOC_PERSONAL.equalsIgnoreCase(value.trim())) {
+            return CameraPrefs.DOC_PERSONAL;
         }
         return "UNSPECIFIED";
     }
