@@ -17,6 +17,7 @@ import androidx.appcompat.widget.AppCompatImageButton;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
@@ -24,8 +25,11 @@ import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.presentation.site.SetSiteActivity;
 
 /**
- * Wraps GeoCameraActivity's gear button with a mode-aware settings surface.
- * The old click listener is retained only as a fallback outside the camera.
+ * Responsive camera settings surface.
+ *
+ * Documentation mode and Indoor Assist are direct switches to avoid nested
+ * dialogs and unnecessary taps. Infrastructure keeps the existing Project/Site
+ * workflow; Project Activity keeps its own local project selection.
  */
 public class CameraSettingsButton extends AppCompatImageButton {
 
@@ -54,6 +58,8 @@ public class CameraSettingsButton extends AppCompatImageButton {
 
     @Override
     public void setOnClickListener(@Nullable OnClickListener l) {
+        // GeoCameraActivity still assigns its older settings listener. Retain it
+        // only as a fallback while keeping this simplified settings panel active.
         legacyListener = l;
     }
 
@@ -76,75 +82,171 @@ public class CameraSettingsButton extends AppCompatImageButton {
                 .inflate(R.layout.dialog_camera_settings, null, false);
 
         TextView tvMode = content.findViewById(R.id.tvCameraSettingsMode);
-        MaterialButton btnMode = content.findViewById(R.id.btnCameraDocMode);
+        TextView tvSelection = content.findViewById(R.id.tvCameraSettingsSelection);
         MaterialButton btnProject = content.findViewById(R.id.btnCameraProjectSelection);
-        MaterialButton btnIndoor = content.findViewById(R.id.btnCameraIndoorAssist);
+        SwitchMaterial switchMode = content.findViewById(R.id.switchDocumentationMode);
+        SwitchMaterial switchIndoor = content.findViewById(R.id.switchIndoorAssist);
 
         String type = prefs.getDocumentationType();
         boolean activityMode = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type);
+        boolean infraMode = CameraPrefs.DOC_INFRA.equals(type);
 
-        if (activityMode) {
-            String projectId = prefs.getActivityProjectId();
-            String display = getProjectDisplay(activity, projectId);
-            tvMode.setText(display == null
-                    ? "Project Activity"
-                    : "Project Activity • " + display);
-            btnProject.setText("Change activity project");
-            btnProject.setIconResource(R.drawable.ic_project_activity_24);
-        } else if (CameraPrefs.DOC_INFRA.equals(type)) {
-            tvMode.setText("Infrastructure");
-            btnProject.setText("Change Project / Site");
-            btnProject.setIconResource(R.drawable.ic_infrastructure_24);
-        } else {
-            tvMode.setText("Choose documentation mode");
-            btnProject.setVisibility(View.GONE);
-        }
+        bindDocumentationSummary(
+                activity,
+                prefs,
+                tvMode,
+                tvSelection,
+                btnProject,
+                activityMode,
+                infraMode
+        );
 
-        boolean indoorEnabled = prefs.isIndoorAssistEnabled();
-        btnIndoor.setText(indoorEnabled ? "Indoor Assist: ON" : "Indoor Assist: OFF");
+        // Set initial values before listeners so opening Settings never changes state.
+        switchMode.setChecked(activityMode);
+        switchIndoor.setChecked(prefs.isIndoorAssistEnabled());
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
                 .setView(content)
                 .setNegativeButton("Close", null)
                 .create();
 
-        btnMode.setOnClickListener(v -> {
+        switchMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            boolean currentlyActivity = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(
+                    prefs.getDocumentationType());
+            if (currentlyActivity == isChecked) return;
+
             dialog.dismiss();
-            modeChip.postDelayed(modeChip::showDocumentationSettings, 100);
+
+            if (isChecked) {
+                switchToProjectActivity(activity, prefs, modeChip);
+            } else {
+                switchToInfrastructure(activity, prefs);
+            }
         });
 
         btnProject.setOnClickListener(v -> {
             dialog.dismiss();
-            if (activityMode) {
-                modeChip.postDelayed(modeChip::showActivityProjectSettings, 100);
+
+            if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(prefs.getDocumentationType())) {
+                modeChip.postDelayed(modeChip::showActivityProjectSettings, 80);
             } else {
+                // Existing SetSiteActivity writes to CameraPrefs. GeoCameraActivity
+                // reloads the selected Project/Site in onResume.
                 activity.startActivity(new Intent(activity, SetSiteActivity.class));
             }
         });
 
-        btnIndoor.setOnClickListener(v -> {
-            if (!prefs.isIndoorAssistEnabled()) {
-                new MaterialAlertDialogBuilder(activity)
-                        .setTitle("Enable Indoor Assist?")
-                        .setMessage("Indoor Assist uses assisted/network location when GPS is weak. " +
-                                "This can reduce location accuracy.")
-                        .setNegativeButton("Cancel", null)
-                        .setPositiveButton("Enable", (d, w) -> {
-                            prefs.saveIndoorAssistEnabled(true);
-                            dialog.dismiss();
-                            Toast.makeText(activity, "Indoor Assist ON", Toast.LENGTH_SHORT).show();
-                            activity.recreate();
-                        })
-                        .show();
-            } else {
-                prefs.saveIndoorAssistEnabled(false);
-                dialog.dismiss();
-                Toast.makeText(activity, "Indoor Assist OFF (GPS-Only)", Toast.LENGTH_SHORT).show();
-                activity.recreate();
-            }
+        switchIndoor.setOnCheckedChangeListener((buttonView, enabled) -> {
+            if (prefs.isIndoorAssistEnabled() == enabled) return;
+
+            prefs.saveIndoorAssistEnabled(enabled);
+            dialog.dismiss();
+
+            Toast.makeText(
+                    activity,
+                    enabled ? "Indoor Assist ON" : "Indoor Assist OFF (GPS-Only)",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            activity.recreate();
         });
 
         dialog.show();
+    }
+
+    private void bindDocumentationSummary(Activity activity,
+                                          CameraPrefs prefs,
+                                          TextView tvMode,
+                                          TextView tvSelection,
+                                          MaterialButton btnProject,
+                                          boolean activityMode,
+                                          boolean infraMode) {
+        if (activityMode) {
+            String projectId = prefs.getActivityProjectId();
+            String display = getProjectDisplay(activity, projectId);
+
+            tvMode.setText("Project Activity");
+            tvSelection.setText(display == null
+                    ? "Activity Project • Not selected"
+                    : "Activity Project • " + display);
+
+            btnProject.setVisibility(View.VISIBLE);
+            btnProject.setText(display == null
+                    ? "Select Activity Project"
+                    : "Change Activity Project");
+            btnProject.setIconResource(R.drawable.ic_project_activity_24);
+            return;
+        }
+
+        if (infraMode) {
+            tvMode.setText("Infrastructure");
+
+            String selection;
+            if (prefs.isUncategorized()) {
+                selection = "My Photos";
+            } else {
+                String siteId = prefs.getSiteId();
+                if (siteId == null
+                        || siteId.trim().isEmpty()
+                        || CameraPrefs.DOC_SELECTION_PLACEHOLDER.equals(siteId.trim())) {
+                    selection = null;
+                } else {
+                    selection = getProjectDisplay(activity, siteId);
+                    if (selection == null || selection.trim().isEmpty()) selection = siteId.trim();
+                }
+            }
+
+            tvSelection.setText(selection == null
+                    ? "Project / Site • Not selected"
+                    : "Project / Site • " + selection);
+
+            btnProject.setVisibility(View.VISIBLE);
+            btnProject.setText(selection == null
+                    ? "Select Project / Site"
+                    : "Change Project / Site");
+            btnProject.setIconResource(R.drawable.ic_infrastructure_24);
+            return;
+        }
+
+        tvMode.setText("Choose documentation mode");
+        tvSelection.setText("Select Infrastructure or Project Activity");
+        btnProject.setVisibility(View.GONE);
+    }
+
+    private void switchToProjectActivity(Activity activity,
+                                         CameraPrefs prefs,
+                                         DocumentationModeChip modeChip) {
+        String previous = prefs.getDocumentationType();
+
+        prefs.clearDocumentationPlaceholderIfPresent();
+        if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(previous)) {
+            prefs.rememberInfrastructureSelection();
+        }
+
+        prefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
+
+        if (prefs.hasActivityProjectId()) {
+            String projectId = prefs.getActivityProjectId();
+            prefs.saveSite(projectId, false);
+            Toast.makeText(activity, "Project Activity mode", Toast.LENGTH_SHORT).show();
+            activity.recreate();
+            return;
+        }
+
+        // First Activity use: ask only for its Project ID, then return to camera.
+        modeChip.postDelayed(modeChip::showActivityProjectSettings, 100);
+    }
+
+    private void switchToInfrastructure(Activity activity, CameraPrefs prefs) {
+        prefs.clearDocumentationPlaceholderIfPresent();
+        prefs.restoreInfrastructureSelection();
+        prefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+
+        Toast.makeText(activity, "Infrastructure mode", Toast.LENGTH_SHORT).show();
+
+        // If there is no saved Infrastructure Project/Site, GeoCameraActivity's
+        // existing selection guard will open SetSiteActivity after recreation.
+        activity.recreate();
     }
 
     private String getProjectDisplay(Context context, String projectId) {
@@ -152,6 +254,7 @@ public class CameraSettingsButton extends AppCompatImageButton {
         try {
             String full = new ProjectRepository(context).getProjectDisplayLabel(projectId.trim());
             if (full == null || full.trim().isEmpty()) return projectId.trim();
+
             String value = full.trim();
             int sep = value.indexOf(" — ");
             if (sep >= 0 && sep + 3 < value.length()) {
