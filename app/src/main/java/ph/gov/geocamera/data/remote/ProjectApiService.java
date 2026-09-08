@@ -16,7 +16,7 @@ import java.util.List;
 public class ProjectApiService {
 
     private static final String TAG = "PROJECT_API";
-    private static final String PROJECTS_URL = "https://app.philmech.gov.ph/geomap_api/api/projects";
+    private static final String PROJECTS_URL = ApiEndpoints.PROJECTS_URL;
 
     public List<ApiProjectItem> fetchProjects() throws Exception {
         HttpURLConnection conn = null;
