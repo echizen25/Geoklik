@@ -23,7 +23,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="PRJ-001"
-            android:visibility="gone"
             android:textColor="#0B5A3C"
             android:textSize="11sp"
             android:textStyle="bold"
@@ -92,6 +91,44 @@
             android:textColor="#374151"
             android:textSize="13sp"
             android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCopyProjectCode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Copy Code"
+                android:textAllCaps="false"
+                android:textColor="#0B5A3C"
+                app:backgroundTint="#F3F7F5"
+                app:cornerRadius="12dp"
+                app:strokeColor="#330B5A3C"
+                app:strokeWidth="1dp" />
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnProjectQr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Generate QR"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                app:backgroundTint="#0B5A3C"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_qr_code_24"
+                app:iconPadding="6dp"
+                app:iconTint="@android:color/white" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
