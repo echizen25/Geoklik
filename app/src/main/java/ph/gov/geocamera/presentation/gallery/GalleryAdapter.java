@@ -18,8 +18,8 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.ListPreloader;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.util.ViewPreloadSizeProvider;
-import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.imageview.ShapeableImageView;
 
 import java.io.File;
 import java.text.ParseException;
@@ -34,10 +34,14 @@ import java.util.Set;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
+import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
 
 public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         implements ListPreloader.PreloadModelProvider<File> {
+
+    private static final String TYPE_INFRA = "INFRA";
+    private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
 
     public interface Callback {
         void onSyncSiteClicked(String siteId, String year, boolean alreadySynced);
@@ -48,6 +52,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
     private final Context context;
     private final ImageMetaRepository imageRepo;
+    private final ProjectRepository projectRepo;
     private final Callback callback;
 
     private final List<SiteItem> items = new ArrayList<>();
@@ -67,11 +72,12 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
     public GalleryAdapter(Context ctx, ImageMetaRepository img) {
         this.context = ctx;
         this.imageRepo = img;
+        this.projectRepo = new ProjectRepository(ctx);
         this.callback = (Callback) ctx;
         setHasStableIds(true);
     }
 
-    public void loadSites(String project, String year, String search) {
+    public void loadSites(String project, String year, String type, String search) {
         items.clear();
 
         Cursor c = null;
@@ -101,12 +107,18 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 item.projectId = safeString(c, 15);
                 item.coda = safeString(c, 16);
 
+                String lookupId = firstNonEmpty(item.projectId, item.siteId);
+                item.projectType = normalizeProjectType(projectRepo.getProjectTypeById(lookupId));
+                item.divisionCode = safe(projectRepo.getDivisionCodeByProjectId(lookupId), "");
+
                 item.noProjectFoundCount = imageRepo.countFailedByErrorForSite(
                         item.siteId,
                         ImageMetaRepository.ERR_NO_PROJECT_FOUND
                 );
 
-                items.add(item);
+                if (matchesType(type, item.projectType)) {
+                    items.add(item);
+                }
             }
         } finally {
             if (c != null) c.close();
@@ -130,8 +142,12 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         notifyDataSetChanged();
     }
 
+    public void loadSites(String project, String year, String search) {
+        loadSites(project, year, "ALL", search);
+    }
+
     public void loadSites(String project, String year) {
-        loadSites(project, year, null);
+        loadSites(project, year, "ALL", null);
     }
 
     public void clearSelection() {
@@ -187,19 +203,40 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         SiteItem item = items.get(position);
         preloadSizeProvider.setView(h.imgLatest);
 
-        String title = firstNonEmpty(
-                item.projectCode,
-                item.project,
-                item.siteName,
-                item.siteId
-        );
+        boolean projectActivity = TYPE_PROJECT_ACTIVITY.equals(item.projectType);
 
-        h.tvSite.setText(safe(title, "SITE"));
+        String title = projectActivity
+                ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
+                : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
 
-        String beneficiaryLine = firstNonEmpty(item.beneficiary);
-        h.tvProjectLabel.setText("FCA: " + safe(beneficiaryLine, "—"));
+        h.tvSite.setText(safe(title, projectActivity ? "Project Activity" : "SITE"));
 
-        h.tvLocationLabel.setText("Location: " + safe(item.location, "-"));
+        if (projectActivity) {
+            String typeLine = "PROJECT ACTIVITY";
+            if (!item.divisionCode.isEmpty()) {
+                typeLine += " • " + item.divisionCode;
+            }
+            h.tvProjectLabel.setVisibility(View.VISIBLE);
+            h.tvProjectLabel.setText(typeLine);
+        } else {
+            String beneficiaryLine = firstNonEmpty(item.beneficiary, item.coda);
+            if (beneficiaryLine.isEmpty()) {
+                h.tvProjectLabel.setVisibility(View.GONE);
+                h.tvProjectLabel.setText("");
+            } else {
+                h.tvProjectLabel.setVisibility(View.VISIBLE);
+                h.tvProjectLabel.setText(beneficiaryLine);
+            }
+        }
+
+        String locationLine = firstNonEmpty(item.location);
+        if (locationLine.isEmpty()) {
+            h.tvLocationLabel.setVisibility(View.GONE);
+            h.tvLocationLabel.setText("");
+        } else {
+            h.tvLocationLabel.setVisibility(View.VISIBLE);
+            h.tvLocationLabel.setText("Location: " + locationLine);
+        }
 
         String dateText = formatMonthDayYearFromDb(item.latestTimestamp);
         h.tvMeta.setText(item.totalPhotos + " photos • " + dateText);
@@ -223,6 +260,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
             Intent i = new Intent(context, SiteDatesActivity.class);
             i.putExtra(SiteDatesActivity.EXTRA_SITE_ID, item.siteId);
             i.putExtra(SiteDatesActivity.EXTRA_YEAR, callback.getSelectedYear());
+            i.putExtra(SiteDatesActivity.EXTRA_SITE_NAME, safe(title, "Photos"));
             context.startActivity(i);
         });
 
@@ -345,28 +383,44 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         else if (isLocalOnly(item)) status = "LOCAL";
         else status = "SYNCED";
 
-        String message =
-                "Code: " + safe(item.projectCode, "—") + "\n" +
-                        "Project ID: " + safe(item.projectId, "—") + "\n" +
-                        "CODA: " + safe(item.coda, "—") + "\n" +
-                        "Beneficiary: " + safe(item.beneficiary, "—") + "\n" +
-                        "Site ID: " + safe(item.siteId, "—") + "\n" +
-                        "Location: " + safe(item.location, "—") + "\n\n" +
-                        "Total Photos: " + item.totalPhotos + "\n" +
-                        "Synced: " + item.syncedPhotos + "\n" +
-                        "Pending: " + item.pendingCount + "\n" +
-                        "Uploading: " + item.uploadingCount + "\n" +
-                        "Failed: " + item.failedCount + "\n" +
-                        "Status: " + status + "\n\n" +
-                        "Latest: " + formatMonthDayYearFromDb(item.latestTimestamp);
+        boolean projectActivity = TYPE_PROJECT_ACTIVITY.equals(item.projectType);
+        String title = projectActivity
+                ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
+                : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
+
+        StringBuilder message = new StringBuilder();
+        message.append("Type: ")
+                .append(projectActivity ? "Project Activity" : "Infrastructure")
+                .append("\n");
+
+        if (projectActivity) {
+            message.append("Project Title: ").append(safe(item.coda, safe(title, "—"))).append("\n");
+            if (!item.divisionCode.isEmpty()) {
+                message.append("Division: ").append(item.divisionCode).append("\n");
+            }
+        } else {
+            message.append("Beneficiary: ").append(safe(item.beneficiary, "—")).append("\n");
+        }
+
+        message.append("Code: ").append(safe(item.projectCode, "—")).append("\n")
+                .append("Project ID: ").append(safe(item.projectId, "—")).append("\n")
+                .append("Location: ").append(safe(item.location, "—")).append("\n\n")
+                .append("Total Photos: ").append(item.totalPhotos).append("\n")
+                .append("Synced: ").append(item.syncedPhotos).append("\n")
+                .append("Pending: ").append(item.pendingCount).append("\n")
+                .append("Uploading: ").append(item.uploadingCount).append("\n")
+                .append("Failed: ").append(item.failedCount).append("\n")
+                .append("Status: ").append(status).append("\n\n")
+                .append("Latest: ").append(formatMonthDayYearFromDb(item.latestTimestamp));
 
         new MaterialAlertDialogBuilder(context)
-                .setTitle("Project Details")
-                .setMessage(message)
+                .setTitle(projectActivity ? "Project Activity Details" : "Project Details")
+                .setMessage(message.toString())
                 .setPositiveButton("Open Photos", (d, w) -> {
                     Intent i = new Intent(context, SiteDatesActivity.class);
                     i.putExtra(SiteDatesActivity.EXTRA_SITE_ID, item.siteId);
                     i.putExtra(SiteDatesActivity.EXTRA_YEAR, callback.getSelectedYear());
+                    i.putExtra(SiteDatesActivity.EXTRA_SITE_NAME, safe(title, "Photos"));
                     context.startActivity(i);
                 })
                 .setNegativeButton("Close", null)
@@ -472,11 +526,24 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         String projectId;
         String coda;
         String location;
+        String projectType;
+        String divisionCode;
 
         int pendingCount;
         int uploadingCount;
         int failedCount;
         int noProjectFoundCount;
+    }
+
+    private static boolean matchesType(String requestedType, String itemType) {
+        String requested = requestedType == null ? "ALL" : requestedType.trim().toUpperCase(Locale.US);
+        if (requested.isEmpty() || "ALL".equals(requested)) return true;
+        return requested.equals(normalizeProjectType(itemType));
+    }
+
+    private static String normalizeProjectType(String value) {
+        String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
+        return TYPE_PROJECT_ACTIVITY.equals(type) ? TYPE_PROJECT_ACTIVITY : TYPE_INFRA;
     }
 
     private static String safeString(Cursor c, int idx) {
