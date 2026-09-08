@@ -16,10 +16,10 @@ public class GeoDbHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "geocamera.db";
 
-    // v118 enables Project Activity captures to enter the normal pending sync
-    // queue immediately now that the dedicated server upload contract is live.
-    // Existing capture/upload tables and INFRA behavior are preserved.
-    public static final int DB_VERSION = 118;
+    // v119 gives Personal Capture its own explicit classification and keeps it
+    // on-device only (status=4), while INFRA and PROJECT_ACTIVITY continue to
+    // use their existing synchronization workflows.
+    public static final int DB_VERSION = 119;
 
     public GeoDbHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -155,9 +155,8 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         ") VALUES (1, 'UNSPECIFIED', NULL, 'GENERAL', 'UNSPECIFIED', NULL, 'GENERAL', datetime('now'));"
         );
 
-        // Project Activity now uses the same local pending/sync state machine as INFRA.
-        // The trigger only stamps capture classification metadata; it no longer forces
-        // status=4 (LOCAL_ONLY). ImageMetaRepository inserts new rows as status=0.
+        // INFRA and PROJECT_ACTIVITY enter the normal pending sync queue.
+        // PERSONAL is explicitly local-only and therefore receives status=4.
         db.execSQL("DROP TRIGGER IF EXISTS trg_imagemeta_capture_context;");
         db.execSQL(
                 "CREATE TRIGGER trg_imagemeta_capture_context " +
@@ -169,7 +168,10 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         "  WHEN COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), '') = 'PROJECT_ACTIVITY' " +
                         "  THEN (SELECT pending_activity_project_id FROM tbl_capture_context WHERE context_id=1) " +
                         "  ELSE NULL END, " +
-                        "shot_type = 'GENERAL' " +
+                        "shot_type = 'GENERAL', " +
+                        "status = CASE " +
+                        "  WHEN COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), '') = 'PERSONAL' " +
+                        "  THEN 4 ELSE status END " +
                         "WHERE imagemetaid = NEW.imagemetaid; " +
                         "END;"
         );
@@ -180,6 +182,10 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_siteid ON tbl_imagemeta(siteid);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_status ON tbl_imagemeta(status);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_site_time ON tbl_imagemeta(siteid, timestamp);");
+
+        if (getColumnType(db, "tbl_imagemeta", "monitoring_type") != null) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_imagemeta_monitoring_type ON tbl_imagemeta(monitoring_type);");
+        }
 
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_groups_site_date ON tbl_groups(siteid, sessiondate);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_groups_desc ON tbl_groups(description);");
@@ -249,6 +255,23 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         } catch (Exception ignored) {
         }
 
+        // v119: older builds represented Personal Capture as UNCAT + INFRA.
+        // Reclassify only those uncategorized non-activity rows. Unsynced items
+        // become local-only; any historically synced row keeps status=1.
+        try {
+            db.execSQL(
+                    "UPDATE tbl_imagemeta SET " +
+                            "monitoring_type = 'PERSONAL', " +
+                            "activity_project_id = NULL, " +
+                            "status = CASE WHEN status IN (0,2,3) THEN 4 ELSE status END, " +
+                            "sync_attempts = CASE WHEN status IN (0,2,3) THEN 0 ELSE sync_attempts END, " +
+                            "last_sync_error = CASE WHEN status IN (0,2,3) THEN NULL ELSE last_sync_error END " +
+                            "WHERE upper(trim(COALESCE(siteid,''))) = 'UNCAT' " +
+                            "AND upper(trim(COALESCE(monitoring_type,''))) <> 'PROJECT_ACTIVITY'"
+            );
+        } catch (Exception ignored) {
+        }
+
         ensureColumnExists(db, "tbl_projects", "code", "TEXT");
         ensureColumnExists(db, "tbl_projects", "coda", "TEXT");
         ensureColumnExists(db, "tbl_projects", "beneficiary", "TEXT");
@@ -265,7 +288,7 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         ensureColumnExists(db, "tbl_projects", "timestamp", "TEXT");
 
         // Rows saved by older Android builds did not have a type. They all came
-        // from tbl_project, so INFRA is the safe migration value.
+        // from tbl_project, so INFRA is the safe project-master migration value.
         try {
             db.execSQL(
                     "UPDATE tbl_projects SET project_type='INFRA' " +
