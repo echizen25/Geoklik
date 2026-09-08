@@ -13,7 +13,6 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -21,7 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
@@ -35,7 +34,6 @@ import com.journeyapps.barcodescanner.ScanOptions;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 
 import ph.gov.geocamera.R;
@@ -55,8 +53,7 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private ActivityResultLauncher<ScanOptions> qrLauncher;
     private ActivityResultLauncher<String> qrImageLauncher;
-    private MaterialAutoCompleteTextView actSite;
-    private ArrayAdapter<String> localProjectsAdapter;
+    private TextInputEditText actSite;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -77,13 +74,12 @@ public class SetSiteActivity extends AppCompatActivity {
         MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
         MaterialButton btnClose = findViewById(R.id.btnClose);
 
-        setupProjectSelector();
+        setupProjectCodeInput();
         setupQrLaunchers();
 
-        // The picker is an explicit user action, so refresh the capture target list now.
-        // If offline, the existing local list remains fully usable.
-        ProjectBackgroundSync.syncIfNeeded(this, true, updated ->
-                runOnUiThread(this::refreshProjectSuggestions));
+        // Keep the local capture-target cache current for code/type resolution,
+        // but never expose the synced project list in this screen.
+        ProjectBackgroundSync.syncIfNeeded(this, false, null);
 
         btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
         btnScanQr.setOnClickListener(v -> startQrScan());
@@ -96,6 +92,27 @@ public class SetSiteActivity extends AppCompatActivity {
             i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(i);
             finish();
+        });
+    }
+
+    private void setupProjectCodeInput() {
+        if (actSite == null) return;
+
+        actSite.setSingleLine(true);
+        actSite.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        actSite.setOnEditorActionListener((v, actionId, event) -> {
+            boolean isDone =
+                    actionId == EditorInfo.IME_ACTION_DONE
+                            || actionId == EditorInfo.IME_ACTION_SEARCH
+                            || actionId == EditorInfo.IME_ACTION_GO
+                            || actionId == EditorInfo.IME_ACTION_NEXT
+                            || (event != null
+                            && event.getAction() == KeyEvent.ACTION_DOWN
+                            && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
+
+            if (!isDone) return false;
+            submitCurrentProjectCode();
+            return true;
         });
     }
 
@@ -142,87 +159,24 @@ public class SetSiteActivity extends AppCompatActivity {
             return;
         }
 
-        actSite.setText(scanned, false);
+        actSite.setText(scanned);
         actSite.setSelection(scanned.length());
-        actSite.dismissDropDown();
         hideKeyboard();
         actSite.clearFocus();
 
-        Toast.makeText(this, message + ": " + scanned, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
         handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
-    }
-
-    private void setupProjectSelector() {
-        if (actSite == null) return;
-
-        localProjectsAdapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_dropdown_item_1line,
-                projectRepo.getProjectSuggestions("", 300)
-        );
-
-        actSite.setAdapter(localProjectsAdapter);
-        actSite.setThreshold(0);
-
-        actSite.setOnClickListener(v -> {
-            if (localProjectsAdapter != null && localProjectsAdapter.getCount() > 0) {
-                actSite.showDropDown();
-            }
-        });
-
-        actSite.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus && localProjectsAdapter != null && localProjectsAdapter.getCount() > 0) {
-                actSite.showDropDown();
-            }
-        });
-
-        actSite.setOnItemClickListener((parent, view, position, id) -> {
-            Object item = parent.getItemAtPosition(position);
-            if (item == null) return;
-
-            String selected = normalizeScannedValue(String.valueOf(item));
-            if (selected.isEmpty()) return;
-
-            hideKeyboard();
-            actSite.clearFocus();
-            actSite.dismissDropDown();
-            selectSiteFromInput(selected);
-        });
-
-        actSite.setOnEditorActionListener((v, actionId, event) -> {
-            boolean isDone =
-                    actionId == EditorInfo.IME_ACTION_DONE
-                            || actionId == EditorInfo.IME_ACTION_SEARCH
-                            || actionId == EditorInfo.IME_ACTION_GO
-                            || actionId == EditorInfo.IME_ACTION_NEXT
-                            || (event != null
-                            && event.getAction() == KeyEvent.ACTION_DOWN
-                            && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
-
-            if (!isDone) return false;
-            submitCurrentProjectCode();
-            return true;
-        });
-    }
-
-    private void refreshProjectSuggestions() {
-        if (localProjectsAdapter == null) return;
-        List<String> items = projectRepo.getProjectSuggestions("", 300);
-        localProjectsAdapter.clear();
-        localProjectsAdapter.addAll(items);
-        localProjectsAdapter.notifyDataSetChanged();
     }
 
     private void submitCurrentProjectCode() {
         hideKeyboard();
         actSite.clearFocus();
-        actSite.dismissDropDown();
 
         String raw = actSite.getText() == null ? "" : actSite.getText().toString();
         raw = normalizeScannedValue(raw);
 
         if (raw.isEmpty()) {
-            Toast.makeText(this, "Enter, select, or scan a Project Code.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Enter or scan a Project Code.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -236,8 +190,6 @@ public class SetSiteActivity extends AppCompatActivity {
                 hideKeyboard();
                 getCurrentFocus().clearFocus();
             }
-
-            if (actSite != null) actSite.dismissDropDown();
         }
 
         return super.dispatchTouchEvent(ev);
@@ -260,10 +212,7 @@ public class SetSiteActivity extends AppCompatActivity {
     private void startQrScan() {
         hideKeyboard();
 
-        if (actSite != null) {
-            actSite.dismissDropDown();
-            actSite.clearFocus();
-        }
+        if (actSite != null) actSite.clearFocus();
 
         ScanOptions options = new ScanOptions();
         options.setPrompt("Scan Project QR");
@@ -334,14 +283,14 @@ public class SetSiteActivity extends AppCompatActivity {
 
             Toast.makeText(
                     this,
-                    (label == null || label.trim().isEmpty() ? finalSiteId : label)
+                    (label == null || label.trim().isEmpty() ? "Project verified" : label)
                             + "\n" + typeLabel,
                     Toast.LENGTH_SHORT
             ).show();
         } else {
             Toast.makeText(
                     this,
-                    "Project Code is not in the synced list. Using the existing Infrastructure workflow.",
+                    "Code saved for offline use. Server verification will still apply during sync.",
                     Toast.LENGTH_LONG
             ).show();
         }
@@ -358,8 +307,6 @@ public class SetSiteActivity extends AppCompatActivity {
     }
 
     private void selectPersonalCapture() {
-        // Keep the proven uncategorized storage/upload behavior. Only the
-        // user-facing concept is now "Personal Capture".
         cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
         cameraPrefs.clearActivityProjectId();
         captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
