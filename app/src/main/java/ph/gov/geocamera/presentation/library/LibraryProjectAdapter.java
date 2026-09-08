@@ -1,15 +1,30 @@
 package ph.gov.geocamera.presentation.library;
 
 import android.annotation.SuppressLint;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Filter;
 import android.widget.Filterable;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.common.BitMatrix;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +61,8 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
         TextView tvCost;
         TextView tvDateAdded;
         TextView tvDateModified;
+        MaterialButton btnCopyProjectCode;
+        MaterialButton btnProjectQr;
 
         VH(@NonNull View itemView) {
             super(itemView);
@@ -56,6 +73,8 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
             tvCost = itemView.findViewById(R.id.tvCost);
             tvDateAdded = itemView.findViewById(R.id.tvDateAdded);
             tvDateModified = itemView.findViewById(R.id.tvDateModified);
+            btnCopyProjectCode = itemView.findViewById(R.id.btnCopyProjectCode);
+            btnProjectQr = itemView.findViewById(R.id.btnProjectQr);
         }
     }
 
@@ -71,12 +90,9 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
         ProjectListItem item = filteredItems.get(position);
+        String code = clean(item.code);
 
-        h.tvCode.setText(
-                item.code == null || item.code.trim().isEmpty()
-                        ? "-"
-                        : item.code
-        );
+        h.tvCode.setText(code.isEmpty() ? "NO PROJECT CODE" : code);
 
         h.tvBeneficiary.setText(
                 item.beneficiary == null || item.beneficiary.trim().isEmpty()
@@ -119,6 +135,107 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
                                 : item.dateModified
                 )
         );
+
+        boolean hasCode = !code.isEmpty();
+        h.btnCopyProjectCode.setEnabled(hasCode);
+        h.btnProjectQr.setEnabled(hasCode);
+
+        h.btnCopyProjectCode.setOnClickListener(v -> {
+            if (!hasCode) return;
+            copyCode(v.getContext(), code);
+        });
+
+        h.btnProjectQr.setOnClickListener(v -> {
+            if (!hasCode) return;
+            showProjectQr(v.getContext(), code, clean(item.projectName));
+        });
+    }
+
+    private static void copyCode(Context context, String code) {
+        ClipboardManager clipboard =
+                (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            Toast.makeText(context, "Clipboard is unavailable.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        clipboard.setPrimaryClip(ClipData.newPlainText("GeoKlik Project Code", code));
+        Toast.makeText(context, "Project code copied", Toast.LENGTH_SHORT).show();
+    }
+
+    private static void showProjectQr(Context context, String code, String projectName) {
+        try {
+            Bitmap qr = createQrBitmap("CODE:" + code, 720);
+
+            LinearLayout container = new LinearLayout(context);
+            container.setOrientation(LinearLayout.VERTICAL);
+            container.setGravity(Gravity.CENTER_HORIZONTAL);
+            int pad = dp(context, 20);
+            container.setPadding(pad, pad, pad, dp(context, 8));
+
+            ImageView image = new ImageView(context);
+            image.setImageBitmap(qr);
+            image.setAdjustViewBounds(true);
+            image.setContentDescription("QR code for " + code);
+            container.addView(image, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(context, 300)
+            ));
+
+            TextView tvCode = new TextView(context);
+            tvCode.setText(code);
+            tvCode.setGravity(Gravity.CENTER);
+            tvCode.setTextSize(16);
+            tvCode.setTextColor(Color.parseColor("#0B5A3C"));
+            tvCode.setPadding(0, dp(context, 10), 0, 0);
+            container.addView(tvCode);
+
+            if (!projectName.isEmpty()) {
+                TextView tvName = new TextView(context);
+                tvName.setText(projectName);
+                tvName.setGravity(Gravity.CENTER);
+                tvName.setTextSize(12);
+                tvName.setTextColor(Color.DKGRAY);
+                tvName.setPadding(dp(context, 8), dp(context, 4), dp(context, 8), 0);
+                container.addView(tvName);
+            }
+
+            new MaterialAlertDialogBuilder(context)
+                    .setTitle("Project QR")
+                    .setMessage("This QR contains the project code for quick entry in GeoKlik.")
+                    .setView(container)
+                    .setPositiveButton("Copy Code", (d, w) -> copyCode(context, code))
+                    .setNegativeButton("Close", null)
+                    .show();
+
+        } catch (Exception e) {
+            Toast.makeText(context, "Unable to generate QR.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private static Bitmap createQrBitmap(String value, int size) throws Exception {
+        BitMatrix matrix = new MultiFormatWriter().encode(
+                value,
+                BarcodeFormat.QR_CODE,
+                size,
+                size
+        );
+
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                bitmap.setPixel(x, y, matrix.get(x, y) ? Color.BLACK : Color.WHITE);
+            }
+        }
+        return bitmap;
+    }
+
+    private static int dp(Context context, int value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
+    }
+
+    private static String clean(String value) {
+        return value == null ? "" : value.trim();
     }
 
     @Override
