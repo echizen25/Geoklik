@@ -7,10 +7,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
 
-    // Same upload workflow as the original working build.
-    // Only the API host was migrated.
-    private static final String BASE_URL =
-            "https://geoklik.philmech.gov.ph/";
+   //server
+   private static final String BASE_URL =
+           "https://app.philmech.gov.ph/geomap_api/";
 
     private static Retrofit retrofit;
 
