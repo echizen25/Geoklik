@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#99000000"
-    android:padding="16dp"
+    android:padding="12dp"
     android:fitsSystemWindows="true">
 
     <com.google.android.material.card.MaterialCardView
@@ -13,10 +13,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginVertical="8dp"
+        android:layout_marginHorizontal="14dp"
+        android:layout_marginVertical="6dp"
         android:backgroundTint="@android:color/white"
-        app:cardCornerRadius="22dp"
+        app:cardCornerRadius="20dp"
         app:cardElevation="4dp"
         app:strokeWidth="1dp"
         app:strokeColor="#1A0B5A3C">
@@ -31,7 +31,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="18dp">
+                android:padding="14dp">
 
                 <RelativeLayout
                     android:layout_width="match_parent"
@@ -41,7 +41,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:paddingEnd="48dp">
+                        android:paddingEnd="46dp">
 
                         <TextView
                             android:id="@+id/tvTitle"
@@ -56,17 +56,17 @@
                             android:id="@+id/tvSubtitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Paste a copied project code, enter it manually, or use a project QR."
-                            android:textSize="13sp"
-                            android:textColor="#5B5B5B" />
+                            android:layout_marginTop="2dp"
+                            android:text="Paste a project code or use QR."
+                            android:textSize="12sp"
+                            android:textColor="#6B7280" />
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnClose"
                         style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
                         android:insetLeft="0dp"
@@ -76,80 +76,97 @@
                         android:minWidth="0dp"
                         android:minHeight="0dp"
                         android:text=""
+                        android:contentDescription="Close"
                         app:icon="@drawable/ic_close_24"
                         app:iconPadding="0dp"
-                        app:iconTint="#111111"
+                        app:iconTint="#111827"
                         app:rippleColor="#14000000" />
                 </RelativeLayout>
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:backgroundTint="#EAF4EF"
-                    app:cardCornerRadius="16dp"
-                    app:strokeColor="#330B5A3C"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="#F7FAF8"
+                    app:cardCornerRadius="14dp"
+                    app:strokeColor="#260B5A3C"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="14dp">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="11dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp">
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="PERSONAL CAPTURE"
-                            android:textColor="#0B5A3C"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_photo_library_24"
+                            android:contentDescription="@null"
+                            app:tint="#0B5A3C" />
 
-                        <TextView
-                            android:layout_width="match_parent"
+                        <LinearLayout
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="3dp"
-                            android:text="Use this when the photo is not linked to an official project."
-                            android:textSize="11sp"
-                            android:textColor="#5F6A65" />
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Personal Capture"
+                                android:textColor="#111827"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="1dp"
+                                android:text="Not linked to an official project"
+                                android:textColor="#6B7280"
+                                android:textSize="10sp"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                        </LinearLayout>
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnUncategorized"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="Start Personal Capture"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:minWidth="64dp"
+                            android:minHeight="0dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="Use"
                             android:textAllCaps="false"
                             android:textColor="#0B5A3C"
-                            app:backgroundTint="@android:color/white"
-                            app:cornerRadius="14dp"
-                            app:icon="@drawable/ic_photo_library_24"
-                            app:iconPadding="10dp"
-                            app:iconTint="#0B5A3C"
+                            app:cornerRadius="12dp"
                             app:strokeColor="#330B5A3C"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="12dp"
-                    android:background="#16000000" />
-
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="13dp"
                     android:text="PROJECT CAPTURE"
-                    android:textColor="#6D6D6D"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    android:textColor="#6B7280"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.06" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
 
@@ -160,12 +177,12 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:hint="Project Code"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
+                        app:boxCornerRadiusTopStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusBottomEnd="12dp"
                         app:boxStrokeColor="#1A0B5A3C"
-                        app:hintTextColor="#5B5B5B">
+                        app:hintTextColor="#6B7280">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/actSite"
@@ -173,88 +190,97 @@
                             android:layout_height="wrap_content"
                             android:imeOptions="actionDone"
                             android:inputType="textNoSuggestions"
-                            android:minHeight="54dp"
-                            android:paddingTop="12dp"
-                            android:paddingBottom="12dp"
+                            android:minHeight="50dp"
+                            android:paddingTop="10dp"
+                            android:paddingBottom="10dp"
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <View
-                        android:layout_width="8dp"
-                        android:layout_height="1dp" />
-
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnPasteCode"
-                        android:layout_width="wrap_content"
-                        android:layout_height="54dp"
-                        android:minWidth="76dp"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="68dp"
+                        android:layout_height="50dp"
+                        android:layout_marginStart="6dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
                         android:text="Paste"
                         android:textAllCaps="false"
                         android:textColor="#0B5A3C"
-                        app:backgroundTint="#F3F7F5"
-                        app:cornerRadius="14dp"
-                        app:strokeColor="#330B5A3C"
-                        app:strokeWidth="1dp" />
+                        app:cornerRadius="12dp"
+                        app:rippleColor="#140B5A3C" />
                 </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="The project list is not shown here. GeoKlik resolves the code locally and determines Infrastructure or Project Activity automatically."
-                    android:textSize="12sp"
+                    android:layout_marginTop="5dp"
+                    android:text="GeoKlik checks the code against the synced project list and detects its project type automatically."
+                    android:textSize="10sp"
                     android:textColor="#7A7A7A" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnUseSelected"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="Use Project Code"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    app:backgroundTint="#0B5A3C"
-                    app:cornerRadius="14dp"
-                    app:icon="@drawable/ic_check_24"
-                    app:iconPadding="10dp"
-                    app:iconTint="@android:color/white" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnUseSelected"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.25"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Use Project"
+                        android:textAllCaps="false"
+                        android:textColor="@android:color/white"
+                        app:backgroundTint="#0B5A3C"
+                        app:cornerRadius="12dp"
+                        app:icon="@drawable/ic_check_24"
+                        app:iconPadding="6dp"
+                        app:iconTint="@android:color/white" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnScanQr"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="6dp"
                         android:layout_weight="1"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
                         android:text="Scan QR"
                         android:textAllCaps="false"
-                        android:textColor="@android:color/white"
-                        app:backgroundTint="#134F3A"
-                        app:cornerRadius="14dp"
+                        android:textColor="#0B5A3C"
+                        app:cornerRadius="12dp"
                         app:icon="@drawable/ic_qr_code_24"
-                        app:iconPadding="8dp"
-                        app:iconTint="@android:color/white" />
-
-                    <View
-                        android:layout_width="10dp"
-                        android:layout_height="1dp" />
+                        app:iconPadding="5dp"
+                        app:iconTint="#0B5A3C"
+                        app:strokeColor="#330B5A3C"
+                        app:strokeWidth="1dp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnUploadQr"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="6dp"
                         android:layout_weight="1"
-                        android:text="QR from Image"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Image QR"
                         android:textAllCaps="false"
                         android:textColor="#0B5A3C"
-                        app:backgroundTint="#EAF2EE"
-                        app:cornerRadius="14dp"
+                        app:cornerRadius="12dp"
                         app:icon="@drawable/ic_photo_library_24"
-                        app:iconPadding="8dp"
+                        app:iconPadding="5dp"
                         app:iconTint="#0B5A3C"
                         app:strokeColor="#330B5A3C"
                         app:strokeWidth="1dp" />
