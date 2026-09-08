@@ -58,6 +58,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
     private View cardSearch;
     private View cardFilter;
     private Spinner spYear;
+    private Spinner spType;
     private RecyclerView rvGallery;
     private TextInputEditText etSearchSite;
     private DrawerLayout drawerLayout;
@@ -73,6 +74,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
     private ImageMetaRepository imageRepo;
     private GalleryAdapter adapter;
     private String selectedYear = "ALL";
+    private String selectedType = "ALL";
     private String searchText = "";
     private int selectedCount = 0;
 
@@ -110,6 +112,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         cardSearch = findViewById(R.id.cardSearch);
         cardFilter = findViewById(R.id.cardFilter);
         spYear = findViewById(R.id.spYear);
+        spType = findViewById(R.id.spType);
         rvGallery = findViewById(R.id.rvGallery);
         etSearchSite = findViewById(R.id.etSearchSite);
         tvFilterHint = findViewById(R.id.tvFilterHint);
@@ -472,6 +475,29 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
     }
 
     private void loadFilters() {
+        List<String> typeLabels = new ArrayList<>();
+        typeLabels.add("All types");
+        typeLabels.add("Infrastructure");
+        typeLabels.add("Project Activity");
+
+        List<String> typeValues = new ArrayList<>();
+        typeValues.add("ALL");
+        typeValues.add("INFRA");
+        typeValues.add("PROJECT_ACTIVITY");
+
+        if (spType != null) {
+            spType.setAdapter(new ArrayAdapter<>(
+                    this,
+                    android.R.layout.simple_spinner_dropdown_item,
+                    typeLabels
+            ));
+            spType.setOnItemSelectedListener(new SimpleItemSelectedListener(pos -> {
+                selectedType = typeValues.get(pos);
+                if (adapter != null) adapter.clearSelection();
+                loadRoot();
+            }));
+        }
+
         List<String> years = new ArrayList<>();
         years.add("ALL");
         Cursor yc = imageRepo.getDistinctYears();
@@ -493,7 +519,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
     }
 
     private void loadRoot() {
-        adapter.loadSites("ALL", selectedYear, searchText);
+        adapter.loadSites("ALL", selectedYear, selectedType, searchText);
     }
 
     @Override
@@ -712,8 +738,8 @@ public class GalleryActivity extends AppCompatActivity implements GalleryAdapter
         boolean hasSelection = count > 0;
         if (tvFilterHint != null) {
             tvFilterHint.setText(hasSelection
-                    ? "Selected sites: " + count + " • Export available in More"
-                    : "Long-press a site to select it for optional batch export.");
+                    ? "Selected: " + count + " • Export available in More"
+                    : "Long-press a card to select it for optional batch export.");
         }
         if (tvNetworkStatus != null) {
             tvNetworkStatus.setVisibility(hasInternet ? View.GONE : View.VISIBLE);
