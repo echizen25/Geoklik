@@ -16,11 +16,9 @@ public class GeoDbHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "geocamera.db";
 
-    // v116 keeps the existing capture/upload contract intact while adding:
-    // - monitoring_type (INFRA / PROJECT_ACTIVITY)
-    // - activity_project_id for local Project Activity grouping
-    // Project Activity rows are status=4 (LOCAL_ONLY) until API support is added.
-    public static final int DB_VERSION = 116;
+    // v117 preserves all existing capture/upload tables and adds metadata used
+    // by the unified /capture-targets feed. Existing project rows are retained.
+    public static final int DB_VERSION = 117;
 
     public GeoDbHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -73,6 +71,14 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         "beneficiary TEXT," +
                         "location TEXT," +
                         "cost REAL," +
+                        "project_type TEXT," +
+                        "division_id TEXT," +
+                        "division_code TEXT," +
+                        "division_name TEXT," +
+                        "project_implementors TEXT," +
+                        "project_description TEXT," +
+                        "date_from TEXT," +
+                        "date_to TEXT," +
                         "timestamp TEXT" +
                         ");"
         );
@@ -138,7 +144,6 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         ");"
         );
 
-        // Needed when upgrading from the first v115 prototype.
         ensureColumnExists(db, TABLE_CAPTURE_CONTEXT, "activity_project_id", "TEXT");
         ensureColumnExists(db, TABLE_CAPTURE_CONTEXT, "pending_activity_project_id", "TEXT");
 
@@ -149,10 +154,8 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         ") VALUES (1, 'UNSPECIFIED', NULL, 'GENERAL', 'UNSPECIFIED', NULL, 'GENERAL', datetime('now'));"
         );
 
-        // Keep ImageMetaRepository and the API request contract unchanged.
-        // The trigger enriches only the LOCAL row after the normal insert.
-        // status=4 means LOCAL_ONLY and is not selected by the existing uploader,
-        // which only uploads status 0/eligible status 2 records.
+        // Preserve the current upload boundary: Project Activity photos remain
+        // LOCAL_ONLY (status=4) until the server-side activity photo contract is added.
         db.execSQL("DROP TRIGGER IF EXISTS trg_imagemeta_capture_context;");
         db.execSQL(
                 "CREATE TRIGGER trg_imagemeta_capture_context " +
@@ -188,6 +191,8 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_beneficiary ON tbl_projects(beneficiary);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_location ON tbl_projects(location);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_time ON tbl_projects(timestamp);");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_type ON tbl_projects(project_type);");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_division_code ON tbl_projects(division_code);");
     }
 
     @Override
@@ -224,8 +229,6 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         ensureColumnExists(db, "tbl_imagemeta", "activity_project_id", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "shot_type", "TEXT");
 
-        // Protect any PROJECT_ACTIVITY photos created by the brief v115 prototype
-        // before this local-only rule existed.
         try {
             db.execSQL(
                     "UPDATE tbl_imagemeta SET " +
@@ -241,7 +244,25 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         ensureColumnExists(db, "tbl_projects", "beneficiary", "TEXT");
         ensureColumnExists(db, "tbl_projects", "location", "TEXT");
         ensureColumnExists(db, "tbl_projects", "cost", "REAL");
+        ensureColumnExists(db, "tbl_projects", "project_type", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "division_id", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "division_code", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "division_name", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "project_implementors", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "project_description", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "date_from", "TEXT");
+        ensureColumnExists(db, "tbl_projects", "date_to", "TEXT");
         ensureColumnExists(db, "tbl_projects", "timestamp", "TEXT");
+
+        // Rows saved by older Android builds did not have a type. They all came
+        // from tbl_project, so INFRA is the safe migration value.
+        try {
+            db.execSQL(
+                    "UPDATE tbl_projects SET project_type='INFRA' " +
+                            "WHERE project_type IS NULL OR trim(project_type)=''"
+            );
+        } catch (Exception ignored) {
+        }
 
         ensureColumnExists(db, "tbl_site", "projectid", "TEXT");
         ensureColumnExists(db, "tbl_site", "code", "TEXT");
