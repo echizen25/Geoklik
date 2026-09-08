@@ -2,7 +2,6 @@ package ph.gov.geocamera.data.sync.net;
 
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
-import ph.gov.geocamera.data.remote.ApiEndpoints;
 import retrofit2.Call;
 import retrofit2.http.Multipart;
 import retrofit2.http.POST;
@@ -11,7 +10,7 @@ import retrofit2.http.Part;
 public interface ApiService {
 
     @Multipart
-    @POST(ApiEndpoints.UPLOAD_PATH)
+    @POST("api/geocamera/upload")
     Call<UploadResponse> uploadPhoto(
             @Part MultipartBody.Part file,
 
