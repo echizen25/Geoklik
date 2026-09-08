@@ -33,6 +33,8 @@ import java.util.Locale;
 import java.util.Set;
 
 import ph.gov.geocamera.R;
+import ph.gov.geocamera.core.utils.CameraPrefs;
+import ph.gov.geocamera.data.repository.CaptureContextRepository;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
@@ -42,6 +44,8 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
     private static final String TYPE_INFRA = "INFRA";
     private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
+    private static final String TYPE_PERSONAL = "PERSONAL";
+    private static final String ERR_NO_PROJECT_ACTIVITY_FOUND = "NO_PROJECT_ACTIVITY_FOUND";
 
     public interface Callback {
         void onSyncSiteClicked(String siteId, String year, boolean alreadySynced);
@@ -53,6 +57,8 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
     private final Context context;
     private final ImageMetaRepository imageRepo;
     private final ProjectRepository projectRepo;
+    private final CameraPrefs cameraPrefs;
+    private final CaptureContextRepository captureContextRepo;
     private final Callback callback;
 
     private final List<SiteItem> items = new ArrayList<>();
@@ -73,6 +79,8 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         this.context = ctx;
         this.imageRepo = img;
         this.projectRepo = new ProjectRepository(ctx);
+        this.cameraPrefs = new CameraPrefs(ctx);
+        this.captureContextRepo = new CaptureContextRepository(ctx);
         this.callback = (Callback) ctx;
         setHasStableIds(true);
     }
@@ -108,13 +116,28 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
                 item.coda = safeString(c, 16);
 
                 String lookupId = firstNonEmpty(item.projectId, item.siteId);
-                item.projectType = normalizeProjectType(projectRepo.getProjectTypeById(lookupId));
-                item.divisionCode = safe(projectRepo.getDivisionCodeByProjectId(lookupId), "");
+                if (isPersonalSite(item.siteId)) {
+                    item.projectType = TYPE_PERSONAL;
+                    item.divisionCode = "";
+                } else {
+                    item.projectType = normalizeProjectType(projectRepo.getProjectTypeById(lookupId));
+                    item.divisionCode = safe(projectRepo.getDivisionCodeByProjectId(lookupId), "");
+                }
 
-                item.noProjectFoundCount = imageRepo.countFailedByErrorForSite(
-                        item.siteId,
-                        ImageMetaRepository.ERR_NO_PROJECT_FOUND
-                );
+                if (!TYPE_PERSONAL.equals(item.projectType)) {
+                    item.noProjectFoundCount = imageRepo.countFailedByErrorForSite(
+                            item.siteId,
+                            ImageMetaRepository.ERR_NO_PROJECT_FOUND
+                    );
+                    item.noActivityFoundCount = imageRepo.countFailedByErrorForSite(
+                            item.siteId,
+                            ERR_NO_PROJECT_ACTIVITY_FOUND
+                    );
+                }
+
+                if (item.failedCount > 0) {
+                    item.lastSyncError = findLatestFailedErrorForSite(item.siteId);
+                }
 
                 if (matchesType(type, item.projectType)) {
                     items.add(item);
@@ -204,14 +227,23 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         preloadSizeProvider.setView(h.imgLatest);
 
         boolean projectActivity = TYPE_PROJECT_ACTIVITY.equals(item.projectType);
+        boolean personal = TYPE_PERSONAL.equals(item.projectType);
 
-        String title = projectActivity
-                ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
-                : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
+        String title;
+        if (personal) {
+            title = "Personal Capture";
+        } else if (projectActivity) {
+            title = firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId);
+        } else {
+            title = firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
+        }
 
-        h.tvSite.setText(safe(title, projectActivity ? "Project Activity" : "SITE"));
+        h.tvSite.setText(safe(title, personal ? "Personal Capture" : (projectActivity ? "Project Activity" : "SITE")));
 
-        if (projectActivity) {
+        if (personal) {
+            h.tvProjectLabel.setVisibility(View.VISIBLE);
+            h.tvProjectLabel.setText("PERSONAL • ON DEVICE");
+        } else if (projectActivity) {
             String typeLine = "PROJECT ACTIVITY";
             if (!item.divisionCode.isEmpty()) {
                 typeLine += " • " + item.divisionCode;
@@ -245,11 +277,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         bindStatusChip(h, item);
         bindThumbnail(h, item);
 
-        h.btnGeoCamera.setOnClickListener(v -> {
-            Intent i = new Intent(context, GeoCameraActivity.class);
-            i.putExtra("siteId", item.siteId);
-            context.startActivity(i);
-        });
+        h.btnGeoCamera.setOnClickListener(v -> openCameraForItem(item));
 
         h.card.setOnClickListener(v -> {
             if (selectionMode) {
@@ -261,6 +289,8 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
             i.putExtra(SiteDatesActivity.EXTRA_SITE_ID, item.siteId);
             i.putExtra(SiteDatesActivity.EXTRA_YEAR, callback.getSelectedYear());
             i.putExtra(SiteDatesActivity.EXTRA_SITE_NAME, safe(title, "Photos"));
+            i.putExtra(SiteDatesActivity.EXTRA_CAPTURE_TYPE, item.projectType);
+            i.putExtra(SiteDatesActivity.EXTRA_DIVISION_CODE, item.divisionCode);
             context.startActivity(i);
         });
 
@@ -284,17 +314,43 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         h.selectionOverlay.setVisibility(isSelected ? View.VISIBLE : View.GONE);
     }
 
+    private void openCameraForItem(@NonNull SiteItem item) {
+        String type = normalizeProjectType(item.projectType);
+
+        if (TYPE_PERSONAL.equals(type)) {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
+            cameraPrefs.clearActivityProjectId();
+            cameraPrefs.saveSite(null, true);
+            captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
+        } else if (TYPE_PROJECT_ACTIVITY.equals(type)) {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
+            cameraPrefs.saveActivityProjectId(item.siteId);
+            cameraPrefs.saveSite(item.siteId, false);
+            captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, item.siteId);
+        } else {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+            cameraPrefs.clearActivityProjectId();
+            cameraPrefs.saveSite(item.siteId, false);
+            captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
+        }
+
+        Intent i = new Intent(context, GeoCameraActivity.class);
+        if (!TYPE_PERSONAL.equals(type)) i.putExtra("siteId", item.siteId);
+        context.startActivity(i);
+    }
+
     private boolean isLocalOnly(@NonNull SiteItem item) {
         return item.totalPhotos > 0
                 && item.unsyncedPhotos > 0
                 && item.pendingCount == 0
                 && item.uploadingCount == 0
                 && item.failedCount == 0
-                && item.noProjectFoundCount == 0;
+                && item.noProjectFoundCount == 0
+                && item.noActivityFoundCount == 0;
     }
 
     private void bindUnsyncedBadge(@NonNull SiteVH h, @NonNull SiteItem item) {
-        if (item.uploadingCount > 0 || isLocalOnly(item)) {
+        if (TYPE_PERSONAL.equals(item.projectType) || item.uploadingCount > 0 || isLocalOnly(item)) {
             h.tvUnsyncedBadge.setVisibility(View.GONE);
             return;
         }
@@ -310,6 +366,13 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
     private void bindStatusChip(@NonNull SiteVH h, @NonNull SiteItem item) {
         h.tvStatusChip.setVisibility(View.VISIBLE);
+
+        if (TYPE_PERSONAL.equals(item.projectType)) {
+            h.tvStatusChip.setText("ON DEVICE");
+            h.tvStatusChip.setAlpha(1f);
+            h.tvStatusChip.setTextColor(Color.parseColor("#546E7A"));
+            return;
+        }
 
         if (item.totalPhotos <= 0) {
             h.tvStatusChip.setText("EMPTY");
@@ -327,6 +390,13 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
         if (item.noProjectFoundCount > 0) {
             h.tvStatusChip.setText("NO PROJECT");
+            h.tvStatusChip.setAlpha(1f);
+            h.tvStatusChip.setTextColor(Color.parseColor("#C62828"));
+            return;
+        }
+
+        if (item.noActivityFoundCount > 0) {
+            h.tvStatusChip.setText("NO ACTIVITY");
             h.tvStatusChip.setAlpha(1f);
             h.tvStatusChip.setTextColor(Color.parseColor("#C62828"));
             return;
@@ -376,55 +446,111 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
     private void showProjectDetails(@NonNull SiteItem item) {
         String status;
 
-        if (item.uploadingCount > 0) status = "UPLOADING";
+        if (TYPE_PERSONAL.equals(item.projectType)) status = "ON DEVICE";
+        else if (item.uploadingCount > 0) status = "UPLOADING";
         else if (item.noProjectFoundCount > 0) status = "NO PROJECT";
+        else if (item.noActivityFoundCount > 0) status = "NO ACTIVITY";
         else if (item.failedCount > 0) status = "FAILED";
         else if (item.pendingCount > 0) status = "PENDING";
         else if (isLocalOnly(item)) status = "LOCAL";
         else status = "SYNCED";
 
         boolean projectActivity = TYPE_PROJECT_ACTIVITY.equals(item.projectType);
-        String title = projectActivity
+        boolean personal = TYPE_PERSONAL.equals(item.projectType);
+        String title = personal
+                ? "Personal Capture"
+                : (projectActivity
                 ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
-                : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
+                : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId));
 
         StringBuilder message = new StringBuilder();
-        message.append("Type: ")
-                .append(projectActivity ? "Project Activity" : "Infrastructure")
-                .append("\n");
-
-        if (projectActivity) {
-            message.append("Project Title: ").append(safe(item.coda, safe(title, "—"))).append("\n");
-            if (!item.divisionCode.isEmpty()) {
-                message.append("Division: ").append(item.divisionCode).append("\n");
-            }
+        if (personal) {
+            message.append("Type: Personal Capture\n")
+                    .append("Storage: On device only\n");
         } else {
-            message.append("Beneficiary: ").append(safe(item.beneficiary, "—")).append("\n");
+            message.append("Type: ")
+                    .append(projectActivity ? "Project Activity" : "Infrastructure")
+                    .append("\n");
+
+            if (projectActivity) {
+                message.append("Project Title: ").append(safe(item.coda, safe(title, "—"))).append("\n");
+                if (!item.divisionCode.isEmpty()) {
+                    message.append("Division: ").append(item.divisionCode).append("\n");
+                }
+            } else {
+                message.append("Beneficiary: ").append(safe(item.beneficiary, "—")).append("\n");
+            }
+
+            message.append("Code: ").append(safe(item.projectCode, "—")).append("\n")
+                    .append("Project ID: ").append(safe(item.projectId, "—")).append("\n");
         }
 
-        message.append("Code: ").append(safe(item.projectCode, "—")).append("\n")
-                .append("Project ID: ").append(safe(item.projectId, "—")).append("\n")
-                .append("Location: ").append(safe(item.location, "—")).append("\n\n")
-                .append("Total Photos: ").append(item.totalPhotos).append("\n")
-                .append("Synced: ").append(item.syncedPhotos).append("\n")
-                .append("Pending: ").append(item.pendingCount).append("\n")
-                .append("Uploading: ").append(item.uploadingCount).append("\n")
-                .append("Failed: ").append(item.failedCount).append("\n")
-                .append("Status: ").append(status).append("\n\n")
-                .append("Latest: ").append(formatMonthDayYearFromDb(item.latestTimestamp));
+        message.append("Location: ").append(safe(item.location, "—")).append("\n\n")
+                .append("Total Photos: ").append(item.totalPhotos).append("\n");
+
+        if (!personal) {
+            message.append("Synced: ").append(item.syncedPhotos).append("\n")
+                    .append("Pending: ").append(item.pendingCount).append("\n")
+                    .append("Uploading: ").append(item.uploadingCount).append("\n")
+                    .append("Failed: ").append(item.failedCount).append("\n");
+        }
+
+        message.append("Status: ").append(status);
+
+        if (!item.lastSyncError.isEmpty() && !personal) {
+            message.append("\nLast Error: ").append(friendlyError(item.lastSyncError));
+        }
+
+        message.append("\n\nLatest: ").append(formatMonthDayYearFromDb(item.latestTimestamp));
 
         new MaterialAlertDialogBuilder(context)
-                .setTitle(projectActivity ? "Project Activity Details" : "Project Details")
+                .setTitle(personal ? "Personal Capture" : (projectActivity ? "Project Activity Details" : "Project Details"))
                 .setMessage(message.toString())
                 .setPositiveButton("Open Photos", (d, w) -> {
                     Intent i = new Intent(context, SiteDatesActivity.class);
                     i.putExtra(SiteDatesActivity.EXTRA_SITE_ID, item.siteId);
                     i.putExtra(SiteDatesActivity.EXTRA_YEAR, callback.getSelectedYear());
                     i.putExtra(SiteDatesActivity.EXTRA_SITE_NAME, safe(title, "Photos"));
+                    i.putExtra(SiteDatesActivity.EXTRA_CAPTURE_TYPE, item.projectType);
+                    i.putExtra(SiteDatesActivity.EXTRA_DIVISION_CODE, item.divisionCode);
                     context.startActivity(i);
                 })
                 .setNegativeButton("Close", null)
                 .show();
+    }
+
+    private String findLatestFailedErrorForSite(String siteId) {
+        if (siteId == null || siteId.trim().isEmpty()) return "";
+        Cursor c = null;
+        try {
+            c = imageRepo.getFailedSyncItems(100);
+            while (c != null && c.moveToNext()) {
+                String failedSite = safeString(c, 2);
+                if (siteId.equalsIgnoreCase(failedSite)) {
+                    return safeString(c, 4);
+                }
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+        return "";
+    }
+
+    private static String friendlyError(String raw) {
+        String error = raw == null ? "" : raw.trim();
+        if (error.isEmpty()) return "Unknown sync error";
+        if (ImageMetaRepository.ERR_NO_PROJECT_FOUND.equalsIgnoreCase(error)) {
+            return "Project was not found on the server.";
+        }
+        if (ERR_NO_PROJECT_ACTIVITY_FOUND.equalsIgnoreCase(error)) {
+            return "Project Activity was not found on the server.";
+        }
+        if (error.startsWith("HTTP_403")) return "Server denied the upload (HTTP 403).";
+        if (error.startsWith("HTTP_404")) return "Upload endpoint was not found (HTTP 404).";
+        if (error.startsWith("HTTP_5")) return "Server error. Please retry when the service is available.";
+        if (error.startsWith("IO_")) return "Network connection was interrupted.";
+        if (error.startsWith("FILE_MISSING")) return "Local photo file is missing.";
+        return error.length() > 140 ? error.substring(0, 140) + "…" : error;
     }
 
     private String formatMonthDayYearFromDb(String dbTimestamp) {
@@ -528,11 +654,13 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         String location;
         String projectType;
         String divisionCode;
+        String lastSyncError = "";
 
         int pendingCount;
         int uploadingCount;
         int failedCount;
         int noProjectFoundCount;
+        int noActivityFoundCount;
     }
 
     private static boolean matchesType(String requestedType, String itemType) {
@@ -543,7 +671,13 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
     private static String normalizeProjectType(String value) {
         String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
-        return TYPE_PROJECT_ACTIVITY.equals(type) ? TYPE_PROJECT_ACTIVITY : TYPE_INFRA;
+        if (TYPE_PROJECT_ACTIVITY.equals(type)) return TYPE_PROJECT_ACTIVITY;
+        if (TYPE_PERSONAL.equals(type)) return TYPE_PERSONAL;
+        return TYPE_INFRA;
+    }
+
+    private static boolean isPersonalSite(String siteId) {
+        return siteId != null && "UNCAT".equalsIgnoreCase(siteId.trim());
     }
 
     private static String safeString(Cursor c, int idx) {
