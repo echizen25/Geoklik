@@ -16,9 +16,10 @@ public class GeoDbHelper extends SQLiteOpenHelper {
 
     public static final String DB_NAME = "geocamera.db";
 
-    // v117 preserves all existing capture/upload tables and adds metadata used
-    // by the unified /capture-targets feed. Existing project rows are retained.
-    public static final int DB_VERSION = 117;
+    // v118 enables Project Activity captures to enter the normal pending sync
+    // queue immediately now that the dedicated server upload contract is live.
+    // Existing capture/upload tables and INFRA behavior are preserved.
+    public static final int DB_VERSION = 118;
 
     public GeoDbHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -154,8 +155,9 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         ") VALUES (1, 'UNSPECIFIED', NULL, 'GENERAL', 'UNSPECIFIED', NULL, 'GENERAL', datetime('now'));"
         );
 
-        // Preserve the current upload boundary: Project Activity photos remain
-        // LOCAL_ONLY (status=4) until the server-side activity photo contract is added.
+        // Project Activity now uses the same local pending/sync state machine as INFRA.
+        // The trigger only stamps capture classification metadata; it no longer forces
+        // status=4 (LOCAL_ONLY). ImageMetaRepository inserts new rows as status=0.
         db.execSQL("DROP TRIGGER IF EXISTS trg_imagemeta_capture_context;");
         db.execSQL(
                 "CREATE TRIGGER trg_imagemeta_capture_context " +
@@ -167,10 +169,7 @@ public class GeoDbHelper extends SQLiteOpenHelper {
                         "  WHEN COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), '') = 'PROJECT_ACTIVITY' " +
                         "  THEN (SELECT pending_activity_project_id FROM tbl_capture_context WHERE context_id=1) " +
                         "  ELSE NULL END, " +
-                        "shot_type = 'GENERAL', " +
-                        "status = CASE " +
-                        "  WHEN COALESCE((SELECT pending_monitoring_type FROM tbl_capture_context WHERE context_id=1), '') = 'PROJECT_ACTIVITY' " +
-                        "  THEN 4 ELSE status END " +
+                        "shot_type = 'GENERAL' " +
                         "WHERE imagemetaid = NEW.imagemetaid; " +
                         "END;"
         );
@@ -236,11 +235,15 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         ensureColumnExists(db, "tbl_imagemeta", "activity_project_id", "TEXT");
         ensureColumnExists(db, "tbl_imagemeta", "shot_type", "TEXT");
 
+        // v118: keep the activity identifier and release old LOCAL_ONLY rows into
+        // the normal pending queue. INFRA rows and already-synced rows are untouched.
         try {
             db.execSQL(
                     "UPDATE tbl_imagemeta SET " +
                             "activity_project_id = COALESCE(NULLIF(activity_project_id,''), NULLIF(siteid,'')), " +
-                            "status = CASE WHEN status IN (0,2,3) THEN 4 ELSE status END " +
+                            "status = CASE WHEN status = 4 THEN 0 ELSE status END, " +
+                            "sync_attempts = CASE WHEN status = 4 THEN 0 ELSE sync_attempts END, " +
+                            "last_sync_error = CASE WHEN status = 4 THEN NULL ELSE last_sync_error END " +
                             "WHERE monitoring_type = 'PROJECT_ACTIVITY'"
             );
         } catch (Exception ignored) {
