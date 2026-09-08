@@ -40,7 +40,7 @@
                         android:id="@+id/tvTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Select Project"
+                        android:text="Change Project"
                         android:textStyle="bold"
                         android:textSize="18sp"
                         android:textColor="#0B5A3C" />
@@ -50,7 +50,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="Choose a project already used on this device, or type/scan a project code."
+                        android:text="Use the project code, scan a QR, or read a QR from an image."
                         android:textSize="13sp"
                         android:textColor="#5B5B5B" />
                 </LinearLayout>
@@ -84,7 +84,7 @@
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Project code or title"
+                android:hint="Project Code"
                 app:boxCornerRadiusTopStart="14dp"
                 app:boxCornerRadiusTopEnd="14dp"
                 app:boxCornerRadiusBottomStart="14dp"
@@ -111,7 +111,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Suggestions come only from projects with photos already saved in this app. New codes can be verified by the server during sync."
+                android:text="Synced projects are shown as CODE — Project Title. GeoKlik determines Infrastructure or Project Activity automatically."
                 android:textSize="12sp"
                 android:textColor="#7A7A7A" />
 
@@ -144,7 +144,7 @@
                     app:backgroundTint="#134F3A"
                     app:cornerRadius="14dp"
                     app:icon="@drawable/ic_qr_code_24"
-                    app:iconPadding="10dp"
+                    app:iconPadding="8dp"
                     app:iconTint="@android:color/white" />
 
                 <View
@@ -152,17 +152,58 @@
                     android:layout_height="1dp" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnUncategorized"
+                    android:id="@+id/btnUploadQr"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="My Photos"
+                    android:text="Upload QR"
                     android:textColor="#0B5A3C"
-                    app:backgroundTint="#E6E9E7"
+                    app:backgroundTint="#EAF2EE"
                     app:cornerRadius="14dp"
-                    app:strokeColor="#1A0B5A3C"
+                    app:icon="@drawable/ic_photo_library_24"
+                    app:iconPadding="8dp"
+                    app:iconTint="#0B5A3C"
+                    app:strokeColor="#330B5A3C"
                     app:strokeWidth="1dp" />
             </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"
+                android:background="#16000000" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Not for a project?"
+                android:textColor="#3F3F3F"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUncategorized"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Personal Capture"
+                android:textColor="#0B5A3C"
+                app:backgroundTint="#F3F5F4"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_photo_library_24"
+                app:iconPadding="10dp"
+                app:iconTint="#0B5A3C"
+                app:strokeColor="#1A0B5A3C"
+                app:strokeWidth="1dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="For personal photos that are not linked to a project."
+                android:textSize="11sp"
+                android:textColor="#7A7A7A" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
