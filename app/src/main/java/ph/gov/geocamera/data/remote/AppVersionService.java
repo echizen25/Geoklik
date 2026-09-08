@@ -17,7 +17,7 @@ public class AppVersionService {
 
     // Kept direct/hardcoded like the original API style; no ApiEndpoints helper.
     private static final String VERSION_URL =
-            "https://app.philmech.gov.ph/geomap_api/api/geocamera/app-version";
+            "http://geoklik.philmech.gov.ph/api/geocamera/app-version";
 
     private static final String PREFS = "geoklik_app_version_policy";
     private static final String KEY_LATEST_CODE = "latest_code";
