@@ -27,15 +27,21 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.common.BitMatrix;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import ph.gov.geocamera.R;
+import ph.gov.geocamera.data.repository.ProjectRepository;
 
 public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAdapter.VH> implements Filterable {
 
     private final List<ProjectListItem> originalItems;
     private final List<ProjectListItem> filteredItems;
+    private final Map<String, String> typeCache = new HashMap<>();
+    private final Map<String, String> divisionCache = new HashMap<>();
+    private ProjectRepository projectRepository;
 
     public LibraryProjectAdapter(List<ProjectListItem> items) {
         this.originalItems = items;
@@ -46,6 +52,8 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
     public void refreshFromSource() {
         filteredItems.clear();
         filteredItems.addAll(originalItems);
+        typeCache.clear();
+        divisionCache.clear();
         notifyDataSetChanged();
     }
 
@@ -54,25 +62,23 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView tvCode;
+        TextView tvProjectType;
         TextView tvBeneficiary;
         TextView tvProjectName;
         TextView tvLocation;
         TextView tvCost;
-        TextView tvDateAdded;
-        TextView tvDateModified;
+        View rowLocation;
         MaterialButton btnCopyProjectCode;
         MaterialButton btnProjectQr;
 
         VH(@NonNull View itemView) {
             super(itemView);
-            tvCode = itemView.findViewById(R.id.tvCode);
+            tvProjectType = itemView.findViewById(R.id.tvProjectType);
             tvBeneficiary = itemView.findViewById(R.id.tvBeneficiary);
             tvProjectName = itemView.findViewById(R.id.tvProjectName);
             tvLocation = itemView.findViewById(R.id.tvLocation);
             tvCost = itemView.findViewById(R.id.tvCost);
-            tvDateAdded = itemView.findViewById(R.id.tvDateAdded);
-            tvDateModified = itemView.findViewById(R.id.tvDateModified);
+            rowLocation = itemView.findViewById(R.id.rowLocation);
             btnCopyProjectCode = itemView.findViewById(R.id.btnCopyProjectCode);
             btnProjectQr = itemView.findViewById(R.id.btnProjectQr);
         }
@@ -81,6 +87,10 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (projectRepository == null) {
+            projectRepository = new ProjectRepository(parent.getContext().getApplicationContext());
+        }
+
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_library_project, parent, false);
         return new VH(v);
@@ -91,14 +101,24 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
     public void onBindViewHolder(@NonNull VH h, int position) {
         ProjectListItem item = filteredItems.get(position);
         String code = clean(item.code);
+        String projectId = clean(item.projectId);
+        String projectType = getProjectType(projectId);
+        boolean isActivity = "PROJECT_ACTIVITY".equalsIgnoreCase(projectType);
+        String divisionCode = isActivity ? getDivisionCode(projectId) : "";
 
-        h.tvCode.setText(code.isEmpty() ? "NO PROJECT CODE" : code);
-
-        h.tvBeneficiary.setText(
-                item.beneficiary == null || item.beneficiary.trim().isEmpty()
-                        ? "No beneficiary specified"
-                        : item.beneficiary
-        );
+        if (isActivity) {
+            h.tvProjectType.setText(
+                    divisionCode.isEmpty()
+                            ? "PROJECT ACTIVITY"
+                            : "PROJECT ACTIVITY • " + divisionCode
+            );
+            h.tvProjectType.setTextColor(Color.parseColor("#1D4ED8"));
+            h.tvProjectType.setBackgroundResource(R.drawable.bg_chip_outline_blue);
+        } else {
+            h.tvProjectType.setText("INFRASTRUCTURE");
+            h.tvProjectType.setTextColor(Color.parseColor("#0B5A3C"));
+            h.tvProjectType.setBackgroundResource(R.drawable.bg_chip_outline_green);
+        }
 
         h.tvProjectName.setText(
                 item.projectName == null || item.projectName.trim().isEmpty()
@@ -106,39 +126,39 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
                         : item.projectName
         );
 
-        h.tvLocation.setText(
-                item.location == null || item.location.trim().isEmpty()
-                        ? "Location not specified"
-                        : item.location
-        );
+        String beneficiary = clean(item.beneficiary);
+        if (beneficiary.isEmpty()) {
+            h.tvBeneficiary.setVisibility(View.GONE);
+        } else {
+            h.tvBeneficiary.setVisibility(View.VISIBLE);
+            h.tvBeneficiary.setText(beneficiary);
+        }
 
-        h.tvCost.setText(
-                "Cost: " + (
-                        item.cost == null || item.cost.trim().isEmpty()
-                                ? "₱ 0.00"
-                                : item.cost
-                )
-        );
+        String location = clean(item.location);
+        boolean showCost = !isActivity && !isZeroCost(item.cost);
+        boolean showLocationRow = !location.isEmpty() || showCost;
 
-        h.tvDateAdded.setText(
-                "Date added: " + (
-                        item.dateAdded == null || item.dateAdded.trim().isEmpty()
-                                ? "-"
-                                : item.dateAdded
-                )
-        );
+        h.rowLocation.setVisibility(showLocationRow ? View.VISIBLE : View.GONE);
 
-        h.tvDateModified.setText(
-                "Modified: " + (
-                        item.dateModified == null || item.dateModified.trim().isEmpty()
-                                ? "-"
-                                : item.dateModified
-                )
-        );
+        if (!location.isEmpty()) {
+            h.tvLocation.setVisibility(View.VISIBLE);
+            h.tvLocation.setText(location);
+        } else {
+            h.tvLocation.setVisibility(View.GONE);
+        }
+
+        if (showCost) {
+            h.tvCost.setVisibility(View.VISIBLE);
+            h.tvCost.setText(item.cost);
+        } else {
+            h.tvCost.setVisibility(View.GONE);
+        }
 
         boolean hasCode = !code.isEmpty();
         h.btnCopyProjectCode.setEnabled(hasCode);
         h.btnProjectQr.setEnabled(hasCode);
+        h.btnCopyProjectCode.setAlpha(hasCode ? 1f : 0.35f);
+        h.btnProjectQr.setAlpha(hasCode ? 1f : 0.35f);
 
         h.btnCopyProjectCode.setOnClickListener(v -> {
             if (!hasCode) return;
@@ -147,8 +167,40 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
 
         h.btnProjectQr.setOnClickListener(v -> {
             if (!hasCode) return;
-            showProjectQr(v.getContext(), code, clean(item.projectName));
+            showProjectQr(v.getContext(), code, clean(item.projectName), isActivity);
         });
+    }
+
+    private String getProjectType(String projectId) {
+        if (projectId.isEmpty() || projectRepository == null) return "INFRA";
+        if (typeCache.containsKey(projectId)) return typeCache.get(projectId);
+
+        String value = clean(projectRepository.getProjectTypeById(projectId));
+        if (value.isEmpty()) value = "INFRA";
+        typeCache.put(projectId, value);
+        return value;
+    }
+
+    private String getDivisionCode(String projectId) {
+        if (projectId.isEmpty() || projectRepository == null) return "";
+        if (divisionCache.containsKey(projectId)) return divisionCache.get(projectId);
+
+        String value = clean(projectRepository.getDivisionCodeByProjectId(projectId));
+        divisionCache.put(projectId, value);
+        return value;
+    }
+
+    private static boolean isZeroCost(String value) {
+        String v = clean(value)
+                .replace("₱", "")
+                .replace(",", "")
+                .trim();
+        if (v.isEmpty()) return true;
+        try {
+            return Math.abs(Double.parseDouble(v)) < 0.0001d;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static void copyCode(Context context, String code) {
@@ -163,46 +215,51 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
         Toast.makeText(context, "Project code copied", Toast.LENGTH_SHORT).show();
     }
 
-    private static void showProjectQr(Context context, String code, String projectName) {
+    private static void showProjectQr(
+            Context context,
+            String code,
+            String projectName,
+            boolean isActivity
+    ) {
         try {
             Bitmap qr = createQrBitmap("CODE:" + code, 720);
 
             LinearLayout container = new LinearLayout(context);
             container.setOrientation(LinearLayout.VERTICAL);
             container.setGravity(Gravity.CENTER_HORIZONTAL);
-            int pad = dp(context, 20);
-            container.setPadding(pad, pad, pad, dp(context, 8));
+            int pad = dp(context, 18);
+            container.setPadding(pad, pad, pad, dp(context, 6));
 
             ImageView image = new ImageView(context);
             image.setImageBitmap(qr);
             image.setAdjustViewBounds(true);
-            image.setContentDescription("QR code for " + code);
+            image.setContentDescription("QR code for selected project");
             container.addView(image, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(context, 300)
+                    dp(context, 280)
             ));
 
-            TextView tvCode = new TextView(context);
-            tvCode.setText(code);
-            tvCode.setGravity(Gravity.CENTER);
-            tvCode.setTextSize(16);
-            tvCode.setTextColor(Color.parseColor("#0B5A3C"));
-            tvCode.setPadding(0, dp(context, 10), 0, 0);
-            container.addView(tvCode);
+            TextView tvName = new TextView(context);
+            tvName.setText(projectName.isEmpty() ? "Selected Project" : projectName);
+            tvName.setGravity(Gravity.CENTER);
+            tvName.setTextSize(14);
+            tvName.setTextColor(Color.parseColor("#111827"));
+            tvName.setPadding(dp(context, 8), dp(context, 10), dp(context, 8), 0);
+            container.addView(tvName);
 
-            if (!projectName.isEmpty()) {
-                TextView tvName = new TextView(context);
-                tvName.setText(projectName);
-                tvName.setGravity(Gravity.CENTER);
-                tvName.setTextSize(12);
-                tvName.setTextColor(Color.DKGRAY);
-                tvName.setPadding(dp(context, 8), dp(context, 4), dp(context, 8), 0);
-                container.addView(tvName);
-            }
+            TextView tvType = new TextView(context);
+            tvType.setText(isActivity ? "PROJECT ACTIVITY" : "INFRASTRUCTURE");
+            tvType.setGravity(Gravity.CENTER);
+            tvType.setTextSize(11);
+            tvType.setTextColor(isActivity
+                    ? Color.parseColor("#1D4ED8")
+                    : Color.parseColor("#0B5A3C"));
+            tvType.setPadding(dp(context, 8), dp(context, 4), dp(context, 8), 0);
+            container.addView(tvType);
 
             new MaterialAlertDialogBuilder(context)
                     .setTitle("Project QR")
-                    .setMessage("This QR contains the project code for quick entry in GeoKlik.")
+                    .setMessage("Scan this QR from Change Project to use this project.")
                     .setView(container)
                     .setPositiveButton("Copy Code", (d, w) -> copyCode(context, code))
                     .setNegativeButton("Close", null)
