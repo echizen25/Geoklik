@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -55,6 +56,11 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     public static final String EXTRA_SITE_ID = "siteId";
     public static final String EXTRA_SESSION_DATE = "sessionDate";
     public static final String EXTRA_DESCRIPTION = "description";
+    public static final String EXTRA_CAPTURE_TYPE = "captureType";
+
+    private static final String TYPE_INFRA = "INFRA";
+    private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
+    private static final String TYPE_PERSONAL = "PERSONAL";
 
     private com.google.android.material.appbar.MaterialToolbar toolbar;
     private RecyclerView rv;
@@ -72,6 +78,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     private String siteId;
     private String sessionDate;
     private String description;
+    private String captureType = TYPE_INFRA;
 
     private int statusFilter = 0;
     private int sortMode = 0;
@@ -114,6 +121,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         siteId = i != null ? i.getStringExtra(EXTRA_SITE_ID) : null;
         sessionDate = i != null ? i.getStringExtra(EXTRA_SESSION_DATE) : null;
         description = i != null ? i.getStringExtra(EXTRA_DESCRIPTION) : null;
+        captureType = normalizeCaptureType(i != null ? i.getStringExtra(EXTRA_CAPTURE_TYPE) : null);
 
         if (groupId == null || groupId.trim().isEmpty()) {
             finish();
@@ -129,7 +137,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (actionMode != null) actionMode.finish();
             else finish();
         });
-        toolbar.setTitle(!safe(description).isEmpty() ? safe(description) : "Images");
+        updateToolbarIdentity();
         toolbar.setOnMenuItemClickListener(this::onToolbarMenuItemClick);
 
         rv.setHasFixedSize(true);
@@ -152,11 +160,23 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         loadImages();
     }
 
+    private void updateToolbarIdentity() {
+        toolbar.setTitle(!safe(description).isEmpty() ? safe(description) : "Photos");
+        if (TYPE_PERSONAL.equals(captureType)) {
+            toolbar.setSubtitle("Personal • On device");
+        } else if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+            toolbar.setSubtitle("Project Activity");
+        } else {
+            toolbar.setSubtitle("Infrastructure");
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         String dbRemarks = safe(groupRepo.getRemarksByGroupId(groupId));
-        if (!dbRemarks.isEmpty()) toolbar.setTitle(dbRemarks);
+        if (!dbRemarks.isEmpty()) description = dbRemarks;
+        updateToolbarIdentity();
         loadImages();
     }
 
@@ -181,6 +201,22 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     }
 
     private void showStatusFilterDialog() {
+        if (TYPE_PERSONAL.equals(captureType)) {
+            String[] options = new String[]{"All photos", "Saved to device"};
+            int checked = statusFilter == 5 ? 1 : 0;
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Filter photos")
+                    .setSingleChoiceItems(options, checked, (dialog, which) -> {
+                        statusFilter = which == 1 ? 5 : 0;
+                        dialog.dismiss();
+                        if (actionMode != null) actionMode.finish();
+                        applyFilterAndSort();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+
         String[] options = new String[]{
                 "All photos", "Pending", "Synced", "Failed", "Uploading", "Saved to device"
         };
@@ -198,6 +234,22 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     }
 
     private void showSortDialog() {
+        if (TYPE_PERSONAL.equals(captureType)) {
+            String[] options = new String[]{"Newest first", "Oldest first"};
+            int checked = sortMode == 1 ? 1 : 0;
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Sort photos")
+                    .setSingleChoiceItems(options, checked, (dialog, which) -> {
+                        sortMode = which;
+                        dialog.dismiss();
+                        if (actionMode != null) actionMode.finish();
+                        applyFilterAndSort();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+
         String[] options = new String[]{
                 "Newest first", "Oldest first", "Pending first", "Failed first"
         };
@@ -340,10 +392,16 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
         if (allImages.isEmpty()) {
             tvEmptyTitle.setText("No photos yet");
-            tvEmptySubtitle.setText("Captured photos for this inspection will appear here.");
+            if (TYPE_PERSONAL.equals(captureType)) {
+                tvEmptySubtitle.setText("Personal captures saved on this device will appear here.");
+            } else if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+                tvEmptySubtitle.setText("Photos for this project activity album will appear here.");
+            } else {
+                tvEmptySubtitle.setText("Captured infrastructure photos will appear here.");
+            }
         } else {
             tvEmptyTitle.setText("No matching photos");
-            tvEmptySubtitle.setText("Try another status filter to see more photos.");
+            tvEmptySubtitle.setText("Try another filter to see more photos.");
         }
     }
 
@@ -433,8 +491,12 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (changeSite != null) {
                 Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 boolean hasLocked = imageRepo.hasLockedPhotosForChangeSite(selected);
-                changeSite.setVisible(!hasLocked);
-                changeSite.setEnabled(!hasLocked);
+                // Reassignment is currently an Infrastructure-only workflow.
+                // Hiding it for Activity/Personal prevents changing the site while
+                // leaving stale monitoring_type/activity metadata behind.
+                boolean typeAllowsReassign = TYPE_INFRA.equals(captureType);
+                changeSite.setVisible(typeAllowsReassign && !hasLocked);
+                changeSite.setEnabled(typeAllowsReassign && !hasLocked);
             }
             return true;
         }
@@ -461,6 +523,13 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             }
 
             if (id == R.id.action_change_site) {
+                if (!TYPE_INFRA.equals(captureType)) {
+                    Toast.makeText(GroupImagesActivity.this,
+                            "Reassigning photos is available for Infrastructure captures only.",
+                            Toast.LENGTH_LONG).show();
+                    return true;
+                }
+
                 final Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 if (selected.isEmpty()) return true;
 
@@ -581,7 +650,14 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     private String buildExportSubPath() {
         StringBuilder b = new StringBuilder();
-        appendPath(b, siteId);
+        if (TYPE_PERSONAL.equals(captureType)) {
+            appendPath(b, "Personal");
+        } else if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+            appendPath(b, "Project_Activities");
+            appendPath(b, siteId);
+        } else {
+            appendPath(b, siteId);
+        }
         appendPath(b, sessionDate);
         appendPath(b, description);
         return b.toString();
@@ -616,6 +692,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     private void showChangeSiteDialog(Set<String> selectedUuids) {
         if (selectedUuids == null || selectedUuids.isEmpty()) return;
+        if (!TYPE_INFRA.equals(captureType)) return;
 
         View view = getLayoutInflater().inflate(R.layout.dialog_change_site_photos, null);
         TextInputLayout tilSite = view.findViewById(R.id.tilSite);
@@ -710,7 +787,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             }
         }
 
-        return s.trim().toUpperCase(java.util.Locale.US);
+        return s.trim().toUpperCase(Locale.US);
     }
 
     private void hideKeyboard(View v) {
@@ -783,6 +860,13 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                 / getResources().getDisplayMetrics().density;
         int count = Math.max(2, (int) (dpWidth / itemWidthDp));
         return Math.min(count, MAX_SPAN);
+    }
+
+    private static String normalizeCaptureType(String value) {
+        String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
+        if (TYPE_PROJECT_ACTIVITY.equals(type)) return TYPE_PROJECT_ACTIVITY;
+        if (TYPE_PERSONAL.equals(type)) return TYPE_PERSONAL;
+        return TYPE_INFRA;
     }
 
     private int dp(int v) {
