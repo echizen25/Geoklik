@@ -51,7 +51,7 @@
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Search project or site"
+                    android:hint="Search project, activity or site"
                     app:boxCornerRadiusTopStart="14dp"
                     app:boxCornerRadiusTopEnd="14dp"
                     app:boxCornerRadiusBottomStart="14dp"
@@ -80,7 +80,7 @@
             android:layout_marginHorizontal="12dp"
             android:layout_marginTop="10dp"
             android:visibility="gone"
-            app:cardCornerRadius="18dp"
+            app:cardCornerRadius="16dp"
             app:cardElevation="1dp"
             app:strokeWidth="1dp"
             app:strokeColor="?attr/colorOutline"
@@ -89,7 +89,10 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="14dp"
+                android:paddingStart="12dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="10dp"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -98,29 +101,62 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="YEAR"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.08"
-                        android:textSize="11sp"
-                        android:alpha="0.72"
-                        android:textColor="?attr/colorOnSurface" />
-
-                    <Spinner
-                        android:id="@+id/spYear"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="12dp" />
+                        android:layout_weight="1.35"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="TYPE"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.08"
+                            android:textSize="10sp"
+                            android:alpha="0.68"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <Spinner
+                            android:id="@+id/spType"
+                            android:layout_width="match_parent"
+                            android:layout_height="40dp"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="10dp"
+                        android:layout_height="1dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.85"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="YEAR"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.08"
+                            android:textSize="10sp"
+                            android:alpha="0.68"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <Spinner
+                            android:id="@+id/spYear"
+                            android:layout_width="match_parent"
+                            android:layout_height="40dp"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvNetworkStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
                     android:text="No internet. Sync disabled."
                     android:textSize="12sp"
                     android:textColor="?attr/colorError"
@@ -130,9 +166,9 @@
                     android:id="@+id/tvFilterHint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Long-press a project card to select it for export."
-                    android:textSize="12sp"
+                    android:layout_marginTop="5dp"
+                    android:text="Long-press a card to select it for export."
+                    android:textSize="11sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
             </LinearLayout>
