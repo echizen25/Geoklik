@@ -27,9 +27,12 @@ import ph.gov.geocamera.R;
 
 public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> {
 
+    private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
+    private static final String TYPE_PERSONAL = "PERSONAL";
+
     public static class DateItem {
-        public String sessionDate;      // yyyy-MM-dd
-        public String groupId;          // UUID TEXT
+        public String sessionDate;
+        public String groupId;
         public int totalPhotos;
         public int uploadedPhotos;
         public int uploadingPhotos;
@@ -38,7 +41,7 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         public int unsyncedPhotos;
         public String latestFilename;
         public String latestTimestamp;
-        public String remarks;          // tbl_groups.description
+        public String remarks;
     }
 
     public interface OnClick {
@@ -47,14 +50,16 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
     }
 
     private final Context context;
+    private final String captureType;
     private final OnClick onClick;
     private final List<DateItem> items = new ArrayList<>();
 
     private final SimpleDateFormat sdfDb = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
     private final SimpleDateFormat sdfUi = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault());
 
-    public SiteDatesAdapter(Context context, OnClick onClick) {
+    public SiteDatesAdapter(Context context, String captureType, OnClick onClick) {
         this.context = context;
+        this.captureType = normalizeType(captureType);
         this.onClick = onClick;
         setHasStableIds(true);
     }
@@ -67,7 +72,8 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
 
     @Override
     public long getItemId(int position) {
-        String key = items.get(position).sessionDate;
+        String key = items.get(position).groupId;
+        if (key == null || key.trim().isEmpty()) key = items.get(position).sessionDate;
         return key == null ? position : key.hashCode();
     }
 
@@ -104,30 +110,35 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         String status;
         int color;
 
-        boolean localOnly = total > 0
-                && it.unsyncedPhotos > 0
-                && it.pendingPhotos == 0
-                && it.uploadingPhotos == 0
-                && it.failedPhotos == 0;
-
-        if (total <= 0) {
-            status = "NO PHOTOS";
-            color = ContextCompat.getColor(context, android.R.color.darker_gray);
-        } else if (it.uploadingPhotos > 0) {
-            status = "UPLOADING";
-            color = Color.parseColor("#F57C00");
-        } else if (it.failedPhotos > 0) {
-            status = "FAILED";
-            color = Color.parseColor("#D32F2F");
-        } else if (localOnly) {
-            status = "LOCAL";
+        if (TYPE_PERSONAL.equals(captureType)) {
+            status = total <= 0 ? "NO PHOTOS" : "ON DEVICE";
             color = Color.parseColor("#546E7A");
-        } else if (it.unsyncedPhotos > 0 || it.pendingPhotos > 0) {
-            status = "PENDING";
-            color = Color.parseColor("#004B24");
         } else {
-            status = "SYNCED";
-            color = Color.parseColor("#2E7D32");
+            boolean localOnly = total > 0
+                    && it.unsyncedPhotos > 0
+                    && it.pendingPhotos == 0
+                    && it.uploadingPhotos == 0
+                    && it.failedPhotos == 0;
+
+            if (total <= 0) {
+                status = "NO PHOTOS";
+                color = ContextCompat.getColor(context, android.R.color.darker_gray);
+            } else if (it.uploadingPhotos > 0) {
+                status = "UPLOADING";
+                color = Color.parseColor("#F57C00");
+            } else if (it.failedPhotos > 0) {
+                status = "FAILED";
+                color = Color.parseColor("#D32F2F");
+            } else if (localOnly) {
+                status = "LOCAL";
+                color = Color.parseColor("#546E7A");
+            } else if (it.unsyncedPhotos > 0 || it.pendingPhotos > 0) {
+                status = "PENDING";
+                color = Color.parseColor("#004B24");
+            } else {
+                status = "SYNCED";
+                color = Color.parseColor("#2E7D32");
+            }
         }
 
         h.tvSyncStatus.setText("Status: " + status);
@@ -139,7 +150,13 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
 
         if (!r.isEmpty()) {
             h.tvRemarks.setVisibility(View.VISIBLE);
-            h.tvRemarks.setText("Remarks: " + r);
+            if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+                h.tvRemarks.setText("Album: " + r);
+            } else if (TYPE_PERSONAL.equals(captureType)) {
+                h.tvRemarks.setText("Note: " + r);
+            } else {
+                h.tvRemarks.setText("Remarks: " + r);
+            }
             h.btnRemarks.setText("Edit Note");
         } else {
             h.tvRemarks.setVisibility(View.GONE);
@@ -172,6 +189,14 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         } catch (ParseException e) {
             return yyyyMmDd;
         }
+    }
+
+    private static String normalizeType(String type) {
+        if (type == null) return "INFRA";
+        String value = type.trim().toUpperCase(Locale.US);
+        if (TYPE_PROJECT_ACTIVITY.equals(value)) return TYPE_PROJECT_ACTIVITY;
+        if (TYPE_PERSONAL.equals(value)) return TYPE_PERSONAL;
+        return "INFRA";
     }
 
     @Override
