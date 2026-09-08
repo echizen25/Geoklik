@@ -23,7 +23,6 @@
         android:allowBackup="true"
         android:label="GeoKlik"
         android:icon="@mipmap/icons"
-        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/icons_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GeoCamera">
