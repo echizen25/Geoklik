@@ -340,12 +340,12 @@ public class SetSiteActivity extends AppCompatActivity {
     }
 
     private void selectPersonalCapture() {
-        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
         cameraPrefs.clearActivityProjectId();
-        captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
+        captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
         cameraPrefs.saveSite(null, true);
 
-        Toast.makeText(this, "Personal Capture selected", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Personal Capture selected • on device only", Toast.LENGTH_SHORT).show();
         finishWithResult(null, true);
     }
 
