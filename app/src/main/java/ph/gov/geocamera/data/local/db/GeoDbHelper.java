@@ -191,8 +191,15 @@ public class GeoDbHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_beneficiary ON tbl_projects(beneficiary);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_location ON tbl_projects(location);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_time ON tbl_projects(timestamp);");
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_type ON tbl_projects(project_type);");
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_division_code ON tbl_projects(division_code);");
+
+        // These columns were introduced in v117. Guard their indexes because
+        // createIndexes() is also called inside very old DB migration paths.
+        if (getColumnType(db, "tbl_projects", "project_type") != null) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_type ON tbl_projects(project_type);");
+        }
+        if (getColumnType(db, "tbl_projects", "division_code") != null) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_projects_division_code ON tbl_projects(division_code);");
+        }
     }
 
     @Override
