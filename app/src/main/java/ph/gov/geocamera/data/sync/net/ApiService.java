@@ -39,9 +39,9 @@ public interface ApiService {
             @Part("progressTimestamp") RequestBody progressTimestamp
     );
 
-    // Project Activity intentionally has its own server route and tables.
-    // It reuses the same local WorkManager/status flow but does not touch
-    // INFRA tbl_groups/tbl_images/tbl_progress on the server.
+    // Project Activity has a dedicated API route so it can skip tbl_progress.
+    // The server still reuses the existing tbl_groups/tbl_images album-photo
+    // structure and classifies those rows as PROJECT_ACTIVITY.
     @Multipart
     @POST("api/project-activity/upload")
     Call<UploadResponse> uploadProjectActivityPhoto(
