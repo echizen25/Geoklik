@@ -45,6 +45,9 @@ public class UploadWorker extends Worker {
 
         Cursor c = null;
         boolean shouldRetry = false;
+        boolean hadFailure = false;
+        String lastError = "";
+        int lastHttpCode = 0;
         int processed = 0;
 
         try {
@@ -110,19 +113,27 @@ public class UploadWorker extends Worker {
                         + ", filePath=" + filePath);
 
                 if (uuid.isEmpty() || filePath.isEmpty()) {
-                    repo.markUploadFail(uuid, "MISSING_UUID_OR_FILEPATH");
+                    lastError = "MISSING_UUID_OR_FILEPATH";
+                    hadFailure = true;
+                    repo.markUploadFail(uuid, lastError);
                 }
                 else if (groupId.isEmpty()) {
-                    repo.markUploadFail(uuid, "MISSING_GROUPID");
+                    lastError = "MISSING_GROUPID";
+                    hadFailure = true;
+                    repo.markUploadFail(uuid, lastError);
                 }
                 else if (siteId.isEmpty()) {
-                    repo.markUploadFail(uuid, ERR_NO_PROJECT_FOUND);
+                    lastError = ERR_NO_PROJECT_FOUND;
+                    hadFailure = true;
+                    repo.markUploadFail(uuid, lastError);
                 }
                 else {
                     File file = new File(filePath);
 
                     if (!file.exists()) {
-                        repo.markUploadFail(uuid, "FILE_MISSING");
+                        lastError = "FILE_MISSING";
+                        hadFailure = true;
+                        repo.markUploadFail(uuid, lastError);
                     }
                     else {
                         repo.markUploading(uuid);
@@ -173,6 +184,8 @@ public class UploadWorker extends Worker {
                                     String err = safe(body.error);
                                     if (err.isEmpty()) err = "SERVER_FAIL";
 
+                                    lastError = err;
+                                    hadFailure = true;
                                     repo.markUploadFail(uuid, err);
 
                                     if (!ERR_NO_PROJECT_FOUND.equalsIgnoreCase(err)) {
@@ -189,8 +202,14 @@ public class UploadWorker extends Worker {
                                         + ", body=" + rawErr);
 
                                 String finalErr = "HTTP_" + code + (rawErr.isEmpty() ? "" : (": " + rawErr));
+                                lastError = finalErr;
+                                lastHttpCode = code;
+                                hadFailure = true;
                                 repo.markUploadFail(uuid, finalErr);
 
+                                // Retry only transient server/rate-limit errors.
+                                // 4xx such as 403 are configuration/auth failures and must be
+                                // surfaced immediately instead of pretending sync completed.
                                 if (code >= 500 || code == 429) {
                                     shouldRetry = true;
                                 }
@@ -198,12 +217,16 @@ public class UploadWorker extends Worker {
 
                         } catch (IOException io) {
                             Log.e(TAG, "IO error uuid=" + uuid, io);
-                            repo.markUploadFail(uuid, "IO_" + io.getClass().getSimpleName());
+                            lastError = "IO_" + io.getClass().getSimpleName();
+                            hadFailure = true;
+                            repo.markUploadFail(uuid, lastError);
                             shouldRetry = true;
 
                         } catch (Exception e) {
                             Log.e(TAG, "Unexpected error uuid=" + uuid, e);
-                            repo.markUploadFail(uuid, "EX_" + e.getClass().getSimpleName());
+                            lastError = "EX_" + e.getClass().getSimpleName();
+                            hadFailure = true;
+                            repo.markUploadFail(uuid, lastError);
                             shouldRetry = true;
                         }
                     }
@@ -224,6 +247,20 @@ public class UploadWorker extends Worker {
             if (shouldRetry && remainingAfter > 0) {
                 Log.d(TAG, "Batch finished with retryable error. Backoff retry. Remaining=" + remainingAfter);
                 return Result.retry();
+            }
+
+            // Any non-retryable failure (for example HTTP 403) must make the
+            // WorkManager job FAILED so the UI cannot show "Sync complete".
+            if (hadFailure) {
+                Data output = new Data.Builder()
+                        .putString("ERROR", safe(lastError))
+                        .putInt("HTTP_CODE", lastHttpCode)
+                        .putInt("DONE", doneBase + processed)
+                        .putInt("TOTAL", totalAll)
+                        .build();
+
+                Log.d(TAG, "Worker END FAILURE error=" + lastError);
+                return Result.failure(output);
             }
 
             if (remainingAfter > 0) {
