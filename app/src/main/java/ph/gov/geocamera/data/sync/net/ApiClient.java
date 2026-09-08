@@ -9,7 +9,7 @@ public class ApiClient {
 
    //server
    private static final String BASE_URL =
-           "https://app.philmech.gov.ph/geomap_api/";
+           "http://geoklik.philmech.gov.ph/";
 
     private static Retrofit retrofit;
 
