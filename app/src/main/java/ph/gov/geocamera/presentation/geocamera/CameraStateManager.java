@@ -95,9 +95,12 @@ final class CameraStateManager {
     }
 
     /**
-     * Enforces a configured project geofence without changing the existing
-     * GeoCameraActivity GPS/upload flow. No geofence row means legacy behavior.
-     * PERSONAL always bypasses this check because it is local-only.
+     * Location restriction is intentionally INFRA-only.
+     *
+     * PROJECT_ACTIVITY is agency activity/event documentation and can legitimately
+     * happen at different venues, so it keeps the normal GeoKlik GPS rules but is
+     * never blocked by a project-area restriction. PERSONAL is local-only and also
+     * bypasses this check. Missing INFRA area configuration preserves legacy behavior.
      */
     private GeofenceDecision evaluateProjectArea() {
         if (cameraPrefs == null || geofenceRepository == null || appContext == null) {
@@ -105,7 +108,9 @@ final class CameraStateManager {
         }
 
         String documentationType = clean(cameraPrefs.getDocumentationType());
-        if (CameraPrefs.DOC_PERSONAL.equalsIgnoreCase(documentationType)) {
+
+        // Only Infrastructure captures may be location-restricted.
+        if (!CameraPrefs.DOC_INFRA.equalsIgnoreCase(documentationType)) {
             return GeofenceDecision.notApplicable();
         }
 
@@ -116,7 +121,7 @@ final class CameraStateManager {
 
         ProjectGeofenceRepository.Config config = getCachedGeofence(projectId);
         if (config == null) {
-            // Backward compatibility: projects without configured coordinates
+            // Backward compatibility: INFRA projects without configured area data
             // continue to use the existing capture rules.
             return GeofenceDecision.notApplicable();
         }
