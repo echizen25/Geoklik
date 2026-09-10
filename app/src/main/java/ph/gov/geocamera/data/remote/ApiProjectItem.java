@@ -23,4 +23,9 @@ public class ApiProjectItem {
     public Double geofenceLatitude;
     public Double geofenceLongitude;
     public Double geofenceRadiusMeters;
+
+    // True only when the response contract actually included geofence fields.
+    // This prevents the legacy /projects fallback from accidentally clearing a
+    // previously cached geofence simply because that old endpoint has no fields.
+    public boolean geofenceMetadataAvailable;
 }
