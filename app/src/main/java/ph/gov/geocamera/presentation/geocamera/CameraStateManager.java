@@ -10,7 +10,9 @@ import android.widget.TextView;
 import java.util.Locale;
 
 import ph.gov.geocamera.core.utils.CameraPrefs;
-import ph.gov.geocamera.data.repository.ProjectGeofenceRepository;
+import ph.gov.geocamera.data.repository.BarangayBoundaryRepository;
+import ph.gov.geocamera.data.repository.ProjectAdminAreaRepository;
+import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
 
 /** Keeps the shutter and capture-status label consistent across the capture lifecycle. */
 final class CameraStateManager {
@@ -29,20 +31,23 @@ final class CameraStateManager {
         ERROR
     }
 
-    private static final long GEOFENCE_GPS_MAX_AGE_MS = 15_000L;
-    private static final float GEOFENCE_MAX_GPS_ACCURACY_M = 30f;
-    private static final long GEOFENCE_LOCAL_CACHE_MS = 5_000L;
+    private static final long AREA_GPS_MAX_AGE_MS = 15_000L;
+    private static final float AREA_MAX_GPS_ACCURACY_M = 30f;
+    private static final long AREA_LOCAL_CACHE_MS = 5_000L;
+    private static final long AREA_SYNC_RETRY_MS = 30_000L;
 
     private final ImageButton captureButton;
     private final TextView statusText;
     private final Context appContext;
     private final CameraPrefs cameraPrefs;
-    private final ProjectGeofenceRepository geofenceRepository;
+    private final ProjectAdminAreaRepository adminAreaRepository;
+    private final BarangayBoundaryRepository barangayBoundaryRepository;
     private State state = State.WAITING_FOR_GPS;
 
-    private String cachedGeofenceProjectId = "";
-    private ProjectGeofenceRepository.Config cachedGeofence;
-    private long cachedGeofenceAt = 0L;
+    private String cachedProjectId = "";
+    private ProjectAdminAreaRepository.Record cachedAdminArea;
+    private long cachedAdminAreaAt = 0L;
+    private long lastAreaSyncRequestAt = 0L;
 
     CameraStateManager(ImageButton captureButton, TextView statusText) {
         this.captureButton = captureButton;
@@ -53,9 +58,12 @@ final class CameraStateManager {
                 : (statusText != null ? statusText.getContext() : null);
         this.appContext = source == null ? null : source.getApplicationContext();
         this.cameraPrefs = source == null ? null : new CameraPrefs(source);
-        this.geofenceRepository = source == null
+        this.adminAreaRepository = source == null
                 ? null
-                : new ProjectGeofenceRepository(source.getApplicationContext());
+                : new ProjectAdminAreaRepository(source.getApplicationContext());
+        this.barangayBoundaryRepository = source == null
+                ? null
+                : new BarangayBoundaryRepository(source.getApplicationContext());
 
         apply(State.WAITING_FOR_GPS);
     }
@@ -75,19 +83,19 @@ final class CameraStateManager {
         if (next == null) return;
         state = next;
 
-        GeofenceDecision geofence = next == State.READY
-                ? evaluateProjectArea()
-                : GeofenceDecision.notApplicable();
+        AreaDecision area = next == State.READY
+                ? evaluateInfrastructureBarangay()
+                : AreaDecision.notApplicable();
 
-        boolean ready = next == State.READY && geofence.allowed;
+        boolean ready = next == State.READY && area.allowed;
         if (captureButton != null) {
             captureButton.setEnabled(ready);
             captureButton.setAlpha(ready ? 1f : 0.35f);
         }
 
         if (statusText != null) {
-            String text = next == State.READY && geofence.message != null
-                    ? geofence.message
+            String text = next == State.READY && area.message != null
+                    ? area.message
                     : label(next);
             statusText.setText(text);
             statusText.setVisibility(View.VISIBLE);
@@ -95,88 +103,119 @@ final class CameraStateManager {
     }
 
     /**
-     * Location restriction is intentionally INFRA-only.
+     * Final project-location rule:
+     * - INFRA: current real GPS must fall inside the barangay registered by the
+     *   project's mun_code + brgy_code.
+     * - PROJECT_ACTIVITY: no barangay restriction; normal GeoKlik GPS rules only.
+     * - PERSONAL: no barangay restriction and remains local-only.
      *
-     * PROJECT_ACTIVITY is agency activity/event documentation and can legitimately
-     * happen at different venues, so it keeps the normal GeoKlik GPS rules but is
-     * never blocked by a project-area restriction. PERSONAL is local-only and also
-     * bypasses this check. Missing INFRA area configuration preserves legacy behavior.
+     * Unlike the old radius prototype, missing INFRA administrative metadata is
+     * fail-closed. This prevents a project from another region from being used
+     * simply because no exact latitude/radius was configured.
      */
-    private GeofenceDecision evaluateProjectArea() {
-        if (cameraPrefs == null || geofenceRepository == null || appContext == null) {
-            return GeofenceDecision.notApplicable();
+    private AreaDecision evaluateInfrastructureBarangay() {
+        if (cameraPrefs == null
+                || adminAreaRepository == null
+                || barangayBoundaryRepository == null
+                || appContext == null) {
+            return AreaDecision.block("PROJECT AREA CHECK UNAVAILABLE");
         }
 
         String documentationType = clean(cameraPrefs.getDocumentationType());
-
-        // Only Infrastructure captures may be location-restricted.
         if (!CameraPrefs.DOC_INFRA.equalsIgnoreCase(documentationType)) {
-            return GeofenceDecision.notApplicable();
+            return AreaDecision.notApplicable();
         }
 
         String projectId = clean(cameraPrefs.getSiteId());
         if (projectId.isEmpty() || cameraPrefs.isUncategorized()) {
-            return GeofenceDecision.notApplicable();
+            return AreaDecision.block("SELECT INFRA PROJECT");
         }
 
-        ProjectGeofenceRepository.Config config = getCachedGeofence(projectId);
-        if (config == null) {
-            // Backward compatibility: INFRA projects without configured area data
-            // continue to use the existing capture rules.
-            return GeofenceDecision.notApplicable();
+        ProjectAdminAreaRepository.Record area = getCachedAdminArea(projectId);
+        if (area == null || !area.metadataAvailable) {
+            requestProjectAreaSyncIfNeeded();
+            return AreaDecision.block("SYNC PROJECT LOCATION");
+        }
+
+        if (!"INFRA".equalsIgnoreCase(clean(area.projectType))) {
+            return AreaDecision.block("PROJECT TYPE CHECK FAILED");
+        }
+
+        if (!area.hasCodes()) {
+            return AreaDecision.block("PROJECT BARANGAY NOT SET");
         }
 
         Location gps = getFreshGpsLocation();
         if (gps == null) {
-            return GeofenceDecision.block("GPS REQUIRED FOR PROJECT AREA");
+            return AreaDecision.block("GPS REQUIRED FOR PROJECT BARANGAY");
         }
 
-        if (!gps.hasAccuracy() || gps.getAccuracy() > GEOFENCE_MAX_GPS_ACCURACY_M) {
+        if (!gps.hasAccuracy() || gps.getAccuracy() > AREA_MAX_GPS_ACCURACY_M) {
             String accuracy = gps.hasAccuracy()
                     ? String.format(Locale.US, "±%.0fm", gps.getAccuracy())
                     : "unknown";
-            return GeofenceDecision.block("AREA GPS WEAK • " + accuracy);
+            return AreaDecision.block("BARANGAY GPS WEAK • " + accuracy);
         }
 
-        float[] distanceResult = new float[1];
-        Location.distanceBetween(
+        BarangayBoundaryRepository.Decision decision = barangayBoundaryRepository.evaluate(
+                area.municipalityCode,
+                area.barangayCode,
                 gps.getLatitude(),
-                gps.getLongitude(),
-                config.latitude,
-                config.longitude,
-                distanceResult
+                gps.getLongitude()
         );
 
-        float distance = distanceResult[0];
-        if (!Float.isFinite(distance)) {
-            return GeofenceDecision.block("PROJECT AREA CHECK FAILED");
-        }
-
-        String distanceText = formatMeters(distance);
-        String radiusText = formatMeters(config.radiusMeters);
-
-        if (distance > config.radiusMeters) {
-            return GeofenceDecision.block(
-                    "OUTSIDE AREA • " + distanceText + " / " + radiusText
+        if (decision.status == BarangayBoundaryRepository.Status.INSIDE) {
+            String name = clean(decision.barangayName);
+            return AreaDecision.allow(
+                    name.isEmpty() ? "READY • PROJECT BARANGAY" : "READY • " + name
             );
         }
 
-        return GeofenceDecision.allow(
-                "READY • AREA " + distanceText + " / " + radiusText
-        );
-    }
-
-    private ProjectGeofenceRepository.Config getCachedGeofence(String projectId) {
-        long now = System.currentTimeMillis();
-        if (projectId.equalsIgnoreCase(cachedGeofenceProjectId)
-                && (now - cachedGeofenceAt) < GEOFENCE_LOCAL_CACHE_MS) {
-            return cachedGeofence;
+        if (decision.status == BarangayBoundaryRepository.Status.OUTSIDE) {
+            String name = clean(decision.barangayName);
+            return AreaDecision.block(
+                    name.isEmpty()
+                            ? "OUTSIDE PROJECT BARANGAY"
+                            : "OUTSIDE • PROJECT BRGY " + name
+            );
         }
 
-        cachedGeofenceProjectId = projectId;
-        cachedGeofenceAt = now;
-        cachedGeofence = geofenceRepository.getByProjectId(projectId);
-        return cachedGeofence;
+        if (decision.status == BarangayBoundaryRepository.Status.LOADING) {
+            return AreaDecision.block("LOADING PROJECT BARANGAY…");
+        }
+
+        if (decision.status == BarangayBoundaryRepository.Status.INVALID_CODES) {
+            return AreaDecision.block("PROJECT LOCATION CODE INVALID");
+        }
+
+        return AreaDecision.block("PROJECT BARANGAY CHECK FAILED");
+    }
+
+    private ProjectAdminAreaRepository.Record getCachedAdminArea(String projectId) {
+        long now = System.currentTimeMillis();
+        if (projectId.equalsIgnoreCase(cachedProjectId)
+                && (now - cachedAdminAreaAt) < AREA_LOCAL_CACHE_MS) {
+            return cachedAdminArea;
+        }
+
+        cachedProjectId = projectId;
+        cachedAdminAreaAt = now;
+        cachedAdminArea = adminAreaRepository.getByProjectId(projectId);
+        return cachedAdminArea;
+    }
+
+    private void requestProjectAreaSyncIfNeeded() {
+        long now = System.currentTimeMillis();
+        if ((now - lastAreaSyncRequestAt) < AREA_SYNC_RETRY_MS) return;
+        lastAreaSyncRequestAt = now;
+        try {
+            ProjectBackgroundSync.syncIfNeeded(appContext, false, updated -> {
+                if (updated) {
+                    cachedAdminAreaAt = 0L;
+                    cachedAdminArea = null;
+                }
+            });
+        } catch (Exception ignored) {}
     }
 
     private Location getFreshGpsLocation() {
@@ -186,26 +225,16 @@ final class CameraStateManager {
 
             Location gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             if (gps == null) return null;
-
-            // Geofence enforcement must use a real GPS provider fix. This is a
-            // second guard in addition to GeoCameraActivity's live-location checks.
             if (gps.isFromMockProvider()) return null;
 
             long ageMs = Math.abs(System.currentTimeMillis() - gps.getTime());
-            if (ageMs > GEOFENCE_GPS_MAX_AGE_MS) return null;
-
+            if (ageMs > AREA_GPS_MAX_AGE_MS) return null;
             return gps;
         } catch (SecurityException ignored) {
             return null;
         } catch (Exception ignored) {
             return null;
         }
-    }
-
-    private static String formatMeters(double meters) {
-        if (!Double.isFinite(meters)) return "--";
-        if (meters < 1000d) return Math.round(meters) + "m";
-        return String.format(Locale.US, "%.1fkm", meters / 1000d);
     }
 
     private static String clean(String value) {
@@ -229,25 +258,25 @@ final class CameraStateManager {
         }
     }
 
-    private static final class GeofenceDecision {
+    private static final class AreaDecision {
         final boolean allowed;
         final String message;
 
-        private GeofenceDecision(boolean allowed, String message) {
+        private AreaDecision(boolean allowed, String message) {
             this.allowed = allowed;
             this.message = message;
         }
 
-        static GeofenceDecision notApplicable() {
-            return new GeofenceDecision(true, null);
+        static AreaDecision notApplicable() {
+            return new AreaDecision(true, null);
         }
 
-        static GeofenceDecision allow(String message) {
-            return new GeofenceDecision(true, message);
+        static AreaDecision allow(String message) {
+            return new AreaDecision(true, message);
         }
 
-        static GeofenceDecision block(String message) {
-            return new GeofenceDecision(false, message);
+        static AreaDecision block(String message) {
+            return new AreaDecision(false, message);
         }
     }
 }
