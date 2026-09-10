@@ -19,11 +19,11 @@ import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.presentation.site.SetSiteActivity;
 
 /**
- * Displays the capture classification derived from the selected project.
+ * Displays the capture classification derived from the selected target.
  *
- * There is intentionally no Infrastructure / Project Activity chooser anymore:
- * tbl_project targets are INFRA and tbl_project_activity targets arrive from the
- * API as PROJECT_ACTIVITY. Tapping this chip simply opens Change Project.
+ * INFRA / PROJECT_ACTIVITY are derived from the synced project master.
+ * PERSONAL is an explicit local-only capture mode and must never be re-derived
+ * from site/project lookup, because its local label/title are not project IDs.
  */
 public class DocumentationModeChip extends MaterialButton {
 
@@ -105,15 +105,31 @@ public class DocumentationModeChip extends MaterialButton {
     }
 
     /**
-     * Re-derive mode from the selected local capture target. Unknown legacy
-     * codes safely fall back to INFRA, preserving the existing upload workflow.
+     * Preserve explicit PERSONAL mode. Only project-backed selections are
+     * allowed to derive INFRA / PROJECT_ACTIVITY from tbl_projects.
      */
     private String syncDerivedClassification() {
-        if (!cameraPrefs.hasSelection() || cameraPrefs.isUncategorized()) {
-            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+        String explicitType = cameraPrefs.getDocumentationType();
+
+        if (CameraPrefs.DOC_PERSONAL.equals(explicitType)) {
             cameraPrefs.clearActivityProjectId();
-            captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
-            return CameraPrefs.DOC_INFRA;
+            captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
+            return CameraPrefs.DOC_PERSONAL;
+        }
+
+        if (!cameraPrefs.hasSelection()) {
+            cameraPrefs.clearActivityProjectId();
+            return explicitType == null ? CameraPrefs.DOC_INFRA : explicitType;
+        }
+
+        // In the current model an uncategorized target is Personal Capture.
+        // This also safely upgrades old UNCAT selections that predate the
+        // explicit PERSONAL documentation type.
+        if (cameraPrefs.isUncategorized()) {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
+            cameraPrefs.clearActivityProjectId();
+            captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
+            return CameraPrefs.DOC_PERSONAL;
         }
 
         String projectId = cameraPrefs.getSiteId();
@@ -139,15 +155,15 @@ public class DocumentationModeChip extends MaterialButton {
             return;
         }
 
-        if (cameraPrefs.isUncategorized()) {
-            syncDerivedClassification();
+        String type = syncDerivedClassification();
+
+        if (CameraPrefs.DOC_PERSONAL.equals(type)) {
             setText("PERSONAL CAPTURE");
             setIconResource(R.drawable.ic_photo_library_24);
             return;
         }
 
         String projectId = cameraPrefs.getSiteId();
-        String type = syncDerivedClassification();
         String code = projectRepo.getProjectCodeById(projectId);
         String label = compact(code == null || code.trim().isEmpty() ? projectId : code);
 
