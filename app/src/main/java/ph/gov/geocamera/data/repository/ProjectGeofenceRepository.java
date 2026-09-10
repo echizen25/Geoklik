@@ -50,9 +50,10 @@ public class ProjectGeofenceRepository {
     }
 
     /**
-     * Mirrors the server state for all projects returned by the latest capture-target sync.
-     * Invalid/incomplete/null configurations remove any older cached geofence, so disabling
-     * a geofence on the server also disables enforcement after the next successful sync.
+     * Mirrors geofence state only when the source response actually supports
+     * the geofence contract. A legacy /projects fallback intentionally leaves
+     * the existing cache untouched because that endpoint cannot express
+     * "configured" versus "disabled" geofences.
      */
     public void saveFromApi(List<ApiProjectItem> items) {
         if (items == null) return;
@@ -63,11 +64,14 @@ public class ProjectGeofenceRepository {
             String now = now();
 
             for (ApiProjectItem item : items) {
-                if (item == null) continue;
+                if (item == null || !item.geofenceMetadataAvailable) continue;
+
                 String projectId = clean(item.projectId);
                 if (projectId.isEmpty()) continue;
 
                 if (!isValid(item.geofenceLatitude, item.geofenceLongitude, item.geofenceRadiusMeters)) {
+                    // Null/incomplete values from /capture-targets explicitly mean
+                    // "geofence not configured" for this project.
                     db.delete(TABLE, "projectid=?", new String[]{projectId});
                     continue;
                 }
