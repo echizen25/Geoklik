@@ -11,10 +11,14 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputFilter;
+import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -22,7 +26,9 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
@@ -88,7 +94,7 @@ public class SetSiteActivity extends AppCompatActivity {
         btnPasteCode.setOnClickListener(v -> pasteProjectCodeFromClipboard());
         btnScanQr.setOnClickListener(v -> startQrScan());
         btnUploadQr.setOnClickListener(v -> qrImageLauncher.launch("image/*"));
-        btnUncategorized.setOnClickListener(v -> selectPersonalCapture());
+        btnUncategorized.setOnClickListener(v -> showPersonalCaptureDialog());
 
         btnClose.setOnClickListener(v -> {
             Intent i = new Intent(SetSiteActivity.this,
@@ -339,14 +345,109 @@ public class SetSiteActivity extends AppCompatActivity {
         return s;
     }
 
-    private void selectPersonalCapture() {
-        cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
-        cameraPrefs.clearActivityProjectId();
-        captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
-        cameraPrefs.saveSite(null, true);
+    private void showPersonalCaptureDialog() {
+        int padding = dp(20);
 
-        Toast.makeText(this, "Personal Capture selected • on device only", Toast.LENGTH_SHORT).show();
-        finishWithResult(null, true);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(padding, dp(8), padding, 0);
+
+        TextInputLayout tilLabel = new TextInputLayout(this);
+        tilLabel.setHint("Overlay Label");
+        tilLabel.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+
+        TextInputEditText etLabel = new TextInputEditText(this);
+        etLabel.setSingleLine(true);
+        etLabel.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+        etLabel.setFilters(new InputFilter[]{new InputFilter.LengthFilter(30)});
+        etLabel.setText(cameraPrefs.getPersonalOverlayLabel());
+        etLabel.setSelection(etLabel.getText() == null ? 0 : etLabel.getText().length());
+        tilLabel.addView(etLabel, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextInputLayout tilTitle = new TextInputLayout(this);
+        tilTitle.setHint("Overlay Title");
+        tilTitle.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        titleParams.topMargin = dp(12);
+        tilTitle.setLayoutParams(titleParams);
+
+        TextInputEditText etTitle = new TextInputEditText(this);
+        etTitle.setSingleLine(true);
+        etTitle.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        etTitle.setFilters(new InputFilter[]{new InputFilter.LengthFilter(60)});
+        etTitle.setText(cameraPrefs.getPersonalOverlayTitle());
+        tilTitle.addView(etTitle, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        container.addView(tilLabel);
+        container.addView(tilTitle);
+
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Personal Capture")
+                .setMessage("Customize the existing first watermark line. These settings apply only to Personal photos.")
+                .setView(container)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Use Personal", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String label = cleanPersonalOverlayText(
+                            etLabel.getText() == null ? "" : etLabel.getText().toString(),
+                            "PERSONAL",
+                            30
+                    );
+                    String title = cleanPersonalOverlayText(
+                            etTitle.getText() == null ? "" : etTitle.getText().toString(),
+                            "Personal Capture",
+                            60
+                    );
+
+                    cameraPrefs.savePersonalOverlay(label, title);
+                    cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
+                    cameraPrefs.clearActivityProjectId();
+                    captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
+
+                    // Keep a readable local target so the existing watermark can
+                    // render the custom title without changing the INFRA/Activity
+                    // watermark implementation. PERSONAL remains local-only because
+                    // monitoring_type, not siteId, controls synchronization.
+                    cameraPrefs.saveSite(title, false);
+
+                    dialog.dismiss();
+                    Toast.makeText(
+                            this,
+                            label + " | " + title + "\nOn device only",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                    finishWithResult(title, false);
+                }));
+
+        dialog.show();
+    }
+
+    private String cleanPersonalOverlayText(String value, String fallback, int maxLength) {
+        String out = value == null ? "" : value.trim();
+        out = out.replace("\n", " ").replace("\r", " ");
+        out = out.replaceAll("[\\\\/:*?\"<>|]", "-");
+        while (out.contains("  ")) out = out.replace("  ", " ");
+        while (out.contains("--")) out = out.replace("--", "-");
+        out = out.trim();
+        if (out.isEmpty()) out = fallback;
+        if (out.length() > maxLength) out = out.substring(0, maxLength).trim();
+        return out;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private String decodeQrFromImage(Uri uri) throws Exception {
