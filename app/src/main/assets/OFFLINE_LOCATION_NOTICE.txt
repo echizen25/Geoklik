@@ -9,16 +9,19 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0).
 This dataset is packaged at build time and used only as an offline reverse-location fallback.
 Coordinates are representative administrative points and are not survey-grade boundary determinations.
 
-Infrastructure barangay validation
-----------------------------------
-Barangay boundary GeoJSON is sourced from philippines-json-maps:
+Infrastructure city/municipality validation
+-------------------------------------------
+Administrative boundary GeoJSON is sourced from philippines-json-maps:
 https://github.com/faeldon/philippines-json-maps
 
 License: MIT.
 GeoKlik pins the boundary source to a fixed repository revision and downloads only the selected
-Infrastructure project's municipality boundary file when needed. The file is cached in app-private
-storage so subsequent checks can work offline. The source repository states that its 2023
-administrative boundary data uses PSGC data updated as of 31 December 2023.
+Infrastructure project's municipality/city boundary data when needed. The source file contains the
+barangay polygons inside that municipality/city; GeoKlik treats their combined area as the allowed
+Infrastructure capture area. The file is cached in app-private storage so subsequent checks can work
+offline. The source repository states that its 2023 administrative boundary data uses PSGC data
+updated as of 31 December 2023.
 
-GeoKlik treats missing or unresolvable Infrastructure barangay boundary data as a blocked capture
-rather than silently bypassing the project-location check.
+GeoKlik treats missing or unresolvable Infrastructure municipality boundary data as a blocked capture
+rather than silently bypassing the project-location check. Project Activity and Personal Capture are
+not restricted by this city/municipality rule.
