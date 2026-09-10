@@ -35,7 +35,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- ================= GPS INFO (Top Left) ================= -->
         <LinearLayout
             android:id="@+id/gpsOverlay"
             android:layout_width="0dp"
@@ -75,28 +74,27 @@
                 android:textSize="@dimen/gc_text_small" />
 
             <TextView
-                android:id="@+id/tvGpsWarning"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:maxLines="2"
-                android:text="GPS warning: waiting for accuracy."
-                android:textColor="#FFF59D"
-                android:textSize="@dimen/gc_text_xsmall" />
-
-            <TextView
                 android:id="@+id/tvGpsMeta"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
-                android:text="Lock: ≤3m | SATS: --"
+                android:text="SATS --/-- • Need ≤18 m / ≥4"
                 android:textColor="#BDEBDA"
+                android:textSize="@dimen/gc_text_xsmall" />
+
+            <TextView
+                android:id="@+id/tvGpsWarning"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="2"
+                android:text="Waiting for an accurate GPS fix…"
+                android:textColor="#FFF59D"
                 android:textSize="@dimen/gc_text_xsmall" />
         </LinearLayout>
 
-        <!-- ================= GPS BADGE (Top Right) ================= -->
         <LinearLayout
             android:id="@+id/gpsBadge"
             android:layout_width="0dp"
@@ -130,13 +128,39 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:text="GPS --"
+                android:text="WAIT GPS"
                 android:textColor="@android:color/white"
                 android:textSize="@dimen/gc_text_body"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- ================= RIGHT CAMERA CONTROL STRIP ================= -->
+        <ph.gov.geocamera.presentation.geocamera.DocumentationModeChip
+            android:id="@+id/documentationModeChip"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="@dimen/gc_screen_margin"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:insetBottom="0dp"
+            android:insetTop="0dp"
+            android:maxLines="1"
+            android:maxWidth="@dimen/gc_top_card_max_width"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="CHOOSE MODE"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/gc_text_xsmall"
+            app:backgroundTint="#B3000000"
+            app:cornerRadius="17dp"
+            app:iconPadding="6dp"
+            app:iconTint="@android:color/white"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/gpsOverlay" />
+
         <LinearLayout
             android:id="@+id/controlPanel"
             android:layout_width="wrap_content"
@@ -167,7 +191,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/gc_btn_gap" />
 
-            <ImageButton
+            <ph.gov.geocamera.presentation.geocamera.CameraSettingsButton
                 android:id="@+id/btnCamSettings"
                 android:layout_width="@dimen/gc_btn_normal"
                 android:layout_height="@dimen/gc_btn_normal"
@@ -214,7 +238,7 @@
                 android:fontFamily="sans-serif"
                 android:letterSpacing="0.06"
                 android:maxLines="1"
-                android:text="READY"
+                android:text="WAITING FOR GPS"
                 android:textColor="#BDEBDA"
                 android:textSize="@dimen/gc_text_xsmall" />
 
@@ -237,7 +261,6 @@
                 app:tint="@android:color/white" />
         </LinearLayout>
 
-        <!-- ================= BOTTOM WATERMARK ================= -->
         <LinearLayout
             android:id="@+id/watermarkLayout"
             android:layout_width="0dp"
@@ -281,7 +304,7 @@
                     android:autoSizeMinTextSize="10sp"
                     android:autoSizeMaxTextSize="18sp"
                     android:autoSizeStepGranularity="1sp"
-                    android:text="Project: RCEF"
+                    android:text="Project"
                     android:textColor="@android:color/white"
                     android:textSize="@dimen/wm_text_title"
                     android:textStyle="bold" />
@@ -325,7 +348,7 @@
                     android:lineSpacingExtra="2dp"
                     android:maxLines="2"
                     android:ellipsize="end"
-                    android:text="Province, City"
+                    android:text="Province, City/Municipality"
                     android:textColor="@android:color/white"
                     android:textSize="@dimen/wm_text_small"
                     android:textStyle="bold" />

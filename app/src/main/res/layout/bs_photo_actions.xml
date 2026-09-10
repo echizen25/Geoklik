@@ -3,55 +3,66 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp"
+    android:background="?attr/colorSurface"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="20dp"
     android:orientation="vertical">
+
+    <View
+        android:layout_width="42dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="14dp"
+        android:background="?attr/colorOutline" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="18dp"
-        app:cardElevation="2dp"
+        app:cardCornerRadius="22dp"
+        app:cardElevation="0dp"
         app:strokeWidth="1dp"
-        app:strokeColor="#14004B24"
+        app:strokeColor="?attr/colorOutline"
         app:cardBackgroundColor="?attr/colorSurface">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="14dp"
+            android:padding="16dp"
             android:orientation="vertical">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Photo actions"
+                android:text="Photo Actions"
                 android:textStyle="bold"
-                android:textSize="14sp"
+                android:textSize="19sp"
                 android:textColor="?attr/colorOnSurface"
                 android:includeFontPadding="false"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Preview or pin on map"
-                android:textSize="12sp"
-                android:alpha="0.75"
-                android:textColor="?attr/colorOnSurface"
+                android:layout_marginTop="5dp"
+                android:text="Review this field photo, check its map location, or export a copy."
+                android:textSize="13sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:includeFontPadding="false"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnPreview"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="14dp"
+                android:layout_height="54dp"
+                android:layout_marginTop="16dp"
                 android:text="Preview Photo"
-                app:cornerRadius="14dp"
+                android:textAllCaps="false"
+                app:cornerRadius="16dp"
                 app:icon="@drawable/ic_photo_library_24"
                 app:iconGravity="textStart"
                 app:iconPadding="10dp"
-                app:iconSize="24dp"/>
+                app:iconSize="22dp"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnMap"
@@ -60,11 +71,47 @@
                 android:layout_height="52dp"
                 android:layout_marginTop="10dp"
                 android:text="View on Map"
-                app:cornerRadius="14dp"
+                android:textAllCaps="false"
+                app:cornerRadius="16dp"
                 app:icon="@drawable/ic_map_24"
                 app:iconGravity="textStart"
                 app:iconPadding="10dp"
-                app:iconSize="24dp"/>
+                app:iconSize="22dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="4dp"
+                android:background="?attr/colorOutline" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSave"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:text="Save to Device"
+                android:textAllCaps="false"
+                app:cornerRadius="16dp"
+                app:icon="@drawable/ic_export_24"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="22dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShare"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:text="Share Photo"
+                android:textAllCaps="false"
+                app:cornerRadius="16dp"
+                app:icon="@android:drawable/ic_menu_share"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="22dp"/>
 
         </LinearLayout>
 

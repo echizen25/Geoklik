@@ -31,6 +31,7 @@ public class ImageMetaRepository {
     public static final int STATUS_UPLOADING = 3;
 
     public static final String ERR_NO_PROJECT_FOUND = "NO_PROJECT_FOUND";
+    public static final String ERR_NO_PROJECT_ACTIVITY_FOUND = "NO_PROJECT_ACTIVITY_FOUND";
     public static final int MAX_SYNC_ATTEMPTS = 3;
 
     // ============================================================
@@ -117,8 +118,8 @@ public class ImageMetaRepository {
     }
 
     /**
-     * Pag nag-crash ang app habang uploading, maiiwan status=3
-     * Tawagin mo ito before queue upload para hindi ma-stuck.
+     * Pag nag-crash ang app habang uploading, maiiwan status=3.
+     * Tawagin ito before queue upload para hindi ma-stuck.
      */
     public void resetStuckUploading() {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
@@ -147,7 +148,9 @@ public class ImageMetaRepository {
     /**
      * Pending for sync:
      * - include STATUS_PENDING
-     * - include STATUS_FAILED except NO_PROJECT_FOUND
+     * - include retryable STATUS_FAILED rows only
+     * - do not repeatedly retry permanent project/project-activity resolver errors
+     * - status=4 Personal captures are intentionally excluded
      */
     public int countPendingForSync() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
@@ -158,12 +161,14 @@ public class ImageMetaRepository {
                         "   OR (" +
                         "       status = ? " +
                         "       AND COALESCE(last_sync_error,'') <> ? " +
+                        "       AND COALESCE(last_sync_error,'') <> ? " +
                         "       AND COALESCE(sync_attempts,0) < ?" +
                         "   )",
                 new String[]{
                         String.valueOf(STATUS_PENDING),
                         String.valueOf(STATUS_FAILED),
                         ERR_NO_PROJECT_FOUND,
+                        ERR_NO_PROJECT_ACTIVITY_FOUND,
                         String.valueOf(MAX_SYNC_ATTEMPTS)
                 }
         );
@@ -740,8 +745,6 @@ public class ImageMetaRepository {
         return null;
     }
 
-
-
     // ============================================================
     // FAILED SYNC CENTER
     // ============================================================
@@ -797,7 +800,6 @@ public class ImageMetaRepository {
                 new String[]{String.valueOf(STATUS_FAILED)}
         );
     }
-
 
     // ============================================================
     // DUPLICATE DETECTION
@@ -855,7 +857,6 @@ public class ImageMetaRepository {
         }
     }
 
-
     // ============================================================
     // PENDING UPLOADS
     // ============================================================
@@ -888,6 +889,7 @@ public class ImageMetaRepository {
                         "   OR (" +
                         "       im.status = ? " +
                         "       AND COALESCE(im.last_sync_error,'') <> ? " +
+                        "       AND COALESCE(im.last_sync_error,'') <> ? " +
                         "       AND COALESCE(im.sync_attempts,0) < ?" +
                         "   ) " +
                         "ORDER BY " +
@@ -898,6 +900,7 @@ public class ImageMetaRepository {
                         String.valueOf(STATUS_PENDING),
                         String.valueOf(STATUS_FAILED),
                         ERR_NO_PROJECT_FOUND,
+                        ERR_NO_PROJECT_ACTIVITY_FOUND,
                         String.valueOf(MAX_SYNC_ATTEMPTS),
                         String.valueOf(limit)
                 }
@@ -974,7 +977,6 @@ public class ImageMetaRepository {
         return db.delete(GeoDbHelper.TABLE_IMAGEMETA, "groupid=?", new String[]{groupId.trim()});
     }
 
-
     /**
      * Retry old NO_PROJECT_FOUND items.
      * Useful after API/project resolver is fixed or after refreshing masterlist.
@@ -999,15 +1001,14 @@ public class ImageMetaRepository {
         );
     }
 
-
     // ============================================================
     // CHANGE SITE / PROJECT CODE FOR SELECTED PHOTOS
     // ============================================================
 
     /**
-     * Change Site is allowed only for unsynced editable photos.
-     * Editable: STATUS_PENDING, STATUS_FAILED
-     * Locked: STATUS_UPLOADED/SYNCED, STATUS_UPLOADING
+     * Change Site is an Infrastructure-only workflow and only unsynced editable
+     * INFRA photos may be reassigned. Activity/Personal captures keep their
+     * original classification and are locked here.
      */
     public boolean hasLockedPhotosForChangeSite(java.util.Set<String> uuids) {
         if (uuids == null || uuids.isEmpty()) return false;
@@ -1037,7 +1038,8 @@ public class ImageMetaRepository {
                     "SELECT COUNT(*) " +
                             "FROM " + GeoDbHelper.TABLE_IMAGEMETA + " " +
                             "WHERE uuid IN (" + placeholders + ") " +
-                            "AND status IN (?, ?)",
+                            "AND (status IN (?, ?) " +
+                            "OR upper(trim(COALESCE(monitoring_type,'INFRA'))) <> 'INFRA')",
                     args.toArray(new String[0])
             );
 
@@ -1069,6 +1071,9 @@ public class ImageMetaRepository {
                 if (info.status == STATUS_UPLOADED || info.status == STATUS_UPLOADING) {
                     continue;
                 }
+                if (!"INFRA".equalsIgnoreCase(safeText(info.monitoringType))) {
+                    continue;
+                }
 
                 String oldSiteId = safeText(info.siteId).toUpperCase(Locale.US);
                 if (oldSiteId.equals(newSiteId)) continue;
@@ -1097,6 +1102,8 @@ public class ImageMetaRepository {
                 cv.put("siteid", newSiteId);
                 cv.put("groupid", newGroupId);
                 cv.put("project", newSiteId);
+                cv.put("monitoring_type", "INFRA");
+                cv.putNull("activity_project_id");
                 cv.put("status", STATUS_PENDING);
                 cv.putNull("server_path");
                 cv.putNull("last_sync_error");
@@ -1128,6 +1135,7 @@ public class ImageMetaRepository {
         String sessionDate;
         String motherFolder;
         String groupRemarks;
+        String monitoringType;
         int status = STATUS_PENDING;
     }
 
@@ -1143,7 +1151,8 @@ public class ImageMetaRepository {
                             "COALESCE(g.sessiondate,'') AS sessiondate, " +
                             "COALESCE(g.motherfolder,'') AS motherfolder, " +
                             "COALESCE(g.description,'') AS groupRemarks, " +
-                            "im.status " +
+                            "im.status, " +
+                            "COALESCE(im.monitoring_type,'INFRA') AS monitoringType " +
                             "FROM " + GeoDbHelper.TABLE_IMAGEMETA + " im " +
                             "LEFT JOIN " + GeoDbHelper.TABLE_GROUPS + " g ON g.groupid = im.groupid " +
                             "WHERE im.uuid=? " +
@@ -1161,6 +1170,7 @@ public class ImageMetaRepository {
             info.motherFolder = c.isNull(4) ? "" : c.getString(4);
             info.groupRemarks = c.isNull(5) ? "" : c.getString(5);
             info.status = c.isNull(6) ? STATUS_PENDING : c.getInt(6);
+            info.monitoringType = c.isNull(7) ? "INFRA" : c.getString(7);
 
             return info;
         } finally {
@@ -1236,16 +1246,6 @@ public class ImageMetaRepository {
 
             String order = orderCol != null ? (" ORDER BY " + orderCol + " DESC ") : "";
 
-            /*
-             * Change Site behavior:
-             * Reuse existing group by SAME PROJECT/SITE CODE only.
-             * Date does not matter.
-             *
-             * Example:
-             * Existing group: TEST01 / 2026-06-19
-             * Changed photo:  TEST01 / 2026-06-21
-             * Result: photo moves to existing TEST01 group.
-             */
             c = db.rawQuery(
                     "SELECT groupid FROM " + GeoDbHelper.TABLE_GROUPS + " " +
                             "WHERE siteid=? " +
@@ -1258,9 +1258,6 @@ public class ImageMetaRepository {
             c.close();
             c = null;
 
-            /*
-             * Fallback exact group. This is mostly for first-time groups.
-             */
             c = db.rawQuery(
                     "SELECT groupid FROM " + GeoDbHelper.TABLE_GROUPS + " " +
                             "WHERE motherfolder=? AND siteid=? AND sessiondate=? " +
@@ -1285,7 +1282,6 @@ public class ImageMetaRepository {
     private static String safeText(String s) {
         return s == null ? "" : s.trim();
     }
-
 
     private String now() {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());

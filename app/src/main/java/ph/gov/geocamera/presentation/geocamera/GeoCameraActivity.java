@@ -60,6 +60,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
+import ph.gov.geocamera.core.utils.OfflineLocationLookup;
+import ph.gov.geocamera.core.utils.ProvinceLookup;
 import ph.gov.geocamera.data.local.db.GeoDbHelper;
 import ph.gov.geocamera.data.repository.GroupRepository;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
@@ -79,20 +81,19 @@ public class GeoCameraActivity extends AppCompatActivity {
 
     private android.widget.TextView tvLatLng, tvAccuracy, tvProject, tvDesc, tvWatermarkLatLng;
     private android.widget.TextView tvDate, tvAddress;
-    private android.widget.TextView tvGpsWarning;
+    private android.widget.TextView tvGpsWarning, tvGpsMeta;
     private View viewAccuracyIndicator;
     private android.widget.TextView tvAccuracyBadge;
+    private android.widget.TextView tvCaptureStatus;
 
     private View viewShutterFlash;
 
     private ImageCapture imageCapture;
     private Executor mainExecutor;
+    private CameraStateManager cameraStateManager;
+    private CameraGestureController cameraGestureController;
 
-    // =========================
-    // LOCATION (GPS strict + indoor assist)
-    // =========================
     private LocationManager locationManager;
-
     private FusedLocationProviderClient fusedLocationClient;
     private SettingsClient settingsClient;
     private LocationCallback fusedCallback;
@@ -100,29 +101,24 @@ public class GeoCameraActivity extends AppCompatActivity {
 
     private volatile Location gpsLastLocation = null;
     private volatile Location gpsBestLocation = null;
-
     private volatile Location fusedLastLocation = null;
-
-    // Used for UI + watermark text display (current best chosen)
     private Location lastLocation;
 
     private volatile int gnssUsedInFix = 0;
     private volatile int gnssTotal = 0;
     private volatile long lastGnssAt = 0L;
 
-    // ✅ time-based stabilization
     private long firstGoodFixAt = 0L;
-    private static final long REQUIRED_GOOD_MS = 1800; // adjust: 1200–2500ms
-
-    private static final long GPS_FRESH_MS = 8_000; // strict freshness
+    private static final long REQUIRED_GOOD_MS = 1800;
+    private static final long GPS_FRESH_MS = 8_000;
 
     private CameraPrefs cameraPrefs;
     private String activeSiteId = null;
     private String activeProjectId = null;
     private String activeProjectLabel = null;
     private boolean activeUncategorized = true;
-
     private String activeDescription = null;
+
     private android.view.OrientationEventListener orientationListener;
     private UserRepository userRepo;
     private GroupRepository groupRepo;
@@ -130,27 +126,21 @@ public class GeoCameraActivity extends AppCompatActivity {
     private ImageMetaRepository imageRepo;
     private GeoDbHelper dbHelper;
     private boolean isPickingSite = false;
-    // Thresholds
-    private static final float OUTDOOR_GOOD_ACC = 8f;     // very good GPS
-    private static final float OUTDOOR_OK_ACC   = 18f;    // acceptable GPS for compliance
-    private static final float INDOOR_MAX_ACC   = 60f;    // indoor assist cap (estimate)
+
+    private static final float OUTDOOR_GOOD_ACC = 8f;
+    private static final float OUTDOOR_OK_ACC   = 18f;
+    private static final float INDOOR_MAX_ACC   = 60f;
     private static final float GPS_WARN_ACC      = 20f;
     private static final float GPS_BLOCK_ACC     = 50f;
     private static final double DUPLICATE_RADIUS_METERS = 5.0;
 
-    // legacy (kept, but not used in GPS-only anymore)
     private static final int REQUIRED_STABLE_FIX_COUNT = 2;
     private int stableFixCount = 0;
     private Preview previewUseCase;
     private volatile boolean isCapturing = false;
 
     private int lastRotation = Surface.ROTATION_0;
-
-    // ✅ Mode A default: GPS-only strict
-    // ✅ Manual toggle: Indoor Assist (estimate) with confirmation dialog
     private boolean allowIndoorFallback = false;
-
-    // Satellites requirement (typical minimum)
     private static final int MIN_USED_SATS = 4;
 
     private ActivityResultLauncher<Intent> setSiteLauncher;
@@ -159,8 +149,7 @@ public class GeoCameraActivity extends AppCompatActivity {
     private long lastGeocodeAt = 0L;
     private double lastGeoLat = 0.0;
     private double lastGeoLng = 0.0;
-    private String lastAddressText = "Province";
-    private android.widget.TextView tvCaptureStatus;
+    private String lastAddressText = "Province, City/Municipality";
 
     private Bitmap decodeScaled(String path, int maxW, int maxH) {
         BitmapFactory.Options o = new BitmapFactory.Options();
@@ -185,12 +174,12 @@ public class GeoCameraActivity extends AppCompatActivity {
 
         mainExecutor = ContextCompat.getMainExecutor(this);
         dbHelper = new GeoDbHelper(this);
-        tvCaptureStatus = findViewById(R.id.tvCaptureStatus);
 
         userRepo = new UserRepository(this);
         groupRepo = new GroupRepository(this);
         siteRepo = new SiteRepository(this);
         imageRepo = new ImageMetaRepository(this);
+        projectRepo = new ProjectRepository(this);
 
         cameraPrefs = new CameraPrefs(this);
         allowIndoorFallback = cameraPrefs.isIndoorAssistEnabled();
@@ -200,9 +189,10 @@ public class GeoCameraActivity extends AppCompatActivity {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         previewView = findViewById(R.id.previewView);
-        setupOrientationListener();
+        cameraGestureController = new CameraGestureController(this, previewView);
         btnCapture = findViewById(R.id.btnCapture);
         btnCamSettings = findViewById(R.id.btnCamSettings);
+        tvCaptureStatus = findViewById(R.id.tvCaptureStatus);
 
         tvLatLng = findViewById(R.id.tvLatLng);
         tvAccuracy = findViewById(R.id.tvAccuracy);
@@ -212,11 +202,14 @@ public class GeoCameraActivity extends AppCompatActivity {
         tvDate = findViewById(R.id.tvDate);
         tvAddress = findViewById(R.id.tvAddress);
         tvGpsWarning = findViewById(R.id.tvGpsWarning);
-
+        tvGpsMeta = findViewById(R.id.tvGpsMeta);
         viewAccuracyIndicator = findViewById(R.id.viewAccuracyIndicator);
         tvAccuracyBadge = findViewById(R.id.tvAccuracyBadge);
-        projectRepo = new ProjectRepository(this);
         viewShutterFlash = findViewById(R.id.viewShutterFlash);
+
+        cameraStateManager = new CameraStateManager(btnCapture, tvCaptureStatus);
+        setupOrientationListener();
+
         if (viewShutterFlash != null) {
             viewShutterFlash.bringToFront();
             viewShutterFlash.setElevation(1000f);
@@ -235,11 +228,8 @@ public class GeoCameraActivity extends AppCompatActivity {
         setSiteLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 res -> {
-                    isPickingSite = false; // ✅ ALWAYS reset
-
+                    isPickingSite = false;
                     if (res.getResultCode() != RESULT_OK || res.getData() == null) {
-                        // User cancelled/closed: don't force loop immediately
-                        // Optional: show a toast or just keep capture disabled
                         updateCaptureAvailability();
                         return;
                     }
@@ -247,8 +237,6 @@ public class GeoCameraActivity extends AppCompatActivity {
                     Intent data = res.getData();
                     String siteId = data.getStringExtra(SetSiteActivity.EXTRA_SITE_ID);
                     boolean uncat = data.getBooleanExtra(SetSiteActivity.EXTRA_UNCATEGORIZED, false);
-
-                    // ✅ Save again here (extra-safe)
                     cameraPrefs.saveSite(siteId, uncat);
 
                     loadSiteFromPrefs();
@@ -264,12 +252,10 @@ public class GeoCameraActivity extends AppCompatActivity {
         setupPermissions();
         requestNeededPermissions();
 
-        btnCapture.setEnabled(false);
-        btnCapture.setAlpha(0.35f);
-
         loadSiteFromPrefs();
         activeDescription = safeNull(cameraPrefs.getDescription());
         updateOverlayTexts();
+        updateCaptureAvailability();
     }
 
     @Override
@@ -287,16 +273,13 @@ public class GeoCameraActivity extends AppCompatActivity {
     private void applySiteFromIntentIfAny() {
         Intent intent = getIntent();
         if (intent == null) return;
-
         String siteId = intent.getStringExtra("siteId");
         if (siteId == null) return;
-
         siteId = siteId.trim();
         if (siteId.isEmpty()) return;
 
         cameraPrefs.saveSite(siteId, false);
         intent.removeExtra("siteId");
-
         loadSiteFromPrefs();
 
         if (tvProject != null) {
@@ -317,7 +300,6 @@ public class GeoCameraActivity extends AppCompatActivity {
                     if (which == 0) {
                         setSiteLauncher.launch(new Intent(this, SetSiteActivity.class));
                     } else if (which == 1) {
-                        // ✅ Manual override only (Mode A default)
                         if (!allowIndoorFallback) {
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle("Enable Indoor Assist?")
@@ -328,6 +310,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                                         cameraPrefs.saveIndoorAssistEnabled(true);
                                         Toast.makeText(this, "Indoor Assist ON", Toast.LENGTH_SHORT).show();
                                         updateCaptureAvailability();
+                                        updateGpsPresentation(lastLocation);
                                     })
                                     .setNegativeButton("Cancel", null)
                                     .show();
@@ -336,6 +319,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                             cameraPrefs.saveIndoorAssistEnabled(false);
                             Toast.makeText(this, "Indoor Assist OFF (GPS-Only)", Toast.LENGTH_SHORT).show();
                             updateCaptureAvailability();
+                            updateGpsPresentation(lastLocation);
                         }
                     }
                 })
@@ -349,17 +333,15 @@ public class GeoCameraActivity extends AppCompatActivity {
         startActivity(i);
         finish();
     }
+
     private void setupOrientationListener() {
         orientationListener = new android.view.OrientationEventListener(this) {
             @Override
             public void onOrientationChanged(int orientation) {
                 if (previewView == null || previewView.getDisplay() == null) return;
-
                 int rotation = previewView.getDisplay().getRotation();
                 if (rotation == lastRotation) return;
-
                 lastRotation = rotation;
-
                 try {
                     if (imageCapture != null) imageCapture.setTargetRotation(rotation);
                     if (previewUseCase != null) previewUseCase.setTargetRotation(rotation);
@@ -367,6 +349,7 @@ public class GeoCameraActivity extends AppCompatActivity {
             }
         };
     }
+
     private void setupPermissions() {
         permissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
@@ -382,9 +365,7 @@ public class GeoCameraActivity extends AppCompatActivity {
 
                     startCamera();
                     loadSiteFromPrefs();
-
                     updateOverlayTexts();
-
                     enforceSiteSelectionFirstOnly();
 
                     if (locOk) startLiveLocation();
@@ -407,6 +388,7 @@ public class GeoCameraActivity extends AppCompatActivity {
         return ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
+
     private void postProcessAndSaveToDb(
             File file,
             String uuid,
@@ -417,27 +399,20 @@ public class GeoCameraActivity extends AppCompatActivity {
             Location captureLoc,
             String description
     ) {
-
         final String finalDescription = safeNull(description);
-
         if (finalDescription == null) {
-            if (file.exists()) file.delete();
-
-            runOnUiThread(() -> {
-                Toast.makeText(this, "Description required. Photo discarded.", Toast.LENGTH_SHORT).show();
-                isCapturing = false;
-                updateCaptureAvailability();
-            });
+            discardCapturedPhoto(file, "Photo discarded.");
             return;
         }
 
         final Double lat = captureLoc.getLatitude();
         final Double lng = captureLoc.getLongitude();
         final Double accD = (double) captureLoc.getAccuracy();
+        setCaptureState(CameraStateManager.State.PROCESSING);
 
         new Thread(() -> {
+            boolean metadataInserted = false;
             try {
-
                 String addressText = getProvinceCityBlocking(lat, lng);
                 String modeToken = allowIndoorFallback ? "INDOOR_ASSIST" : "GPS_ONLY";
 
@@ -447,9 +422,7 @@ public class GeoCameraActivity extends AppCompatActivity {
                 String watermarkSiteLabel = siteId;
                 if (siteId != null && !"UNCAT".equalsIgnoreCase(siteId)) {
                     String coda = projectRepo.getProjectCodaById(siteId);
-                    if (coda != null && !coda.trim().isEmpty()) {
-                        watermarkSiteLabel = coda.trim();
-                    }
+                    if (coda != null && !coda.trim().isEmpty()) watermarkSiteLabel = coda.trim();
                 }
 
                 burnWatermarkMinimalTopBarcode(
@@ -468,6 +441,10 @@ public class GeoCameraActivity extends AppCompatActivity {
                         modeToken
                 );
 
+                if (file == null || !file.exists() || file.length() <= 0) {
+                    throw new IOException("Processed image is unavailable.");
+                }
+
                 imageRepo.insertImageMeta(
                         uuid,
                         groupId,
@@ -482,28 +459,25 @@ public class GeoCameraActivity extends AppCompatActivity {
                         project,
                         file.getAbsolutePath()
                 );
+                metadataInserted = true;
 
-                SyncScheduler.enqueueUploadNow(GeoCameraActivity.this);
+                try { SyncScheduler.enqueueUploadNow(GeoCameraActivity.this); } catch (Exception ignored) {}
+                try {
+                    int count = imageRepo.countBySite(siteId);
+                    siteRepo.updateImageCount(siteId, count);
+                } catch (Exception ignored) {}
 
-                int count = imageRepo.countBySite(siteId);
-                siteRepo.updateImageCount(siteId, count);
-
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Photo saved successfully.", Toast.LENGTH_SHORT).show();
-                    isCapturing = false;
-                    updateCaptureAvailability();
-                });
-
+                finishCaptureSuccess();
             } catch (Exception e) {
                 e.printStackTrace();
-                isCapturing = false;
-                updateCaptureAvailability();
+                if (!metadataInserted) deleteQuietly(file);
+                finishCaptureError("Photo processing failed. Please capture the photo again.");
             }
         }).start();
     }
-    private void enforceSiteSelectionFirstOnly() {
-        if (isPickingSite) return; // ✅ prevent repeat open
 
+    private void enforceSiteSelectionFirstOnly() {
+        if (isPickingSite) return;
         if (!cameraPrefs.hasSelection()) {
             isPickingSite = true;
             setSiteLauncher.launch(new Intent(this, SetSiteActivity.class));
@@ -511,10 +485,10 @@ public class GeoCameraActivity extends AppCompatActivity {
     }
 
     private void capturePhotoThenAskDesc() {
-
-        if (isCapturing) return;
+        if (isCapturing || (cameraStateManager != null && cameraStateManager.isBusy())) return;
 
         if (!cameraPrefs.hasSelection()) {
+            setCaptureState(CameraStateManager.State.SELECT_SITE);
             enforceSiteSelectionFirstOnly();
             return;
         }
@@ -527,6 +501,7 @@ public class GeoCameraActivity extends AppCompatActivity {
         final Location captureLoc = chooseCaptureLocation();
         if (captureLoc == null) {
             Toast.makeText(this, "Waiting for location...", Toast.LENGTH_SHORT).show();
+            updateCaptureAvailability();
             return;
         }
 
@@ -543,17 +518,13 @@ public class GeoCameraActivity extends AppCompatActivity {
                 Toast.makeText(this, "GPS weak (±" + Math.round(gpsLastLocation.getAccuracy()) + "m).", Toast.LENGTH_LONG).show();
                 return;
             }
-        } else {
-            if (!isFreshEither(captureLoc) || captureLoc.getAccuracy() > INDOOR_MAX_ACC) {
-                Toast.makeText(this, "Location too weak (±" + Math.round(captureLoc.getAccuracy()) + "m).", Toast.LENGTH_LONG).show();
-                return;
-            }
+        } else if (!isFreshEither(captureLoc) || captureLoc.getAccuracy() > INDOOR_MAX_ACC) {
+            Toast.makeText(this, "Location too weak (±" + Math.round(captureLoc.getAccuracy()) + "m).", Toast.LENGTH_LONG).show();
+            return;
         }
 
         isCapturing = true;
-        btnCapture.setEnabled(false);
-        btnCapture.setAlpha(0.35f);
-        playCaptureAnimation();
+        setCaptureState(CameraStateManager.State.CHECKING_DUPLICATE);
 
         final String project = safe(userRepo.getProject(), "PROJECT");
         final String userId = safe(userRepo.getUserId(), "UNKNOWN");
@@ -568,30 +539,15 @@ public class GeoCameraActivity extends AppCompatActivity {
                     .setMessage("A photo for this site was already captured within "
                             + Math.round(DUPLICATE_RADIUS_METERS)
                             + " meters of your current location. Continue anyway?")
-                    .setNegativeButton("Cancel", (d, w) -> {
-                        isCapturing = false;
-                        updateCaptureAvailability();
-                    })
+                    .setNegativeButton("Cancel", (d, w) -> resetCaptureLifecycle())
                     .setPositiveButton("Continue", (d, w) -> continueCaptureAfterDuplicateCheck(
-                            captureLoc,
-                            project,
-                            userId,
-                            motherFolder,
-                            siteId,
-                            sessionDate
-                    ))
+                            captureLoc, project, userId, motherFolder, siteId, sessionDate))
+                    .setOnCancelListener(d -> resetCaptureLifecycle())
                     .show();
             return;
         }
 
-        continueCaptureAfterDuplicateCheck(
-                captureLoc,
-                project,
-                userId,
-                motherFolder,
-                siteId,
-                sessionDate
-        );
+        continueCaptureAfterDuplicateCheck(captureLoc, project, userId, motherFolder, siteId, sessionDate);
     }
 
     private void continueCaptureAfterDuplicateCheck(
@@ -602,13 +558,13 @@ public class GeoCameraActivity extends AppCompatActivity {
             String siteId,
             String sessionDate
     ) {
+        setCaptureState(CameraStateManager.State.CAPTURING);
+        playCaptureAnimation();
 
         final String groupId = groupRepo.getOrCreateGroup(motherFolder, siteId, sessionDate, null);
-
         final File base = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         if (base == null) {
-            isCapturing = false;
-            updateCaptureAvailability();
+            finishCaptureError("Storage is unavailable.");
             return;
         }
 
@@ -618,102 +574,131 @@ public class GeoCameraActivity extends AppCompatActivity {
         }
 
         final File folder = new File(base, folderRel);
-        if (!folder.exists()) folder.mkdirs();
+        if (!folder.exists() && !folder.mkdirs()) {
+            finishCaptureError("Unable to create the photo folder.");
+            return;
+        }
+
+        try {
+            File noMedia = new File(folder, ".nomedia");
+            if (!noMedia.exists()) noMedia.createNewFile();
+        } catch (Exception ignored) {}
 
         final String uuid = UUID.randomUUID().toString();
         final File file = new File(folder, "IMG_" + uuid + ".jpg");
 
-        ImageCapture.OutputFileOptions options =
-                new ImageCapture.OutputFileOptions.Builder(file).build();
+        ImageCapture.OutputFileOptions options = new ImageCapture.OutputFileOptions.Builder(file).build();
+        imageCapture.takePicture(options, mainExecutor, new ImageCapture.OnImageSavedCallback() {
+            @Override
+            public void onImageSaved(@NonNull ImageCapture.OutputFileResults result) {
+                setCaptureState(CameraStateManager.State.ADD_DESCRIPTION);
+                promptPhotoDescription(file, desc -> postProcessAndSaveToDb(
+                        file, uuid, groupId, siteId, project, userId, captureLoc, desc));
+            }
 
-        imageCapture.takePicture(options, mainExecutor,
-                new ImageCapture.OnImageSavedCallback() {
-
-                    @Override
-                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults result) {
-
-                        promptPhotoDescription(true, desc -> {
-                            postProcessAndSaveToDb(
-                                    file,
-                                    uuid,
-                                    groupId,
-                                    siteId,
-                                    project,
-                                    userId,
-                                    captureLoc,
-                                    desc
-                            );
-                        });
-                    }
-
-                    @Override
-                    public void onError(@NonNull ImageCaptureException e) {
-                        isCapturing = false;
-                        updateCaptureAvailability();
-                    }
-                });
+            @Override
+            public void onError(@NonNull ImageCaptureException e) {
+                deleteQuietly(file);
+                finishCaptureError("Capture failed. Please try again.");
+            }
+        });
     }
+
     private interface DescCallback {
         void onDesc(String desc);
     }
 
-    private void promptPhotoDescription(boolean required, @NonNull DescCallback onDone) {
-
+    private void promptPhotoDescription(@NonNull File capturedFile, @NonNull DescCallback onDone) {
         TextInputLayout til = new TextInputLayout(this);
         til.setHint("Photo Description (e.g. Front view, Engine, Serial no.)");
         til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
 
         TextInputEditText et = new TextInputEditText(this);
         et.setSingleLine(true);
-
-        // ✅ NOT ALL CAPS while typing
-        // Optional: auto-capitalize sentences (nice UX)
-        et.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
-
+        et.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         til.addView(et);
 
-        MaterialAlertDialogBuilder b = new MaterialAlertDialogBuilder(this)
+        final androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle("Photo Description")
-                .setMessage("Enter description for this photo.")
+                .setMessage("Describe this photo before saving it to GeoKlik.")
                 .setView(til)
-                .setPositiveButton("OK", null)
-                .setNegativeButton(required ? null : "Cancel", null)
-                .setCancelable(!required);
-
-        final androidx.appcompat.app.AlertDialog dialog = b.show();
+                .setPositiveButton("Save Photo", null)
+                .setNegativeButton("Discard Photo", null)
+                .setCancelable(false)
+                .show();
 
         dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener(v -> {
-                    String desc = (et.getText() == null) ? "" : et.getText().toString().trim();
-
-                    if (required && desc.isEmpty()) {
+                    String desc = et.getText() == null ? "" : et.getText().toString().trim();
+                    if (desc.isEmpty()) {
                         til.setError("Description is required.");
                         return;
                     }
-
                     til.setError(null);
                     dialog.dismiss();
                     onDone.onDesc(desc);
                 });
+
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE)
+                .setOnClickListener(v -> {
+                    dialog.dismiss();
+                    discardCapturedPhoto(capturedFile, "Photo discarded.");
+                });
     }
 
+    private void discardCapturedPhoto(File file, String message) {
+        deleteQuietly(file);
+        runOnUiThread(() -> {
+            if (message != null && !message.trim().isEmpty()) {
+                Toast.makeText(GeoCameraActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+            resetCaptureLifecycle();
+        });
+    }
+
+    private void finishCaptureSuccess() {
+        runOnUiThread(() -> {
+            setCaptureState(CameraStateManager.State.SAVED);
+            Toast.makeText(GeoCameraActivity.this,
+                    "Photo saved. Queued for synchronization.", Toast.LENGTH_SHORT).show();
+            btnCapture.postDelayed(this::resetCaptureLifecycle, 900L);
+        });
+    }
+
+    private void finishCaptureError(String message) {
+        runOnUiThread(() -> {
+            setCaptureState(CameraStateManager.State.ERROR);
+            Toast.makeText(GeoCameraActivity.this,
+                    message == null ? "Capture failed." : message, Toast.LENGTH_LONG).show();
+            btnCapture.postDelayed(this::resetCaptureLifecycle, 1200L);
+        });
+    }
+
+    private void resetCaptureLifecycle() {
+        isCapturing = false;
+        updateCaptureAvailability();
+    }
+
+    private void deleteQuietly(File file) {
+        if (file == null) return;
+        try { if (file.exists()) file.delete(); } catch (Exception ignored) {}
+    }
+
+    private void setCaptureState(CameraStateManager.State state) {
+        if (cameraStateManager != null) cameraStateManager.apply(state);
+    }
 
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(this);
-
         future.addListener(() -> {
             try {
                 ProcessCameraProvider provider = future.get();
-
                 int rotation = (previewView != null && previewView.getDisplay() != null)
-                        ? previewView.getDisplay().getRotation()
-                        : Surface.ROTATION_0;
-
+                        ? previewView.getDisplay().getRotation() : Surface.ROTATION_0;
                 lastRotation = rotation;
 
-                previewUseCase = new Preview.Builder()
-                        .setTargetRotation(rotation)
-                        .build();
+                previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
                 previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
 
                 imageCapture = new ImageCapture.Builder()
@@ -723,56 +708,46 @@ public class GeoCameraActivity extends AppCompatActivity {
                         .build();
 
                 provider.unbindAll();
-                provider.bindToLifecycle(
+                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
                         this,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         previewUseCase,
-                        imageCapture
-                );
-
+                        imageCapture);
+                if (cameraGestureController != null) {
+                    cameraGestureController.attachCamera(boundCamera);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
-                Toast.makeText(this, "Camera failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                finishCaptureError("Camera failed to start.");
             }
         }, mainExecutor);
     }
-
-    // =========================
-    // LOCATION PIPELINES
-    // =========================
 
     private final GnssStatus.Callback gnssCallback = new GnssStatus.Callback() {
         @Override
         public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
             int used = 0;
             int total = status.getSatelliteCount();
-            for (int i = 0; i < total; i++) {
-                if (status.usedInFix(i)) used++;
-            }
+            for (int i = 0; i < total; i++) if (status.usedInFix(i)) used++;
             gnssUsedInFix = used;
             gnssTotal = total;
             lastGnssAt = System.currentTimeMillis();
-            runOnUiThread(() -> updateCaptureAvailability());
+            runOnUiThread(() -> {
+                updateGpsPresentation(lastLocation);
+                updateCaptureAvailability();
+            });
         }
     };
 
     private final LocationListener gpsListener = new LocationListener() {
-
         @Override
         public void onLocationChanged(@NonNull Location loc) {
-            // Basic mock reject (best effort)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && loc.isMock()) return;
-
             gpsLastLocation = loc;
-
-            // ✅ reset stale best before comparing
             pruneBestGpsIfStale();
-
             if (gpsBestLocation == null || loc.getAccuracy() < gpsBestLocation.getAccuracy()) {
                 gpsBestLocation = loc;
             }
-
-            // UI shows best available (GPS preferred)
             lastLocation = chooseDisplayLocation();
             runOnUiThread(() -> {
                 if (lastLocation != null) updateOverlay(lastLocation);
@@ -780,12 +755,8 @@ public class GeoCameraActivity extends AppCompatActivity {
             });
         }
 
-        // ✅ REQUIRED for some devices/Android versions (even if deprecated)
-        @Override
-        @Deprecated
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            // no-op (keep to avoid AbstractMethodError)
-        }
+        @Override @Deprecated
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
 
         @Override
         public void onProviderEnabled(@NonNull String provider) {
@@ -800,9 +771,8 @@ public class GeoCameraActivity extends AppCompatActivity {
             });
         }
     };
-    private void setupLocationPipelines() {
 
-        // Indoor assist (fused) request
+    private void setupLocationPipelines() {
         fusedRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                 .setMinUpdateIntervalMillis(800)
                 .setMaxUpdateDelayMillis(0)
@@ -815,10 +785,7 @@ public class GeoCameraActivity extends AppCompatActivity {
             public void onLocationResult(@NonNull LocationResult result) {
                 Location loc = result.getLastLocation();
                 if (loc == null) return;
-
                 fusedLastLocation = loc;
-
-                // Only use fused for UI/capture when indoor assist is ON
                 if (allowIndoorFallback) {
                     lastLocation = chooseDisplayLocation();
                     runOnUiThread(() -> {
@@ -832,8 +799,6 @@ public class GeoCameraActivity extends AppCompatActivity {
 
     private void startLiveLocation() {
         if (!hasFineLocation()) return;
-
-        // Start GPS provider (strict always)
         try {
             if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 showLocationUnavailable();
@@ -843,47 +808,34 @@ public class GeoCameraActivity extends AppCompatActivity {
                 return;
             }
 
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) return;
 
-            // GNSS status
             try {
-                locationManager.registerGnssStatusCallback(gnssCallback, new android.os.Handler(Looper.getMainLooper()));
+                locationManager.registerGnssStatusCallback(gnssCallback,
+                        new android.os.Handler(Looper.getMainLooper()));
             } catch (Exception ignored) {}
 
-            // GPS updates
-            locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    1000L,
-                    0f,
-                    gpsListener,
-                    Looper.getMainLooper()
-            );
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                    1000L, 0f, gpsListener, Looper.getMainLooper());
 
-            // Seed last known GPS
             Location lk = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             if (lk != null) {
                 gpsLastLocation = lk;
-
-                pruneBestGpsIfStale(); // ✅ add
-
+                pruneBestGpsIfStale();
                 if (gpsBestLocation == null || lk.getAccuracy() < gpsBestLocation.getAccuracy()) {
                     gpsBestLocation = lk;
                 }
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             showLocationUnavailable();
             updateCaptureAvailability();
         }
 
-        // Start fused only for indoor assist (kept running; you can stop it when OFF if you want)
         try {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) return;
             fusedLocationClient.requestLocationUpdates(fusedRequest, fusedCallback, Looper.getMainLooper());
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                     .addOnSuccessListener(loc -> {
@@ -917,84 +869,97 @@ public class GeoCameraActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
         applySiteFromIntentIfAny();
-
         loadSiteFromPrefs();
-
         updateOverlayTexts();
-        if (!isPickingSite) {
-            enforceSiteSelectionFirstOnly();
-        }
-
-        // ✅ enable orientation listener
+        if (!isPickingSite) enforceSiteSelectionFirstOnly();
         if (orientationListener != null && orientationListener.canDetectOrientation()) {
             orientationListener.enable();
         }
-
         if (hasFineLocation()) startLiveLocation();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-
-        // ✅ disable orientation listener
-        if (orientationListener != null) {
-            orientationListener.disable();
-        }
-
+        if (orientationListener != null) orientationListener.disable();
         stopLiveLocation();
     }
 
-    // Prefer GPS for display; if indoor assist ON and GPS weak/stale, show fused
     private Location chooseDisplayLocation() {
         Location gps = gpsLastLocation;
         if (gps != null && isFresh(gps)) return gps;
-
         if (allowIndoorFallback) {
             Location f = fusedLastLocation;
             if (f != null && isFreshFused(f)) return f;
         }
-        return (gps != null) ? gps : fusedLastLocation;
+        return gps != null ? gps : fusedLastLocation;
     }
 
     private void updateOverlay(@NonNull Location loc) {
         tvLatLng.setText(String.format(Locale.US,
-                "Lat: %.6f Lng: %.6f",
-                loc.getLatitude(), loc.getLongitude()));
+                "Lat: %.6f  Lng: %.6f", loc.getLatitude(), loc.getLongitude()));
+        tvAccuracy.setText(String.format(Locale.US, "Accuracy: ±%.1f m", loc.getAccuracy()));
+        updateGpsPresentation(loc);
+        updateOverlayTexts();
+    }
 
-        tvAccuracy.setText(String.format(Locale.US,
-                "Accuracy: ±%.1f m", loc.getAccuracy()));
-
+    private void updateGpsPresentation(Location loc) {
         updateGpsAccuracyWarning(loc);
         updateAccuracyBadge(loc);
-        updateOverlayTexts();
+        updateGpsMeta(loc);
+    }
+
+    private void updateGpsMeta(Location location) {
+        if (tvGpsMeta == null) return;
+        if (location == null || !location.hasAccuracy()) {
+            tvGpsMeta.setText("SATS --/-- • Need ≤" + Math.round(OUTDOOR_OK_ACC) + " m / ≥" + MIN_USED_SATS);
+            return;
+        }
+
+        if (allowIndoorFallback && (!isFresh(gpsLastLocation) || gnssUsedInFix < MIN_USED_SATS)) {
+            tvGpsMeta.setText(String.format(Locale.US,
+                    "±%.0f m • INDOOR ASSIST • Max ≤%.0f m",
+                    location.getAccuracy(), INDOOR_MAX_ACC));
+            return;
+        }
+
+        boolean gnssFresh = (System.currentTimeMillis() - lastGnssAt) < 10_000;
+        String sats = gnssFresh ? gnssUsedInFix + "/" + gnssTotal : "--/--";
+        float acc = gpsLastLocation != null ? gpsLastLocation.getAccuracy() : location.getAccuracy();
+        tvGpsMeta.setText(String.format(Locale.US,
+                "±%.0f m • SATS %s • Need ≤%.0f m / ≥%d",
+                acc, sats, OUTDOOR_OK_ACC, MIN_USED_SATS));
     }
 
     private void updateGpsAccuracyWarning(Location loc) {
         if (tvGpsWarning == null) return;
+        tvGpsWarning.setVisibility(View.VISIBLE);
 
         if (loc == null || !loc.hasAccuracy()) {
-            tvGpsWarning.setVisibility(View.VISIBLE);
-            tvGpsWarning.setText("GPS warning: waiting for accuracy.");
+            tvGpsWarning.setText("Waiting for an accurate GPS fix…");
             tvGpsWarning.setTextColor(Color.WHITE);
             return;
         }
 
-        float acc = loc.getAccuracy();
+        if (allowIndoorFallback && (!isFresh(gpsLastLocation) || gnssUsedInFix < MIN_USED_SATS)) {
+            tvGpsWarning.setText("Indoor Assist active • verify the location before capture.");
+            tvGpsWarning.setTextColor(Color.parseColor("#B2EBF2"));
+            return;
+        }
 
-        if (acc <= OUTDOOR_GOOD_ACC) {
-            tvGpsWarning.setVisibility(View.VISIBLE);
-            tvGpsWarning.setText("GPS accuracy good.");
+        float acc = loc.getAccuracy();
+        if (acc <= OUTDOOR_GOOD_ACC && gnssUsedInFix >= MIN_USED_SATS) {
+            tvGpsWarning.setText("Ready for capture.");
             tvGpsWarning.setTextColor(Color.parseColor("#B9F6CA"));
-        } else if (acc <= GPS_WARN_ACC) {
-            tvGpsWarning.setVisibility(View.VISIBLE);
-            tvGpsWarning.setText("GPS accuracy acceptable. Hold steady.");
+        } else if (acc <= OUTDOOR_OK_ACC && gnssUsedInFix >= MIN_USED_SATS) {
+            tvGpsWarning.setText("Hold steady while GPS stabilizes.");
+            tvGpsWarning.setTextColor(Color.parseColor("#FFF59D"));
+        } else if (gnssUsedInFix < MIN_USED_SATS) {
+            tvGpsWarning.setText("Waiting for satellite fix • move to open sky.");
             tvGpsWarning.setTextColor(Color.parseColor("#FFF59D"));
         } else {
-            tvGpsWarning.setVisibility(View.VISIBLE);
-            tvGpsWarning.setText("GPS weak ±" + Math.round(acc) + "m. Move to open sky before capture.");
+            tvGpsWarning.setText("Move to open sky and wait for a stronger GPS fix.");
             tvGpsWarning.setTextColor(Color.parseColor("#FFCDD2"));
         }
     }
@@ -1002,161 +967,121 @@ public class GeoCameraActivity extends AppCompatActivity {
     private void showLocationUnavailable() {
         tvLatLng.setText("Lat: --, Lng: --");
         tvAccuracy.setText("Accuracy: -- m");
-        setBadge(Color.GRAY, "GPS --");
-        updateGpsAccuracyWarning(null);
+        setBadge(Color.GRAY, "WAIT GPS");
+        updateGpsPresentation(null);
         updateOverlayTexts();
     }
 
     private void updateAccuracyBadge(Location location) {
         if (location == null) {
-            setBadge(Color.GRAY, "GPS --");
+            setBadge(Color.GRAY, "WAIT GPS");
             return;
         }
-
-        float acc = location.getAccuracy();
 
         boolean gpsFresh = isFresh(gpsLastLocation);
-        boolean gnssFresh = (System.currentTimeMillis() - lastGnssAt) < 10_000;
-        String sats = gnssFresh ? (" SATS " + gnssUsedInFix + "/" + gnssTotal) : " SATS --/--";
-        String label = String.format(Locale.US, "±%.0fm", acc);
-
-        // If GPS present, show GPS state
         if (gpsFresh && gpsLastLocation != null) {
             float gpsAcc = gpsLastLocation.getAccuracy();
-            String gpsLabel = String.format(Locale.US, "±%.0fm", gpsAcc);
-
             if (gnssUsedInFix < MIN_USED_SATS) {
-                setBadge(Color.rgb(255, 140, 0), "NO FIX " + gpsLabel + sats);
+                setBadge(Color.rgb(255, 140, 0), "NO FIX");
                 return;
             }
-
             if (gpsAcc <= OUTDOOR_OK_ACC) {
-                setBadge(Color.GREEN, "GPS LOCK " + gpsLabel + sats);
+                boolean stable = firstGoodFixAt > 0L
+                        && (System.currentTimeMillis() - firstGoodFixAt) >= REQUIRED_GOOD_MS;
+                setBadge(Color.GREEN, stable ? "GPS LOCK" : "STABILIZING");
                 return;
             }
-
-            // GPS but weak
             if (allowIndoorFallback) {
-                setBadge(Color.CYAN, "INDOOR_ASSIST " + label);
+                setBadge(Color.CYAN, "INDOOR ASSIST");
             } else {
-                setBadge(Color.RED, "GPS WEAK " + gpsLabel + sats);
+                setBadge(Color.RED, "GPS WEAK");
             }
             return;
         }
 
-        // No fresh GPS
         if (allowIndoorFallback && fusedLastLocation != null && isFreshFused(fusedLastLocation)) {
-            setBadge(Color.CYAN, "INDOOR_ASSIST " + label);
+            setBadge(Color.CYAN, "INDOOR ASSIST");
             return;
         }
-
-        setBadge(Color.GRAY, "STALE " + label + sats);
+        setBadge(Color.GRAY, "STALE");
     }
 
     private void setBadge(int color, String text) {
-        viewAccuracyIndicator.setBackgroundTintList(
-                android.content.res.ColorStateList.valueOf(color)
-        );
-        tvAccuracyBadge.setText(text);
+        if (viewAccuracyIndicator != null) {
+            viewAccuracyIndicator.setBackgroundTintList(android.content.res.ColorStateList.valueOf(color));
+        }
+        if (tvAccuracyBadge != null) tvAccuracyBadge.setText(text);
     }
 
-    // ✅ prune stale "best" sample
     private void pruneBestGpsIfStale() {
-        if (gpsBestLocation != null && !isFresh(gpsBestLocation)) {
-            gpsBestLocation = null;
-        }
+        if (gpsBestLocation != null && !isFresh(gpsBestLocation)) gpsBestLocation = null;
     }
 
     private void updateCaptureAvailability() {
-
         pruneBestGpsIfStale();
+        if (isCapturing || (cameraStateManager != null && cameraStateManager.isBusy())) return;
 
         if (!cameraPrefs.hasSelection()) {
             firstGoodFixAt = 0L;
-            stableFixCount = 0; // legacy
-            disableCapture();
-            if (tvCaptureStatus != null) tvCaptureStatus.setText("SELECT SITE");
+            stableFixCount = 0;
+            setCaptureState(CameraStateManager.State.SELECT_SITE);
             return;
         }
 
-        // ✅ Mode A: GPS-only strict (unless indoor assist ON)
         if (!allowIndoorFallback) {
-
             Location gps = gpsLastLocation;
-
-            if (gps == null) {
+            if (gps == null || !isFresh(gps)) {
                 firstGoodFixAt = 0L;
-                disableCapture();
-                if (tvCaptureStatus != null) tvCaptureStatus.setText("WAIT GPS");
-                return;
-            }
-
-            if (!isFresh(gps)) {
-                firstGoodFixAt = 0L;
-                disableCapture();
-                if (tvCaptureStatus != null) tvCaptureStatus.setText("STALE");
+                setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
+                updateGpsPresentation(gps);
                 return;
             }
 
             if (gnssUsedInFix < MIN_USED_SATS) {
                 firstGoodFixAt = 0L;
-                disableCapture();
-                if (tvCaptureStatus != null) tvCaptureStatus.setText("NO FIX (" + gnssUsedInFix + ")");
+                setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
+                updateGpsPresentation(gps);
                 return;
             }
 
             float acc = gps.getAccuracy();
-
             if (acc <= OUTDOOR_OK_ACC) {
                 if (firstGoodFixAt == 0L) firstGoodFixAt = System.currentTimeMillis();
-
                 boolean allow = (System.currentTimeMillis() - firstGoodFixAt) >= REQUIRED_GOOD_MS;
-
-                btnCapture.setEnabled(allow);
-                btnCapture.setAlpha(allow ? 1f : 0.35f);
-
-                if (tvCaptureStatus != null) {
-                    tvCaptureStatus.setText(allow ? "GPS LOCK" : "STABILIZING");
-                }
+                setCaptureState(allow ? CameraStateManager.State.READY
+                        : CameraStateManager.State.STABILIZING);
             } else {
                 firstGoodFixAt = 0L;
-                disableCapture();
-                if (tvCaptureStatus != null) tvCaptureStatus.setText("GPS WEAK");
+                setCaptureState(CameraStateManager.State.GPS_WEAK);
             }
+            updateGpsPresentation(gps);
             return;
         }
 
-        // ✅ Indoor Assist ON: allow fused/network within cap
         Location capture = chooseCaptureLocation();
-        if (capture == null) {
-            stableFixCount = 0;
-            disableCapture();
-            if (tvCaptureStatus != null) tvCaptureStatus.setText("WAIT LOC");
+        if (capture == null || !isFreshEither(capture)) {
+            setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
+            updateGpsPresentation(capture);
             return;
         }
 
-        if (!isFreshEither(capture)) {
-            stableFixCount = 0;
-            disableCapture();
-            if (tvCaptureStatus != null) tvCaptureStatus.setText("STALE");
-            return;
+        if (capture.getAccuracy() <= INDOOR_MAX_ACC) {
+            setCaptureState(CameraStateManager.State.READY);
+        } else {
+            setCaptureState(CameraStateManager.State.GPS_WEAK);
         }
-
-        float acc = capture.getAccuracy();
-        boolean allow = acc <= INDOOR_MAX_ACC;
-        btnCapture.setEnabled(allow);
-        btnCapture.setAlpha(allow ? 1f : 0.35f);
-        if (tvCaptureStatus != null) tvCaptureStatus.setText(allow ? "INDOOR_ASSIST" : "WEAK");
+        updateGpsPresentation(capture);
     }
 
     private void disableCapture() {
-        btnCapture.setEnabled(false);
-        btnCapture.setAlpha(0.35f);
+        if (btnCapture != null) {
+            btnCapture.setEnabled(false);
+            btnCapture.setAlpha(0.35f);
+        }
     }
 
     private void updateOverlayTexts() {
         String project = safe(userRepo.getProject(), "PROJECT");
-
         String siteLabel;
         if (activeSiteId == null) {
             siteLabel = "UNCAT";
@@ -1165,14 +1090,10 @@ public class GeoCameraActivity extends AppCompatActivity {
             siteLabel = safe(coda, activeSiteId);
         }
 
-        if (tvProject != null) {
-            tvProject.setText(project + " | " + siteLabel);
-        }
+        if (tvProject != null) tvProject.setText(project + " | " + siteLabel);
 
         String desc = safeNull(cameraPrefs.getDescription());
-        if (tvDesc != null) {
-            tvDesc.setText(desc == null ? "N/A" : desc);
-        }
+        if (tvDesc != null) tvDesc.setText(desc == null ? "N/A" : desc);
 
         if (tvDate != null) {
             String dateStr = new SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(new Date());
@@ -1180,56 +1101,42 @@ public class GeoCameraActivity extends AppCompatActivity {
         }
 
         Location loc = lastLocation;
-
         if (loc != null) {
             if (tvWatermarkLatLng != null) {
-                String elevText = "--";
-
-                if (loc.hasAltitude()) {
-                    elevText = String.format(Locale.US, "%.1f m", loc.getAltitude());
-                }
-
+                String elevText = loc.hasAltitude()
+                        ? String.format(Locale.US, "%.1f m", loc.getAltitude()) : "--";
                 tvWatermarkLatLng.setText(String.format(Locale.US,
                         "Lat: %.6f | Lng: %.6f | Elev: %s",
-                        loc.getLatitude(),
-                        loc.getLongitude(),
-                        elevText
-                ));
+                        loc.getLatitude(), loc.getLongitude(), elevText));
             }
             updateAddressFromLocation(loc);
         } else {
             if (tvWatermarkLatLng != null) tvWatermarkLatLng.setText("Lat: -- | Lng: --");
-            if (tvAddress != null) tvAddress.setText("Province");
+            if (tvAddress != null) tvAddress.setText("Province, City/Municipality");
         }
     }
+
     private String getSelectedSiteIdOrUncat() {
         return (activeSiteId == null || activeSiteId.trim().isEmpty()) ? "UNCAT" : activeSiteId.trim();
     }
 
     private String getSelectedProjectIdForUpload() {
-        if (activeUncategorized || activeSiteId == null || activeSiteId.trim().isEmpty()) {
-            return "";
-        }
-
+        if (activeUncategorized || activeSiteId == null || activeSiteId.trim().isEmpty()) return "";
         String pid = siteRepo.getProjectIdBySiteId(activeSiteId);
         return pid == null ? "" : pid.trim();
     }
 
     private String getSelectedProjectLabelForDisplay() {
-        if (activeUncategorized || activeSiteId == null || activeSiteId.trim().isEmpty()) {
-            return "UNCAT";
-        }
-
+        if (activeUncategorized || activeSiteId == null || activeSiteId.trim().isEmpty()) return "UNCAT";
         String label = siteRepo.getProjectLabelBySiteId(activeSiteId);
         if (label != null && !label.trim().isEmpty()) return label.trim();
-
         return activeSiteId.trim();
     }
+
     private void loadSiteFromPrefs() {
         if (cameraPrefs.hasSelection()) {
             activeUncategorized = cameraPrefs.isUncategorized();
             activeSiteId = activeUncategorized ? null : safeNull(cameraPrefs.getSiteId());
-
             if (!activeUncategorized && activeSiteId != null) {
                 activeProjectId = safeNull(siteRepo.getProjectIdBySiteId(activeSiteId));
                 activeProjectLabel = safeNull(siteRepo.getProjectLabelBySiteId(activeSiteId));
@@ -1244,16 +1151,15 @@ public class GeoCameraActivity extends AppCompatActivity {
             activeProjectLabel = null;
         }
     }
+
     private void updateAddressFromLocation(@NonNull Location loc) {
         if (tvAddress == null) return;
 
         long now = System.currentTimeMillis();
-
         double dLat = Math.abs(loc.getLatitude() - lastGeoLat);
         double dLng = Math.abs(loc.getLongitude() - lastGeoLng);
         boolean movedEnough = (dLat + dLng) > 0.0007;
 
-        // throttle if not moved much
         if (!movedEnough && (now - lastGeocodeAt) < 6000) {
             tvAddress.setText(lastAddressText);
             return;
@@ -1263,37 +1169,27 @@ public class GeoCameraActivity extends AppCompatActivity {
         lastGeoLat = loc.getLatitude();
         lastGeoLng = loc.getLongitude();
 
-        // ✅ always prepare offline fallback first
         final String offline = tryOfflineProvinceCity(loc.getLatitude(), loc.getLongitude());
-        final String offlineSafe = (offline != null && !offline.trim().isEmpty()) ? offline.trim() : "Province";
+        final String offlineSafe = (offline != null && !offline.trim().isEmpty())
+                ? offline.trim() : "Province";
 
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-
-        // If no geocoder implementation at all, use offline immediately
         if (!Geocoder.isPresent()) {
             lastAddressText = offlineSafe;
             tvAddress.setText(lastAddressText);
             return;
         }
 
-        // -------- Android 13+ callback style --------
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1, addresses -> {
-
                 String txt = formatProvinceCity(addresses);
-
-                // ✅ if geocoder returns empty / placeholder / same old value -> fallback
                 if (txt == null) txt = "";
                 txt = txt.trim();
-
-                boolean bad =
-                        txt.isEmpty()
-                                || txt.equalsIgnoreCase("Province")
-                                || txt.equalsIgnoreCase("Province, City")
-                                || txt.equalsIgnoreCase(lastAddressText);
-
+                boolean bad = txt.isEmpty()
+                        || txt.equalsIgnoreCase("Province")
+                        || txt.equalsIgnoreCase("Province, City")
+                        || txt.equalsIgnoreCase("Province, City/Municipality");
                 final String finalTxt = bad ? offlineSafe : txt;
-
                 runOnUiThread(() -> {
                     lastAddressText = finalTxt;
                     if (tvAddress != null) tvAddress.setText(finalTxt);
@@ -1302,7 +1198,6 @@ public class GeoCameraActivity extends AppCompatActivity {
             return;
         }
 
-        // -------- Below Android 13: blocking call in background thread --------
         new Thread(() -> {
             String txt = "";
             try {
@@ -1311,306 +1206,57 @@ public class GeoCameraActivity extends AppCompatActivity {
                 if (t != null) txt = t.trim();
             } catch (Exception ignored) {}
 
-            boolean bad =
-                    txt.isEmpty()
-                            || txt.equalsIgnoreCase("Province")
-                            || txt.equalsIgnoreCase("Province, City")
-                            || txt.equalsIgnoreCase(lastAddressText);
-
+            boolean bad = txt.isEmpty()
+                    || txt.equalsIgnoreCase("Province")
+                    || txt.equalsIgnoreCase("Province, City")
+                    || txt.equalsIgnoreCase("Province, City/Municipality");
             final String finalTxt = bad ? offlineSafe : txt;
-
             runOnUiThread(() -> {
                 lastAddressText = finalTxt;
                 if (tvAddress != null) tvAddress.setText(finalTxt);
             });
         }).start();
     }
+
     private String tryOfflineProvinceCity(double lat, double lng) {
         try {
-            // ✅ EASY fallback: province only (hardcoded centroids)
-            return ph.gov.geocamera.core.utils.ProvinceLookup.getNearestProvince(lat, lng);
+            String value = OfflineLocationLookup.getDisplayName(this, lat, lng);
+            if (value != null && !value.trim().isEmpty()) return value.trim();
+        } catch (Exception ignored) {}
+        try {
+            return ProvinceLookup.getNearestProvince(lat, lng);
         } catch (Exception ignored) {}
         return null;
     }
+
     private String formatProvinceCity(List<Address> addresses) {
         if (addresses == null || addresses.isEmpty()) return "";
-
         Address a = addresses.get(0);
         String province = a.getAdminArea();
         String city = a.getLocality();
-
         if (city == null || city.trim().isEmpty()) city = a.getSubAdminArea();
         if (province == null || province.trim().isEmpty()) province = a.getSubAdminArea();
         if (province == null || province.trim().isEmpty()) province = a.getCountryName();
-
         province = province == null ? "" : province.trim();
         city = city == null ? "" : city.trim();
-
         if (!province.isEmpty() && !city.isEmpty()) return province + ", " + city;
         if (!city.isEmpty()) return city;
-        if (!province.isEmpty()) return province;
-
-        return "";
+        return province;
     }
 
     private String getProvinceCityBlocking(double latitude, double longitude) {
-
-        // 1) Online/Geocoder attempt (best effort)
         try {
             if (Geocoder.isPresent()) {
                 Geocoder geocoder = new Geocoder(this, Locale.getDefault());
                 List<Address> list = geocoder.getFromLocation(latitude, longitude, 1);
-
-                if (list != null && !list.isEmpty()) {
-                    Address a = list.get(0);
-
-                    String province = a.getAdminArea();
-                    String city = a.getLocality();
-
-                    if (city == null || city.trim().isEmpty()) city = a.getSubAdminArea();
-                    if (province == null || province.trim().isEmpty()) province = a.getSubAdminArea();
-                    if (province == null || province.trim().isEmpty()) province = a.getCountryName();
-
-                    province = (province == null) ? "" : province.trim();
-                    city = (city == null) ? "" : city.trim();
-
-                    if (!province.isEmpty() && !city.isEmpty()) return province + ", " + city;
-                    if (!city.isEmpty()) return city;
-                    if (!province.isEmpty()) return province;
-                }
+                String result = formatProvinceCity(list);
+                if (result != null && !result.trim().isEmpty()) return result.trim();
             }
         } catch (Exception ignored) {}
 
-        // 2) Offline fallback: province-only
         String offline = tryOfflineProvinceCity(latitude, longitude);
-        if (offline != null) return offline;
-
+        if (offline != null && !offline.trim().isEmpty()) return offline.trim();
         return "Province";
-    }
-
-    // =========================
-    // CAPTURE (GPS-only default; Indoor Assist marks mode)
-    // =========================
-    private void capturePhoto(String description) {
-
-        if (isCapturing) return;
-
-        final String finalDescription = safeNull(description);
-        if (finalDescription == null) {
-            cameraPrefs.clearDescription();
-            activeDescription = null;
-            updateOverlayTexts();
-            Toast.makeText(this, "Description is required.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (!cameraPrefs.hasSelection()) {
-            enforceSiteSelectionFirstOnly();
-            return;
-        }
-
-        if (imageCapture == null) {
-            Toast.makeText(this, "Camera not ready.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        final Location captureLoc = chooseCaptureLocation();
-        if (captureLoc == null) {
-            Toast.makeText(this, "Waiting for location...", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Strict checks
-        if (!allowIndoorFallback) {
-            if (gpsLastLocation == null || !isFresh(gpsLastLocation)) {
-                Toast.makeText(this, "Waiting for GPS fix...", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (gnssUsedInFix < MIN_USED_SATS) {
-                Toast.makeText(this, "No GNSS fix yet. Go outdoor / open sky.", Toast.LENGTH_LONG).show();
-                return;
-            }
-            if (gpsLastLocation.getAccuracy() > OUTDOOR_OK_ACC) {
-                Toast.makeText(this, "GPS weak (±" + Math.round(gpsLastLocation.getAccuracy()) + "m). Move to open sky.", Toast.LENGTH_LONG).show();
-                return;
-            }
-        } else {
-            // Indoor assist allowed: cap at INDOOR_MAX_ACC
-            if (!isFreshEither(captureLoc) || captureLoc.getAccuracy() > INDOOR_MAX_ACC) {
-                Toast.makeText(this, "Location too weak (±" + Math.round(captureLoc.getAccuracy()) + "m).", Toast.LENGTH_LONG).show();
-                return;
-            }
-        }
-
-        isCapturing = true;
-        btnCapture.setEnabled(false);
-        btnCapture.setAlpha(0.35f);
-        playCaptureAnimation();
-
-        final String project = safe(userRepo.getProject(), "PROJECT");
-        final String userId = safe(userRepo.getUserId(), "UNKNOWN");
-
-        final String year = new SimpleDateFormat("yyyy", Locale.US).format(new Date());
-        final String motherFolder = project + "_" + year;
-
-        final String siteId = (activeSiteId == null) ? "UNCAT" : activeSiteId;
-        final String sessionDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
-
-        final String groupId = groupRepo.getOrCreateGroup(motherFolder, siteId, sessionDate, "GENERAL");
-
-        final File base = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        if (base == null) {
-            isCapturing = false;
-            Toast.makeText(this, "Storage unavailable.", Toast.LENGTH_LONG).show();
-            updateCaptureAvailability();
-            return;
-        }
-
-        String folderRel = groupRepo.getFolderNameByGroupId(groupId);
-        if (folderRel == null || folderRel.trim().isEmpty()) {
-            folderRel = motherFolder + "/" + siteId + "/" + sessionDate; // ✅ per date only
-        }
-
-        final File folder = new File(base, folderRel);
-        if (!folder.exists() && !folder.mkdirs()) {
-            isCapturing = false;
-            Toast.makeText(this, "Failed to create folder.", Toast.LENGTH_LONG).show();
-            updateCaptureAvailability();
-            return;
-        }
-
-        try {
-            File noMedia = new File(folder, ".nomedia");
-            if (!noMedia.exists()) noMedia.createNewFile();
-        } catch (Exception ignored) {}
-
-        final String uuid = UUID.randomUUID().toString();
-        final File file = new File(folder, "IMG_" + uuid + ".jpg");
-
-        ImageCapture.OutputFileOptions options =
-                new ImageCapture.OutputFileOptions.Builder(file).build();
-
-        imageCapture.takePicture(options, mainExecutor,
-                new ImageCapture.OnImageSavedCallback() {
-
-                    @Override
-                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults result) {
-
-                        final Double lat = captureLoc.getLatitude();
-                        final Double lng = captureLoc.getLongitude();
-                        final Double accD = (double) captureLoc.getAccuracy();
-
-                        new Thread(() -> {
-                            try {
-                                StringBuilder err = new StringBuilder();
-
-                                String modeToken = allowIndoorFallback ? "INDOOR_ASSIST" : "GPS_ONLY";
-                                appendErr(err, modeToken);
-
-                                // Source labeling
-                                if (!allowIndoorFallback) {
-                                    appendErr(err, "GPS_LOCK");
-                                    appendErr(err, "SATS_" + gnssUsedInFix + "_" + gnssTotal);
-                                } else {
-                                    appendErr(err, "ASSISTED");
-                                }
-
-                                appendErr(err, isFreshEither(captureLoc) ? "FRESH" : "STALE");
-
-                                String addressText = getProvinceCityBlocking(lat, lng);
-                                if (addressText == null || addressText.trim().isEmpty()
-                                        || "Province, City".equalsIgnoreCase(addressText.trim())) {
-                                    addressText = "Province, City";
-                                    appendErr(err, "GEOCODER_FAIL");
-                                }
-
-                                lastAddressText = addressText;
-
-                                String androidIdFromDb = getAndroidIdFromTblUsers();
-                                if (androidIdFromDb == null) androidIdFromDb = "";
-
-                                String capturedBy = getFullNameFromTblUsers();
-
-                                String watermarkSiteLabel = siteId;
-                                if (siteId != null && !"UNCAT".equalsIgnoreCase(siteId)) {
-                                    String coda = projectRepo.getProjectCodaById(siteId);
-                                    if (coda != null && !coda.trim().isEmpty()) {
-                                        watermarkSiteLabel = coda.trim();
-                                    }
-                                }
-
-                                burnWatermarkMinimalTopBarcode(
-                                        file,
-                                        project,
-                                        watermarkSiteLabel,
-                                        groupId,
-                                        uuid,
-                                        userId,
-                                        androidIdFromDb,
-                                        lat, lng, accD,
-                                        addressText,
-                                        finalDescription,
-                                        captureLoc,
-                                        capturedBy,
-                                        modeToken
-                                );
-
-                                String errorAtLoc = err.toString();
-
-                                imageRepo.insertImageMeta(
-                                        uuid,
-                                        groupId,
-                                        siteId,
-                                        userId,
-                                        lat,
-                                        lng,
-                                        accD,
-                                        addressText,
-                                        finalDescription, // ✅ per-photo description
-                                        errorAtLoc,
-                                        project,
-                                        file.getAbsolutePath()
-                                );
-
-                                SyncScheduler.enqueueUploadNow(GeoCameraActivity.this);
-
-                                int count = imageRepo.countBySite(siteId);
-                                siteRepo.updateImageCount(siteId, count);
-
-                                runOnUiThread(() -> {
-                                    Toast.makeText(GeoCameraActivity.this,
-                                            "Photo saved successfully.",
-                                            Toast.LENGTH_SHORT).show();
-
-                                    isCapturing = false;
-                                    updateCaptureAvailability();
-                                });
-
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                                runOnUiThread(() -> {
-                                    Toast.makeText(GeoCameraActivity.this,
-                                            "Post-process failed: " + ex.getMessage(),
-                                            Toast.LENGTH_LONG).show();
-                                    isCapturing = false;
-                                    updateCaptureAvailability();
-                                });
-                            }
-                        }).start();
-                    }
-
-                    @Override
-                    public void onError(@NonNull ImageCaptureException e) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(GeoCameraActivity.this,
-                                    "Capture failed: " + e.getMessage(),
-                                    Toast.LENGTH_LONG).show();
-
-                            isCapturing = false;
-                            updateCaptureAvailability();
-                        });
-                    }
-                });
     }
 
     private boolean isFresh(Location l) {
@@ -1632,29 +1278,20 @@ public class GeoCameraActivity extends AppCompatActivity {
         } else {
             ageMs = System.currentTimeMillis() - l.getTime();
         }
-        // allow slightly older fused but still reasonable
         return ageMs >= 0 && ageMs < 12_000;
     }
 
-    // ✅ FIXED provider check (no identity-compare bug)
     private boolean isFreshEither(Location l) {
         if (l == null) return false;
-
         String p = l.getProvider();
-        if (p != null && p.equalsIgnoreCase(LocationManager.GPS_PROVIDER)) {
-            return isFresh(l);      // strict for GPS
-        }
-        return isFreshFused(l);     // slightly looser for fused/network
+        if (p != null && p.equalsIgnoreCase(LocationManager.GPS_PROVIDER)) return isFresh(l);
+        return isFreshFused(l);
     }
 
     private Location chooseCaptureLocation() {
-
-        // ✅ Strict GPS-only mode
         if (!allowIndoorFallback) {
             if (gpsLastLocation != null && isFresh(gpsLastLocation) && gnssUsedInFix >= MIN_USED_SATS) {
-                // Prefer best accuracy sample seen (fresh only)
-                if (gpsBestLocation != null
-                        && isFresh(gpsBestLocation)
+                if (gpsBestLocation != null && isFresh(gpsBestLocation)
                         && gpsBestLocation.getAccuracy() <= gpsLastLocation.getAccuracy()) {
                     return gpsBestLocation;
                 }
@@ -1663,35 +1300,27 @@ public class GeoCameraActivity extends AppCompatActivity {
             return null;
         }
 
-        // ✅ Indoor assist ON: prefer GPS if it qualifies; else accept fused within cap
-        if (gpsLastLocation != null
-                && isFresh(gpsLastLocation)
+        if (gpsLastLocation != null && isFresh(gpsLastLocation)
                 && gnssUsedInFix >= MIN_USED_SATS
                 && gpsLastLocation.getAccuracy() <= OUTDOOR_OK_ACC) {
             if (gpsBestLocation != null && isFresh(gpsBestLocation)) return gpsBestLocation;
             return gpsLastLocation;
         }
 
-        if (fusedLastLocation != null && isFreshFused(fusedLastLocation) && fusedLastLocation.getAccuracy() <= INDOOR_MAX_ACC) {
-            return fusedLastLocation;
-        }
+        if (fusedLastLocation != null && isFreshFused(fusedLastLocation)
+                && fusedLastLocation.getAccuracy() <= INDOOR_MAX_ACC) return fusedLastLocation;
 
-        // If GPS exists but weak, still allow if within indoor cap (and will be marked)
-        if (gpsLastLocation != null && isFresh(gpsLastLocation) && gpsLastLocation.getAccuracy() <= INDOOR_MAX_ACC) {
-            return gpsLastLocation;
-        }
-
+        if (gpsLastLocation != null && isFresh(gpsLastLocation)
+                && gpsLastLocation.getAccuracy() <= INDOOR_MAX_ACC) return gpsLastLocation;
         return null;
     }
 
     private void playCaptureAnimation() {
         if (viewShutterFlash == null) return;
-
         viewShutterFlash.clearAnimation();
         viewShutterFlash.bringToFront();
         viewShutterFlash.setVisibility(View.VISIBLE);
         viewShutterFlash.setAlpha(0f);
-
         viewShutterFlash.animate()
                 .alpha(0.95f)
                 .setDuration(45)
@@ -1702,12 +1331,6 @@ public class GeoCameraActivity extends AppCompatActivity {
                         .withEndAction(() -> viewShutterFlash.setVisibility(View.GONE))
                         .start())
                 .start();
-    }
-
-    private static void appendErr(StringBuilder sb, String token) {
-        if (token == null || token.trim().isEmpty()) return;
-        if (sb.length() > 0) sb.append(";");
-        sb.append(token.trim());
     }
 
     private String getAndroidIdFromTblUsers() {
@@ -1723,7 +1346,7 @@ public class GeoCameraActivity extends AppCompatActivity {
 
         try {
             String id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-            return (id == null) ? "" : id.trim();
+            return id == null ? "" : id.trim();
         } catch (Exception e) {
             return "";
         }
@@ -1733,18 +1356,12 @@ public class GeoCameraActivity extends AppCompatActivity {
         Cursor c = null;
         try {
             SQLiteDatabase db = dbHelper.getReadableDatabase();
-            c = db.rawQuery(
-                    "SELECT fname, lname FROM tbl_users ORDER BY timestamp DESC LIMIT 1",
-                    null
-            );
-
+            c = db.rawQuery("SELECT fname, lname FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
             if (c.moveToFirst()) {
                 String fn = c.getString(0);
                 String ln = c.getString(1);
-
-                fn = (fn == null) ? "" : fn.trim();
-                ln = (ln == null) ? "" : ln.trim();
-
+                fn = fn == null ? "" : fn.trim();
+                ln = ln == null ? "" : ln.trim();
                 String full = (fn + " " + ln).trim();
                 return full.isEmpty() ? "Unknown" : full;
             }
@@ -1755,10 +1372,6 @@ public class GeoCameraActivity extends AppCompatActivity {
         return "Unknown";
     }
 
-    // =========================================================================================
-    // UPDATED: Watermark + preserve EXIF + add GPS EXIF + write SIG into EXIF UserComment
-    // + MODE token (GPS_ONLY / INDOOR_ASSIST)
-    // =========================================================================================
     private void burnWatermarkMinimalTopBarcode(File file,
                                                 String project,
                                                 String siteLabel,
@@ -1774,29 +1387,21 @@ public class GeoCameraActivity extends AppCompatActivity {
                                                 Location captureLocForExif,
                                                 String capturedBy,
                                                 String modeToken) {
-
         ExifSnapshot snap = null;
         try { snap = ExifSnapshot.read(file); } catch (Exception ignored) {}
 
         try {
             Bitmap original = decodeScaled(file.getAbsolutePath(), 3200, 3200);
             if (original == null) return;
-
             Bitmap mutable = original.copy(Bitmap.Config.ARGB_8888, true);
             if (mutable == null) return;
 
             Canvas canvas = new Canvas(mutable);
-
             int w = mutable.getWidth();
             int h = mutable.getHeight();
-
             int pad = Math.max(18, w / 70);
-
             Bitmap companyLogo = BitmapFactory.decodeResource(getResources(), R.drawable.company_logo);
 
-            // =========================
-            // Text sizes (responsive)
-            // =========================
             float titleSize = Math.max(28f, w / 42f);
             float bodySize  = Math.max(24f, w / 50f);
             float smallSize = Math.max(20f, w / 58f);
@@ -1804,11 +1409,9 @@ public class GeoCameraActivity extends AppCompatActivity {
             Paint pTitle = new Paint(Paint.ANTI_ALIAS_FLAG);
             pTitle.setTextSize(titleSize);
             Paint.FontMetrics fmTitle = pTitle.getFontMetrics();
-
             Paint pBody = new Paint(Paint.ANTI_ALIAS_FLAG);
             pBody.setTextSize(bodySize);
             Paint.FontMetrics fmBody = pBody.getFontMetrics();
-
             Paint pSmall = new Paint(Paint.ANTI_ALIAS_FLAG);
             pSmall.setTextSize(smallSize);
             Paint.FontMetrics fmSmall = pSmall.getFontMetrics();
@@ -1816,14 +1419,9 @@ public class GeoCameraActivity extends AppCompatActivity {
             float titleStep = (-fmTitle.ascent);
             float bodyStep  = (-fmBody.ascent);
             float smallStep = (-fmSmall.ascent);
-
-            // Tight gaps
-            float bodyGap  = Math.max(3f, bodyStep  * 0.10f);
+            float bodyGap  = Math.max(3f, bodyStep * 0.10f);
             float smallGap = Math.max(2f, smallStep * 0.08f);
 
-            // =========================
-            // Barcode sizes
-            // =========================
             int barcodeW = clamp((int) (w * 0.72f), 520, w - (pad * 2));
             int barcodeH = clamp(h / 26, 90, 170);
 
@@ -1831,52 +1429,33 @@ public class GeoCameraActivity extends AppCompatActivity {
             String timePretty = new SimpleDateFormat("h:mm:ss a", Locale.US).format(new Date());
             String capturedAt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date());
 
-            String barcodeValue = uuid;
-
-            // For signature (kept as-is, you already store it in EXIF)
             String canonicalForSig = buildCanonicalForSig(
-                    uuid, project, siteLabel, descriptionForQr, lat, lng, acc, provinceCity, capturedAt
-            );
-
+                    uuid, project, siteLabel, descriptionForQr, lat, lng, acc, provinceCity, capturedAt);
             String signature = "";
             try { signature = hmacSha256Base64Url(QR_HMAC_SECRET, canonicalForSig); }
             catch (Exception ignored) {}
 
-            Bitmap barcodeBmp = createBarcodeBitmap(barcodeValue, barcodeW, barcodeH);
-
-            // =========================
-            // Top: Barcode
-            // =========================
+            Bitmap barcodeBmp = createBarcodeBitmap(uuid, barcodeW, barcodeH);
             if (barcodeBmp != null) {
                 float bx = (w - barcodeW) / 2f;
-                float by = pad;
-                canvas.drawBitmap(barcodeBmp, bx, by, null);
+                canvas.drawBitmap(barcodeBmp, bx, pad, null);
             }
 
-            // =========================
-            // "by: GeoKlik" under QR
-            // =========================
             float byTextSize = Math.max(16f, w / 95f);
             String byLabel = "by: GeoKlik";
-
             Paint byPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             byPaint.setTextSize(byTextSize);
             byPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.ITALIC));
             Paint.FontMetrics byFm = byPaint.getFontMetrics();
-
             float labelH = (byFm.descent - byFm.ascent);
             float gapQrToLabel = 3f;
 
-            // =========================
-            // Build lines
-            // =========================
             String line1 = safe(project, "PROJECT") + " | " + safe(siteLabel, "UNCAT");
             String line2 = (provinceCity == null || provinceCity.trim().isEmpty())
-                    ? "Province, City" : provinceCity.trim();
+                    ? "Province, City/Municipality" : provinceCity.trim();
 
-            String latStr = (lat == null) ? "--" : String.format(Locale.US, "%.6f", lat);
-            String lngStr = (lng == null) ? "--" : String.format(Locale.US, "%.6f", lng);
-
+            String latStr = lat == null ? "--" : String.format(Locale.US, "%.6f", lat);
+            String lngStr = lng == null ? "--" : String.format(Locale.US, "%.6f", lng);
             String elevStr = "--";
             if (captureLocForExif != null && captureLocForExif.hasAltitude()) {
                 elevStr = String.format(Locale.US, "%.1f m", captureLocForExif.getAltitude());
@@ -1885,20 +1464,12 @@ public class GeoCameraActivity extends AppCompatActivity {
             String latLine = "Lat: " + latStr;
             String lngLine = "Lng: " + lngStr;
             String elevLine = "Elev: " + elevStr;
-
             String oneLineLatLng = latLine + "  " + lngLine + "  " + elevLine;
-
             String line4 = datePretty + "  " + timePretty;
-
-            String capName = safe(capturedBy, "Unknown")
-                    .replace("|", "")
-                    .replaceAll("\\s+", " ")
-                    .trim();
+            String capName = safe(capturedBy, "Unknown").replace("|", "")
+                    .replaceAll("\\s+", " ").trim();
             String line5 = "Captured by: " + capName + " | " + safe(modeToken, "GPS_ONLY");
 
-            // =========================
-            // ✅ QR payload (NO UUID; UUID stays in barcode)
-            // =========================
             String qrPayload =
                     "GEOKLIK V1\n" +
                             "Proj:" + safe(project, "-") + "\n" +
@@ -1910,127 +1481,69 @@ public class GeoCameraActivity extends AppCompatActivity {
                             "At:"   + capturedAt + "\n" +
                             "Mode:" + safe(modeToken, "-");
 
-            // =========================
-            // Bottom row anchor (sagad)
-            // =========================
             int safeBottom = pad;
             float bottomBandBottom = h - safeBottom;
-
-            // =========================
-            // Start with smaller QR (cap) para balanced
-            // =========================
             int qrMin = 150;
-            int qrMax = 280;                 // adjust if needed (260–320)
-            int qrStart = clamp(w / 7, qrMin, qrMax);
-
-            int qrSize = qrStart;
-            int logoSize = qrSize; // exact match height
-
+            int qrMax = 280;
+            int qrSize = clamp(w / 7, qrMin, qrMax);
+            int logoSize = qrSize;
             Paint measure = new Paint(Paint.ANTI_ALIAS_FLAG);
             measure.setTextSize(smallSize);
 
-            // 2 passes: compute textBlockH => lock QR to text height
             for (int pass = 0; pass < 2; pass++) {
-
                 int qrX = w - pad - qrSize;
                 int logoX = pad;
-
                 float leftTextX = logoX + logoSize + clamp(w / 45, 16, 24);
                 float textRightLimit = qrX - clamp(w / 45, 16, 24);
                 float maxTextWidth = Math.max(w * 0.30f, textRightLimit - leftTextX);
-
                 boolean latLngOneLine = measure.measureText(oneLineLatLng) <= maxTextWidth;
                 boolean line5Wraps = measure.measureText(line5) > maxTextWidth;
-
                 float latLngH = latLngOneLine ? smallStep : (smallStep + smallGap + smallStep);
-                float line5H  = line5Wraps ? (smallStep + smallGap + smallStep) : smallStep;
-
-                float textBlockH =
-                        titleStep +
-                                bodyGap +
-                                bodyStep +
-                                smallGap +
-                                latLngH +
-                                smallGap +
-                                smallStep +
-                                (smallGap * 0.30f) +
-                                line5H;
-
+                float line5H = line5Wraps ? (smallStep + smallGap + smallStep) : smallStep;
+                float textBlockH = titleStep + bodyGap + bodyStep + smallGap + latLngH
+                        + smallGap + smallStep + (smallGap * 0.30f) + line5H;
                 int targetQr = (int) (textBlockH - (labelH + gapQrToLabel));
-                targetQr = clamp(targetQr, qrMin, qrMax);
-
-                qrSize = targetQr;
+                qrSize = clamp(targetQr, qrMin, qrMax);
                 logoSize = qrSize;
             }
 
-            // Final positions after sizing
             int qrX = w - pad - qrSize;
             int logoX = pad;
-
             float leftTextX = logoX + logoSize + clamp(w / 45, 16, 24);
             float textRightLimit = qrX - clamp(w / 45, 16, 24);
             float maxTextWidth = Math.max(w * 0.30f, textRightLimit - leftTextX);
-
             boolean latLngOneLine = measure.measureText(oneLineLatLng) <= maxTextWidth;
             boolean line5Wraps = measure.measureText(line5) > maxTextWidth;
-
             float latLngH = latLngOneLine ? smallStep : (smallStep + smallGap + smallStep);
-            float line5H  = line5Wraps ? (smallStep + smallGap + smallStep) : smallStep;
-
-            float textBlockH =
-                    titleStep +
-                            bodyGap +
-                            bodyStep +
-                            smallGap +
-                            latLngH +
-                            smallGap +
-                            smallStep +
-                            (smallGap * 0.30f) +
-                            line5H;
-
+            float line5H = line5Wraps ? (smallStep + smallGap + smallStep) : smallStep;
+            float textBlockH = titleStep + bodyGap + bodyStep + smallGap + latLngH
+                    + smallGap + smallStep + (smallGap * 0.30f) + line5H;
             float rowH = Math.max(textBlockH, (qrSize + gapQrToLabel + labelH));
             float rowTop = bottomBandBottom - rowH;
 
-            // =========================
-            // Draw QR (bottom aligned)
-            // =========================
             Bitmap qrBmp = createQrBitmap(qrPayload, qrSize, qrSize);
-
-            // Center logo small (scan-safe)
             if (qrBmp != null && companyLogo != null) {
                 Bitmap outQr = qrBmp.copy(Bitmap.Config.ARGB_8888, true);
                 Canvas qc = new Canvas(outQr);
-
                 int qrW = outQr.getWidth();
                 int qrHh = outQr.getHeight();
-
                 int centerLogo = (int) (Math.min(qrW, qrHh) * 0.10f);
                 centerLogo = Math.max(42, centerLogo);
                 centerLogo = Math.min(centerLogo, (int) (Math.min(qrW, qrHh) * 0.14f));
-
                 Bitmap scaledCenterLogo = Bitmap.createScaledBitmap(companyLogo, centerLogo, centerLogo, true);
-
                 int cx = (qrW - centerLogo) / 2;
                 int cy = (qrHh - centerLogo) / 2;
-
                 float platePad = Math.max(8f, centerLogo * 0.20f);
-                RectF plate = new RectF(
-                        cx - platePad,
-                        cy - platePad,
-                        cx + centerLogo + platePad,
-                        cy + centerLogo + platePad
-                );
-
+                RectF plate = new RectF(cx - platePad, cy - platePad,
+                        cx + centerLogo + platePad, cy + centerLogo + platePad);
                 Paint platePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 platePaint.setColor(Color.WHITE);
                 qc.drawRoundRect(plate, 16f, 16f, platePaint);
-
                 Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
                 border.setStyle(Paint.Style.STROKE);
                 border.setStrokeWidth(Math.max(2f, centerLogo / 55f));
                 border.setColor(Color.argb(70, 0, 0, 0));
                 qc.drawRoundRect(plate, 16f, 16f, border);
-
                 qc.drawBitmap(scaledCenterLogo, cx, cy, null);
                 qrBmp = outQr;
             }
@@ -2043,36 +1556,27 @@ public class GeoCameraActivity extends AppCompatActivity {
                 Paint qrBack = new Paint(Paint.ANTI_ALIAS_FLAG);
                 qrBack.setColor(Color.WHITE);
                 int platePad = clamp(w / 650, 1, 3);
-                RectF back = new RectF(qrX - platePad, qrY - platePad, qrX + qrSize + platePad, qrY + qrSize + platePad);
+                RectF back = new RectF(qrX - platePad, qrY - platePad,
+                        qrX + qrSize + platePad, qrY + qrSize + platePad);
                 canvas.drawRoundRect(back, 14f, 14f, qrBack);
-
                 canvas.drawBitmap(qrBmp, qrX, qrY, null);
-
                 float tW = byPaint.measureText(byLabel);
                 float textX = qrX + (qrSize / 2f) - (tW / 2f);
                 drawSmallItalicText(canvas, byLabel, textX, byY, qrSize, byTextSize);
             }
 
-            // =========================
-            // Draw LEFT logo (same height as QR)
-            // =========================
             if (companyLogo != null) {
                 Bitmap scaledLogo = Bitmap.createScaledBitmap(companyLogo, logoSize, logoSize, true);
                 int logoY = (int) (bottomBandBottom - logoSize);
                 canvas.drawBitmap(scaledLogo, logoX, logoY, null);
             }
 
-            // =========================
-            // Draw TEXT (bottom aligned to row)
-            // =========================
-            float textTop = bottomBandBottom - textBlockH;
-            textTop = Math.max(textTop, rowTop);
+            float textTop = Math.max(bottomBandBottom - textBlockH, rowTop);
             float y = textTop - fmTitle.ascent;
-
             drawTextStrokeNoShadow(canvas, line1, leftTextX, y, titleSize, maxTextWidth);
             y += titleStep + bodyGap;
-
-            drawTextStrokeNoShadow(canvas, ellipsizeText(line2, bodySize, maxTextWidth), leftTextX, y, bodySize, maxTextWidth);
+            drawTextStrokeNoShadow(canvas, ellipsizeText(line2, bodySize, maxTextWidth),
+                    leftTextX, y, bodySize, maxTextWidth);
             y += bodyStep + smallGap;
 
             if (latLngOneLine) {
@@ -2081,46 +1585,33 @@ public class GeoCameraActivity extends AppCompatActivity {
             } else {
                 drawTextStrokeNoShadow(canvas, latLine, leftTextX, y, smallSize, maxTextWidth);
                 y += smallStep + smallGap;
-                drawTextStrokeNoShadow(canvas, lngLine + "  " + elevLine, leftTextX, y, smallSize, maxTextWidth);
+                drawTextStrokeNoShadow(canvas, lngLine + "  " + elevLine,
+                        leftTextX, y, smallSize, maxTextWidth);
                 y += smallStep + smallGap;
             }
 
             drawTextStrokeNoShadow(canvas, line4, leftTextX, y, smallSize, maxTextWidth);
             y += smallStep + (smallGap * 0.30f);
+            drawWrappedTextStrokeNoShadow(canvas, line5, leftTextX, y,
+                    smallSize, maxTextWidth, (smallStep + smallGap), 2);
 
-            drawWrappedTextStrokeNoShadow(canvas, line5, leftTextX, y, smallSize, maxTextWidth, (smallStep + smallGap), 2);
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                mutable.compress(Bitmap.CompressFormat.JPEG, 95, out);
+                out.flush();
+            }
 
-            // Save JPEG
-            FileOutputStream out = new FileOutputStream(file);
-            mutable.compress(Bitmap.CompressFormat.JPEG, 95, out);
-            out.flush();
-            out.close();
-
-            // Restore EXIF + GPS + SIG
-            restoreExifAndWriteGpsAndSig(
-                    file,
-                    snap,
-                    captureLocForExif,
-                    signature,
-                    uuid,
-                    capturedAt,
-                    project,
-                    capturedBy,
-                    modeToken
-            );
-
+            restoreExifAndWriteGpsAndSig(file, snap, captureLocForExif, signature,
+                    uuid, capturedAt, project, capturedBy, modeToken);
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Unable to render GeoKlik watermark.", e);
         }
     }
 
     private static class ExifSnapshot {
         final Map<String, String> attrs = new HashMap<>();
-
         static ExifSnapshot read(File file) throws IOException {
             ExifSnapshot s = new ExifSnapshot();
             ExifInterface exif = new ExifInterface(file.getAbsolutePath());
-
             for (String tag : COMMON_PRESERVE_TAGS) {
                 String v = exif.getAttribute(tag);
                 if (v != null) s.attrs.put(tag, v);
@@ -2130,63 +1621,31 @@ public class GeoCameraActivity extends AppCompatActivity {
     }
 
     private static final String[] COMMON_PRESERVE_TAGS = new String[] {
-            ExifInterface.TAG_ORIENTATION,
-            ExifInterface.TAG_DATETIME,
-            ExifInterface.TAG_DATETIME_ORIGINAL,
-            ExifInterface.TAG_DATETIME_DIGITIZED,
-
-            ExifInterface.TAG_MAKE,
-            ExifInterface.TAG_MODEL,
-            ExifInterface.TAG_SOFTWARE,
-
-            ExifInterface.TAG_IMAGE_WIDTH,
-            ExifInterface.TAG_IMAGE_LENGTH,
-
-            ExifInterface.TAG_EXPOSURE_TIME,
-            ExifInterface.TAG_F_NUMBER,
-            ExifInterface.TAG_ISO_SPEED_RATINGS,
-            ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
-            ExifInterface.TAG_FOCAL_LENGTH,
-            ExifInterface.TAG_FLASH,
-            ExifInterface.TAG_WHITE_BALANCE,
-            ExifInterface.TAG_APERTURE_VALUE,
-            ExifInterface.TAG_SHUTTER_SPEED_VALUE,
-            ExifInterface.TAG_BRIGHTNESS_VALUE,
-            ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
-
-            ExifInterface.TAG_METERING_MODE,
-            ExifInterface.TAG_SCENE_CAPTURE_TYPE,
-            ExifInterface.TAG_DIGITAL_ZOOM_RATIO,
-            ExifInterface.TAG_CONTRAST,
-            ExifInterface.TAG_SATURATION,
-            ExifInterface.TAG_SHARPNESS,
-
-            ExifInterface.TAG_COPYRIGHT,
-            ExifInterface.TAG_ARTIST,
-            ExifInterface.TAG_IMAGE_DESCRIPTION
+            ExifInterface.TAG_ORIENTATION, ExifInterface.TAG_DATETIME,
+            ExifInterface.TAG_DATETIME_ORIGINAL, ExifInterface.TAG_DATETIME_DIGITIZED,
+            ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL, ExifInterface.TAG_SOFTWARE,
+            ExifInterface.TAG_IMAGE_WIDTH, ExifInterface.TAG_IMAGE_LENGTH,
+            ExifInterface.TAG_EXPOSURE_TIME, ExifInterface.TAG_F_NUMBER,
+            ExifInterface.TAG_ISO_SPEED_RATINGS, ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
+            ExifInterface.TAG_FOCAL_LENGTH, ExifInterface.TAG_FLASH, ExifInterface.TAG_WHITE_BALANCE,
+            ExifInterface.TAG_APERTURE_VALUE, ExifInterface.TAG_SHUTTER_SPEED_VALUE,
+            ExifInterface.TAG_BRIGHTNESS_VALUE, ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+            ExifInterface.TAG_METERING_MODE, ExifInterface.TAG_SCENE_CAPTURE_TYPE,
+            ExifInterface.TAG_DIGITAL_ZOOM_RATIO, ExifInterface.TAG_CONTRAST,
+            ExifInterface.TAG_SATURATION, ExifInterface.TAG_SHARPNESS,
+            ExifInterface.TAG_COPYRIGHT, ExifInterface.TAG_ARTIST, ExifInterface.TAG_IMAGE_DESCRIPTION
     };
 
-    private void restoreExifAndWriteGpsAndSig(File file,
-                                              ExifSnapshot snap,
-                                              Location loc,
-                                              String sig,
-                                              String uuid,
-                                              String capturedAt,
-                                              String project,
-                                              String capturedBy,
-                                              String modeToken) {
+    private void restoreExifAndWriteGpsAndSig(File file, ExifSnapshot snap, Location loc,
+                                              String sig, String uuid, String capturedAt,
+                                              String project, String capturedBy, String modeToken) {
         try {
             ExifInterface exif = new ExifInterface(file.getAbsolutePath());
-
             if (snap != null && snap.attrs != null) {
                 for (Map.Entry<String, String> e : snap.attrs.entrySet()) {
                     String tag = e.getKey();
                     String val = e.getValue();
-                    if (val == null) continue;
-
-                    if (isGpsTag(tag)) continue;
-                    if (ExifInterface.TAG_USER_COMMENT.equals(tag)) continue;
-
+                    if (val == null || isGpsTag(tag) || ExifInterface.TAG_USER_COMMENT.equals(tag)) continue;
                     exif.setAttribute(tag, val);
                 }
             }
@@ -2197,8 +1656,7 @@ public class GeoCameraActivity extends AppCompatActivity {
 
             if (loc != null) {
                 exif.setGpsInfo(loc);
-                exif.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                        safe(modeToken, "GPS_ONLY"));
+                exif.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, safe(modeToken, "GPS_ONLY"));
             }
 
             if (capturedAt != null && !capturedAt.trim().isEmpty()) {
@@ -2207,29 +1665,25 @@ public class GeoCameraActivity extends AppCompatActivity {
                 exif.setAttribute(ExifInterface.TAG_DATETIME, dt);
             }
 
-            String comment =
-                    "PHILMECH_GEOKLIK" +
-                            "\nUUID=" + safe(uuid, "--") +
-                            "\nSIG=" + safe(sig, "--") +
-                            "\nAT=" + safe(capturedAt, "--") +
-                            "\nMODE=" + safe(modeToken, "GPS_ONLY") +
-                            "\nELEV=" + getElevationForExifComment(loc) +
-                            "\nSATS=" + gnssUsedInFix + "/" + gnssTotal;
+            String comment = "PHILMECH_GEOKLIK"
+                    + "\nUUID=" + safe(uuid, "--")
+                    + "\nSIG=" + safe(sig, "--")
+                    + "\nAT=" + safe(capturedAt, "--")
+                    + "\nMODE=" + safe(modeToken, "GPS_ONLY")
+                    + "\nELEV=" + getElevationForExifComment(loc)
+                    + "\nSATS=" + gnssUsedInFix + "/" + gnssTotal;
 
             exif.setAttribute(ExifInterface.TAG_USER_COMMENT, comment);
             exif.setAttribute(ExifInterface.TAG_ARTIST, safe(capturedBy, "Unknown"));
             exif.saveAttributes();
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Unable to write GeoKlik EXIF metadata.", e);
         }
     }
 
-
     private String getElevationForExifComment(Location loc) {
         try {
-            if (loc != null && loc.hasAltitude()) {
-                return String.format(Locale.US, "%.1f m", loc.getAltitude());
-            }
+            if (loc != null && loc.hasAltitude()) return String.format(Locale.US, "%.1f m", loc.getAltitude());
         } catch (Exception ignored) {}
         return "--";
     }
@@ -2248,72 +1702,13 @@ public class GeoCameraActivity extends AppCompatActivity {
                 || ExifInterface.TAG_GPS_PROCESSING_METHOD.equals(tag);
     }
 
-    private String buildCanonicalForSig(String uuid,
-                                        String project,
-                                        String site,
-                                        String description,
-                                        Double lat,
-                                        Double lng,
-                                        Double acc,
-                                        String address,
-                                        String capturedAt) {
-
-        String latStr = (lat == null) ? "--" : String.format(Locale.US, "%.6f", lat);
-        String lngStr = (lng == null) ? "--" : String.format(Locale.US, "%.6f", lng);
-        String accStr = (acc == null) ? "--" : String.format(Locale.US, "±%.1f m", acc);
-
-        return uuid + "|" +
-                project + "|" +
-                site + "|" +
-                description + "|" +
-                latStr + "|" +
-                lngStr + "|" +
-                accStr + "|" +
-                address + "|" +
-                capturedAt;
-    }
-
-    private String buildReadableQr(String uuid,
-                                   String project,
-                                   String site,
-                                   String description,
-                                   Double lat,
-                                   Double lng,
-                                   Double acc,
-                                   String address,
-                                   String capturedAt) {
-
-        String latStr = (lat == null) ? "--" : String.format(Locale.US, "%.6f", lat);
-        String lngStr = (lng == null) ? "--" : String.format(Locale.US, "%.6f", lng);
-        String accStr = (acc == null) ? "--" : String.format(Locale.US, "±%.1f m", acc);
-
-        String canonical =
-                uuid + "|" +
-                        project + "|" +
-                        site + "|" +
-                        description + "|" +
-                        latStr + "|" +
-                        lngStr + "|" +
-                        accStr + "|" +
-                        address + "|" +
-                        capturedAt;
-
-        String signature = "";
-        try {
-            signature = hmacSha256Base64Url(QR_HMAC_SECRET, canonical);
-        } catch (Exception ignored) {}
-
-        return "PHILMECH GEOKLIK\n" +
-                "--------------------------\n" +
-                "Project : " + project + "\n" +
-                "Site    : " + site + "\n" +
-                "Desc    : " + description + "\n" +
-                "Location: " + latStr + ", " + lngStr + "\n" +
-                "Accuracy: " + accStr + "\n" +
-                "Address : " + address + "\n" +
-                "Date    : " + capturedAt + "\n" +
-                "UUID    : " + uuid + "\n\n" +
-                "SIG     : " + signature;
+    private String buildCanonicalForSig(String uuid, String project, String site, String description,
+                                        Double lat, Double lng, Double acc, String address, String capturedAt) {
+        String latStr = lat == null ? "--" : String.format(Locale.US, "%.6f", lat);
+        String lngStr = lng == null ? "--" : String.format(Locale.US, "%.6f", lng);
+        String accStr = acc == null ? "--" : String.format(Locale.US, "±%.1f m", acc);
+        return uuid + "|" + project + "|" + site + "|" + description + "|"
+                + latStr + "|" + lngStr + "|" + accStr + "|" + address + "|" + capturedAt;
     }
 
     private String hmacSha256Base64Url(String secret, String message) throws Exception {
@@ -2327,20 +1722,14 @@ public class GeoCameraActivity extends AppCompatActivity {
     private Bitmap createQrBitmap(String content, int w, int h) {
         try {
             Map<EncodeHintType, Object> hints = new HashMap<>();
-            hints.put(EncodeHintType.MARGIN, 0); // let us control it
-
+            hints.put(EncodeHintType.MARGIN, 0);
             hints.put(EncodeHintType.ERROR_CORRECTION,
                     com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.H);
-
             BitMatrix matrix = new MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, w, h, hints);
-
-            // ✅ add a small quiet zone ourselves (pad in modules-ish; try 6)
             BitMatrix cropped = cropToContent(matrix, 6);
-
             Bitmap bmp = bitMatrixToBitmap(cropped);
             return Bitmap.createScaledBitmap(bmp, w, h, true);
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
     }
@@ -2348,36 +1737,25 @@ public class GeoCameraActivity extends AppCompatActivity {
     private Bitmap createBarcodeBitmap(String content, int w, int h) {
         try {
             Map<EncodeHintType, Object> hints = new HashMap<>();
-            hints.put(EncodeHintType.MARGIN, 1); // bawasan, sobrang laki ang 6
-
-            BitMatrix matrix = new MultiFormatWriter()
-                    .encode(content, BarcodeFormat.CODE_128, w, h, hints);
-
-            // ✅ crop sa actual black bars para hindi full white block
-            BitMatrix cropped = cropToContent(matrix, 6); // 6px padding around bars
+            hints.put(EncodeHintType.MARGIN, 1);
+            BitMatrix matrix = new MultiFormatWriter().encode(content, BarcodeFormat.CODE_128, w, h, hints);
+            BitMatrix cropped = cropToContent(matrix, 6);
             Bitmap bmp = bitMatrixToBitmap(cropped);
-
-            // ✅ optional: scale back to desired size
             return Bitmap.createScaledBitmap(bmp, w, h, true);
-
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
     }
 
     private BitMatrix cropToContent(BitMatrix matrix, int pad) {
-        int[] rect = matrix.getEnclosingRectangle(); // [left, top, width, height]
+        int[] rect = matrix.getEnclosingRectangle();
         if (rect == null) return matrix;
-
         int left = Math.max(0, rect[0] - pad);
-        int top  = Math.max(0, rect[1] - pad);
+        int top = Math.max(0, rect[1] - pad);
         int right = Math.min(matrix.getWidth(), rect[0] + rect[2] + pad);
         int bottom = Math.min(matrix.getHeight(), rect[1] + rect[3] + pad);
-
         int newW = right - left;
         int newH = bottom - top;
-
         BitMatrix out = new BitMatrix(newW, newH);
         for (int y = 0; y < newH; y++) {
             for (int x = 0; x < newW; x++) {
@@ -2387,95 +1765,46 @@ public class GeoCameraActivity extends AppCompatActivity {
         return out;
     }
 
-    // ✅ FAST: no per-pixel setPixel loop
     private Bitmap bitMatrixToBitmap(BitMatrix matrix) {
         int width = matrix.getWidth();
         int height = matrix.getHeight();
-
         int[] pixels = new int[width * height];
         for (int y = 0; y < height; y++) {
             int offset = y * width;
-            for (int x = 0; x < width; x++) {
-                pixels[offset + x] = matrix.get(x, y) ? Color.BLACK : Color.WHITE;
-            }
+            for (int x = 0; x < width; x++) pixels[offset + x] = matrix.get(x, y) ? Color.BLACK : Color.WHITE;
         }
-
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         bmp.setPixels(pixels, 0, width, 0, 0, width, height);
         return bmp;
-    }
-
-    private Bitmap overlayCenterLogoOnQr(Bitmap qr, Bitmap logo) {
-        if (qr == null || logo == null) return qr;
-
-        Bitmap out = qr.copy(Bitmap.Config.ARGB_8888, true);
-        Canvas c = new Canvas(out);
-
-        int qrW = out.getWidth();
-        int qrH = out.getHeight();
-
-        int logoSize = (int) (Math.min(qrW, qrH) * 0.15f);
-        logoSize = Math.max(70, logoSize);
-        logoSize = Math.min(logoSize, (int) (Math.min(qrW, qrH) * 0.24f));
-
-        Bitmap scaledLogo = Bitmap.createScaledBitmap(logo, logoSize, logoSize, true);
-
-        int cx = (qrW - logoSize) / 2;
-        int cy = (qrH - logoSize) / 2;
-
-        float platePad = Math.max(10f, logoSize * 0.12f);
-        RectF plate = new RectF(
-                cx - platePad,
-                cy - platePad,
-                cx + logoSize + platePad,
-                cy + logoSize + platePad
-        );
-
-        Paint platePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        platePaint.setColor(Color.WHITE);
-        c.drawRoundRect(plate, 18f, 18f, platePaint);
-
-        Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
-        border.setStyle(Paint.Style.STROKE);
-        border.setStrokeWidth(Math.max(2f, logoSize / 45f));
-        border.setColor(Color.argb(90, 0, 0, 0));
-        c.drawRoundRect(plate, 18f, 18f, border);
-
-        c.drawBitmap(scaledLogo, cx, cy, null);
-        return out;
     }
 
     private int clamp(int v, int min, int max) {
         return Math.max(min, Math.min(max, v));
     }
 
-    private void drawTextStrokeNoShadow(Canvas canvas, String text, float x, float y, float textSize, float maxWidth) {
+    private void drawTextStrokeNoShadow(Canvas canvas, String text, float x, float y,
+                                        float textSize, float maxWidth) {
         if (text == null) return;
-
         String draw = ellipsizeText(text, textSize, maxWidth);
-
         Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         stroke.setTextSize(textSize);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(Math.max(3f, textSize / 12f));
         stroke.setColor(Color.BLACK);
-
         Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         fill.setTextSize(textSize);
         fill.setStyle(Paint.Style.FILL);
         fill.setColor(Color.WHITE);
-
         canvas.drawText(draw, x, y, stroke);
         canvas.drawText(draw, x, y, fill);
     }
 
     private void drawWrappedTextStrokeNoShadow(Canvas canvas, String text, float x, float y,
-                                               float textSize, float maxWidth, float lineHeight, int maxLines) {
+                                               float textSize, float maxWidth,
+                                               float lineHeight, int maxLines) {
         if (text == null) return;
-
         Paint measure = new Paint(Paint.ANTI_ALIAS_FLAG);
         measure.setTextSize(textSize);
-
         if (measure.measureText(text) <= maxWidth) {
             drawTextStrokeNoShadow(canvas, text, x, y, textSize, maxWidth);
             return;
@@ -2485,65 +1814,54 @@ public class GeoCameraActivity extends AppCompatActivity {
         StringBuilder line = new StringBuilder();
         float yy = y;
         int lines = 0;
-
         for (int i = 0; i < words.length; i++) {
             String w = words[i];
-            String test = (line.length() == 0) ? w : line + " " + w;
-
+            String test = line.length() == 0 ? w : line + " " + w;
             if (measure.measureText(test) > maxWidth) {
                 drawTextStrokeNoShadow(canvas, line.toString(), x, yy, textSize, maxWidth);
                 yy += lineHeight;
                 lines++;
-
                 if (lines >= maxLines - 1) {
                     StringBuilder remaining = new StringBuilder(w);
                     for (int j = i + 1; j < words.length; j++) remaining.append(" ").append(words[j]);
-                    drawTextStrokeNoShadow(canvas, ellipsizeText(remaining.toString(), textSize, maxWidth), x, yy, textSize, maxWidth);
+                    drawTextStrokeNoShadow(canvas,
+                            ellipsizeText(remaining.toString(), textSize, maxWidth),
+                            x, yy, textSize, maxWidth);
                     return;
                 }
-
                 line = new StringBuilder(w);
             } else {
                 line = new StringBuilder(test);
             }
         }
-
         drawTextStrokeNoShadow(canvas, line.toString(), x, yy, textSize, maxWidth);
     }
 
     private String ellipsizeText(String text, float textSize, float maxWidth) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextSize(textSize);
-
         if (p.measureText(text) <= maxWidth) return text;
-
         String ell = "...";
         float ellW = p.measureText(ell);
-
         int end = text.length();
-        while (end > 0 && p.measureText(text, 0, end) + ellW > maxWidth) {
-            end--;
-        }
-        return (end <= 0) ? ell : text.substring(0, end) + ell;
+        while (end > 0 && p.measureText(text, 0, end) + ellW > maxWidth) end--;
+        return end <= 0 ? ell : text.substring(0, end) + ell;
     }
 
-    private void drawSmallItalicText(Canvas canvas, String text, float x, float y, float maxWidth, float textSize) {
+    private void drawSmallItalicText(Canvas canvas, String text, float x, float y,
+                                     float maxWidth, float textSize) {
         if (text == null) return;
-
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(Color.WHITE);
         p.setTextSize(textSize);
         p.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.ITALIC));
-
         Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         stroke.setTextSize(textSize);
         stroke.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.ITALIC));
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(Math.max(2f, textSize / 10f));
         stroke.setColor(Color.BLACK);
-
         String draw = ellipsizeText(text, textSize, maxWidth);
-
         canvas.drawText(draw, x, y, stroke);
         canvas.drawText(draw, x, y, p);
     }
@@ -2557,15 +1875,5 @@ public class GeoCameraActivity extends AppCompatActivity {
         if (s == null) return null;
         s = s.trim();
         return s.isEmpty() ? null : s;
-    }
-
-    private static String sanitizeFolder(String input) {
-        if (input == null) return "GENERAL";
-        String s = input.trim();
-        if (s.isEmpty()) return "GENERAL";
-        s = s.replaceAll("[\\\\/:*?\"<>|]", "_");
-        s = s.replaceAll("\\s+", "_");
-        if (s.length() > 50) s = s.substring(0, 50);
-        return s;
     }
 }

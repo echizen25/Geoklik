@@ -27,6 +27,12 @@
         <item name="android:spinnerStyle">@style/Widget.GeoCamera.Spinner</item>
     </style>
 
+    <!-- Gallery toolbar overlay: keeps the overflow (three-dot) control white -->
+    <style name="ThemeOverlay.GeoCamera.GalleryToolbar" parent="ThemeOverlay.Material3.Dark.ActionBar">
+        <item name="colorControlNormal">@android:color/white</item>
+        <item name="android:colorControlNormal">@android:color/white</item>
+    </style>
+
     <!-- Optional: spinner style (helps tint + padding consistency) -->
     <style name="Widget.GeoCamera.Spinner" parent="@android:style/Widget.Holo.Light.Spinner">
         <item name="android:popupBackground">@android:color/white</item>

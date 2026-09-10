@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.remote.ApiProjectItem;
 import ph.gov.geocamera.data.remote.ProjectApiService;
+import ph.gov.geocamera.data.repository.ProjectAdminAreaRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.data.seed.ProjectSeedImporter;
 import ph.gov.geocamera.presentation.common.BaseTopAppBarActivity;
@@ -47,6 +48,7 @@ public class LibraryActivity extends BaseTopAppBarActivity {
     private final List<ProjectListItem> items = new ArrayList<>();
 
     private ProjectRepository projectRepository;
+    private ProjectAdminAreaRepository projectAdminAreaRepository;
     private ProjectApiService apiService;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -68,6 +70,7 @@ public class LibraryActivity extends BaseTopAppBarActivity {
         super.onCreate(savedInstanceState);
 
         projectRepository = new ProjectRepository(this);
+        projectAdminAreaRepository = new ProjectAdminAreaRepository(this);
         apiService = new ProjectApiService();
 
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -259,11 +262,20 @@ public class LibraryActivity extends BaseTopAppBarActivity {
                                     + ", name=" + item.name
                                     + ", beneficiary=" + item.beneficiary
                                     + ", location=" + item.location
-                                    + ", cost=" + item.cost);
+                                    + ", cost=" + item.cost
+                                    + ", munCode=" + item.municipalityCode
+                                    + ", brgyCode=" + item.barangayCode);
                         }
                     }
 
                     projectRepository.saveProjectsFromApi(apiItems);
+
+                    // Keep the companion administrative-area cache aligned with
+                    // the same manual/toolbar/pull-to-refresh Projects sync. The
+                    // earlier implementation refreshed tbl_projects only, which
+                    // meant Camera could still report "SYNC PROJECT LOCATION"
+                    // even immediately after the user synced Projects.
+                    projectAdminAreaRepository.saveFromApi(apiItems);
                 }
 
                 List<ProjectListItem> localItems = projectRepository.getProjectList();

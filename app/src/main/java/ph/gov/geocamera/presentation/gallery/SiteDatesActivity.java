@@ -19,8 +19,11 @@ import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import ph.gov.geocamera.R;
+import ph.gov.geocamera.core.utils.CameraPrefs;
+import ph.gov.geocamera.data.repository.CaptureContextRepository;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.presentation.home.HomeActivity;
 
@@ -28,7 +31,13 @@ public class SiteDatesActivity extends AppCompatActivity {
 
     public static final String EXTRA_SITE_ID = "siteId";
     public static final String EXTRA_YEAR = "year";
-    public static final String EXTRA_SITE_NAME = "siteName"; // optional
+    public static final String EXTRA_SITE_NAME = "siteName";
+    public static final String EXTRA_CAPTURE_TYPE = "captureType";
+    public static final String EXTRA_DIVISION_CODE = "divisionCode";
+
+    private static final String TYPE_INFRA = "INFRA";
+    private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
+    private static final String TYPE_PERSONAL = "PERSONAL";
 
     private MaterialToolbar toolbar;
     private RecyclerView rv;
@@ -44,6 +53,8 @@ public class SiteDatesActivity extends AppCompatActivity {
     private String yearOrAll = "ALL";
     private String monthOrAll = "ALL";
     private String siteName = null;
+    private String captureType = TYPE_INFRA;
+    private String divisionCode = "";
 
     private boolean suppressYear = false;
     private boolean suppressMonth = false;
@@ -51,8 +62,8 @@ public class SiteDatesActivity extends AppCompatActivity {
     private boolean filterOpen = false;
 
     private static class MonthOption {
-        final String value; // "01".."12" or "ALL"
-        final String label; // "January", etc.
+        final String value;
+        final String label;
 
         MonthOption(String value, String label) {
             this.value = value;
@@ -84,19 +95,18 @@ public class SiteDatesActivity extends AppCompatActivity {
         siteId = (i != null) ? i.getStringExtra(EXTRA_SITE_ID) : null;
         yearOrAll = (i != null) ? safe(i.getStringExtra(EXTRA_YEAR), "ALL") : "ALL";
         siteName = (i != null) ? i.getStringExtra(EXTRA_SITE_NAME) : null;
+        captureType = normalizeCaptureType(i != null ? i.getStringExtra(EXTRA_CAPTURE_TYPE) : null);
+        divisionCode = safe(i != null ? i.getStringExtra(EXTRA_DIVISION_CODE) : null, "");
 
         if (siteId == null || siteId.trim().isEmpty()) {
             finish();
             return;
         }
+        siteId = siteId.trim();
 
         toolbar.setNavigationIcon(R.drawable.ic_arrow_back_24);
         toolbar.setNavigationOnClickListener(v -> finish());
-
-        toolbar.setTitle(siteName != null && !siteName.trim().isEmpty()
-                ? siteName.trim()
-                : ("Site: " + siteId));
-
+        configureToolbarIdentity();
         toolbar.setOnMenuItemClickListener(this::onToolbarMenuClick);
 
         setPanelVisible(cardFilter, false);
@@ -113,26 +123,20 @@ public class SiteDatesActivity extends AppCompatActivity {
                                        RecyclerView parent,
                                        RecyclerView.State state) {
                 int position = parent.getChildAdapterPosition(view);
-
                 outRect.left = 0;
                 outRect.right = 0;
                 outRect.bottom = dp(10);
-
-                if (position == 0) {
-                    outRect.top = dp(14);
-                } else {
-                    outRect.top = 0;
-                }
+                outRect.top = position == 0 ? dp(14) : 0;
             }
         });
 
-        adapter = new SiteDatesAdapter(this, new SiteDatesAdapter.OnClick() {
+        adapter = new SiteDatesAdapter(this, captureType, new SiteDatesAdapter.OnClick() {
             @Override
             public void onClick(SiteDatesAdapter.DateItem dateItem) {
                 String groupId = (dateItem.groupId == null) ? "" : dateItem.groupId.trim();
                 if (groupId.isEmpty()) {
                     android.widget.Toast.makeText(SiteDatesActivity.this,
-                            "No images for this date.",
+                            "No photos for this date.",
                             android.widget.Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -145,6 +149,7 @@ public class SiteDatesActivity extends AppCompatActivity {
                 next.putExtra(GroupImagesActivity.EXTRA_SITE_ID, siteId);
                 next.putExtra(GroupImagesActivity.EXTRA_SESSION_DATE, dateItem.sessionDate);
                 next.putExtra(GroupImagesActivity.EXTRA_DESCRIPTION, title);
+                next.putExtra(GroupImagesActivity.EXTRA_CAPTURE_TYPE, captureType);
                 startActivity(next);
             }
 
@@ -172,6 +177,23 @@ public class SiteDatesActivity extends AppCompatActivity {
 
         setupSpinners();
         reloadAll();
+    }
+
+    private void configureToolbarIdentity() {
+        String title = siteName != null && !siteName.trim().isEmpty()
+                ? siteName.trim()
+                : (TYPE_PERSONAL.equals(captureType) ? "Personal Capture" : siteId);
+        toolbar.setTitle(title);
+
+        if (TYPE_PERSONAL.equals(captureType)) {
+            toolbar.setSubtitle("On-device photos");
+        } else if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+            toolbar.setSubtitle(divisionCode.isEmpty()
+                    ? "Project Activity"
+                    : "Project Activity • " + divisionCode);
+        } else {
+            toolbar.setSubtitle("Infrastructure");
+        }
     }
 
     @Override
@@ -207,11 +229,33 @@ public class SiteDatesActivity extends AppCompatActivity {
     }
 
     private void openGeoCam() {
+        CameraPrefs prefs = new CameraPrefs(this);
+        CaptureContextRepository captureContext = new CaptureContextRepository(this);
+
         Intent cam = new Intent(
                 SiteDatesActivity.this,
                 ph.gov.geocamera.presentation.geocamera.GeoCameraActivity.class
         );
-        cam.putExtra("siteId", siteId);
+
+        if (TYPE_PERSONAL.equals(captureType)) {
+            prefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
+            prefs.clearActivityProjectId();
+            prefs.saveSite(null, true);
+            captureContext.setCurrent(CameraPrefs.DOC_PERSONAL, null);
+        } else if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+            prefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
+            prefs.saveActivityProjectId(siteId);
+            prefs.saveSite(siteId, false);
+            captureContext.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, siteId);
+            cam.putExtra("siteId", siteId);
+        } else {
+            prefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
+            prefs.clearActivityProjectId();
+            prefs.saveSite(siteId, false);
+            captureContext.setCurrent(CameraPrefs.DOC_INFRA, null);
+            cam.putExtra("siteId", siteId);
+        }
+
         if (siteName != null) cam.putExtra("siteName", siteName);
         startActivity(cam);
     }
@@ -303,7 +347,13 @@ public class SiteDatesActivity extends AppCompatActivity {
         com.google.android.material.textfield.TextInputEditText etRemarks =
                 view.findViewById(R.id.etRemarks);
 
-        tvDialogSubtitle.setText("Add or update note for this photo date");
+        if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+            tvDialogSubtitle.setText("Add an album note for this activity date");
+        } else if (TYPE_PERSONAL.equals(captureType)) {
+            tvDialogSubtitle.setText("Add a note for these personal photos");
+        } else {
+            tvDialogSubtitle.setText("Add or update note for this photo date");
+        }
         tvDateInfo.setText("Date: " + sessionDate);
         etRemarks.setText(existing);
         etRemarks.setSelection(etRemarks.getText() != null ? etRemarks.getText().length() : 0);
@@ -336,7 +386,7 @@ public class SiteDatesActivity extends AppCompatActivity {
 
                 android.widget.Toast.makeText(
                         SiteDatesActivity.this,
-                        "Remarks saved",
+                        "Note saved",
                         android.widget.Toast.LENGTH_SHORT
                 ).show();
             });
@@ -495,6 +545,13 @@ public class SiteDatesActivity extends AppCompatActivity {
         }
 
         adapter.submit(out);
+    }
+
+    private static String normalizeCaptureType(String value) {
+        String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
+        if (TYPE_PROJECT_ACTIVITY.equals(type)) return TYPE_PROJECT_ACTIVITY;
+        if (TYPE_PERSONAL.equals(type)) return TYPE_PERSONAL;
+        return TYPE_INFRA;
     }
 
     private int dp(int value) {
