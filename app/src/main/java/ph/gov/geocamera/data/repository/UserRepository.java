@@ -22,9 +22,6 @@ public class UserRepository {
         dbHelper = new GeoDbHelper(context.getApplicationContext());
     }
 
-    // -------------------------------------
-    // Insert User (for FirstLaunchActivity)
-    // -------------------------------------
     public long insertUser(
             String userId,
             String fname,
@@ -38,7 +35,6 @@ public class UserRepository {
             String androidId,
             String uuid
     ) {
-
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
         ContentValues cv = new ContentValues();
@@ -58,9 +54,6 @@ public class UserRepository {
         return db.insert("tbl_users", null, cv);
     }
 
-    // -------------------------------------
-    // Check if user exists
-    // -------------------------------------
     public boolean hasUser() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = db.rawQuery("SELECT COUNT(*) FROM tbl_users", null);
@@ -71,9 +64,6 @@ public class UserRepository {
         return has;
     }
 
-    // -------------------------------------
-    // Getters
-    // -------------------------------------
     public String getFirstName() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = db.rawQuery("SELECT fname FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
@@ -84,26 +74,41 @@ public class UserRepository {
         return val;
     }
 
+    /**
+     * Funding/program label used by the Camera overlay.
+     *
+     * The previous implementation depended on the Context class name being
+     * exactly GeoCameraActivity. That was unnecessarily fragile and could make
+     * Personal Capture fall through to the saved profile value such as RCEF.
+     * CameraPrefs is now the authoritative capture-mode source:
+     *
+     * PERSONAL          -> user's Personal Overlay Label
+     * PROJECT_ACTIVITY  -> PROJECT ACTIVITY
+     * INFRA / no mode   -> stored profile project (RCEF, CTF, etc.)
+     *
+     * This does not overwrite tbl_users.project.
+     */
     public String getProject() {
-        // Camera-only presentation override. It changes only the existing
-        // watermark/display label; the saved user profile stays untouched.
-        if (sourceContext != null
-                && "ph.gov.geocamera.presentation.geocamera.GeoCameraActivity"
-                .equals(sourceContext.getClass().getName())) {
-            CameraPrefs prefs = new CameraPrefs(sourceContext);
-            String type = prefs.getDocumentationType();
+        if (sourceContext != null) {
+            try {
+                CameraPrefs prefs = new CameraPrefs(sourceContext);
+                String type = prefs.getDocumentationType();
 
-            if (CameraPrefs.DOC_PERSONAL.equals(type)) {
-                return prefs.getPersonalOverlayLabel();
-            }
+                if (CameraPrefs.DOC_PERSONAL.equals(type)) {
+                    return prefs.getPersonalOverlayLabel();
+                }
 
-            // Project Activity must not inherit the user's funding/program label
-            // (RCEF / CTF / PHILMECH). The selected activity title is paired with it.
-            if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) {
-                return "PROJECT ACTIVITY";
-            }
+                if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) {
+                    return "PROJECT ACTIVITY";
+                }
+            } catch (Exception ignored) {}
         }
 
+        return getStoredProject();
+    }
+
+    /** Original profile project/funding value, unaffected by capture mode. */
+    public String getStoredProject() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = db.rawQuery("SELECT project FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
 
