@@ -18,8 +18,15 @@ public class ApiProjectItem {
     public String dateFrom;
     public String dateTo;
 
-    // Optional project-area geofence. Null means "not configured" and keeps
-    // the existing capture behavior for backward compatibility.
+    // INFRA administrative-area restriction. PROJECT_ACTIVITY deliberately
+    // leaves these null because activity documentation is not barangay locked.
+    public String municipalityCode;
+    public String barangayCode;
+    public boolean adminAreaMetadataAvailable;
+
+    // Older optional project-area geofence fields are kept for compatibility
+    // with an already-deployed API response. The new app no longer uses radius
+    // authorization for Infrastructure captures.
     public Double geofenceLatitude;
     public Double geofenceLongitude;
     public Double geofenceRadiusMeters;
