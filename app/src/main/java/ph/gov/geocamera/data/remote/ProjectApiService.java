@@ -103,8 +103,14 @@ public class ProjectApiService {
                 item.dateFrom = nullableString(o, "dateFrom");
                 item.dateTo = nullableString(o, "dateTo");
 
-                // Optional fields. Old servers and the legacy /projects fallback
-                // omit them, which intentionally means "no geofence configured".
+                // INFRA administrative-area metadata. It is intentionally absent
+                // from the legacy /projects contract and null for Project Activity.
+                item.adminAreaMetadataAvailable = !legacyInfraOnly
+                        && (o.has("munCode") || o.has("brgyCode"));
+                item.municipalityCode = nullableString(o, "munCode");
+                item.barangayCode = nullableString(o, "brgyCode");
+
+                // Older optional radius fields remain parseable for compatibility.
                 item.geofenceMetadataAvailable = !legacyInfraOnly
                         && (o.has("geofenceLatitude")
                         || o.has("geofenceLongitude")
