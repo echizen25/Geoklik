@@ -3,9 +3,14 @@ package ph.gov.geocamera.presentation.library;
 import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,6 +31,7 @@ import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.common.BitMatrix;
 
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -261,12 +267,69 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
                     .setTitle("Project QR")
                     .setMessage("Scan this QR from Change Project to use this project.")
                     .setView(container)
-                    .setPositiveButton("Copy Code", (d, w) -> copyCode(context, code))
+                    .setPositiveButton("Download QR", (d, w) ->
+                            saveQrToDevice(context, qr, code))
                     .setNegativeButton("Close", null)
                     .show();
 
         } catch (Exception e) {
             Toast.makeText(context, "Unable to generate QR.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private static void saveQrToDevice(Context context, Bitmap qr, String code) {
+        if (qr == null) {
+            Toast.makeText(context, "QR image is unavailable.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String safeCode = clean(code).replaceAll("[^A-Za-z0-9._-]", "_");
+        if (safeCode.isEmpty()) safeCode = "PROJECT";
+        String fileName = "GeoKlik_QR_" + safeCode + ".png";
+
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/GeoKlik/QR");
+            values.put(MediaStore.Images.Media.IS_PENDING, 1);
+        }
+
+        Uri uri = null;
+        try {
+            uri = context.getContentResolver().insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    values
+            );
+            if (uri == null) throw new IllegalStateException("Unable to create QR image.");
+
+            try (OutputStream out = context.getContentResolver().openOutputStream(uri)) {
+                if (out == null || !qr.compress(Bitmap.CompressFormat.PNG, 100, out)) {
+                    throw new IllegalStateException("Unable to write QR image.");
+                }
+                out.flush();
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues ready = new ContentValues();
+                ready.put(MediaStore.Images.Media.IS_PENDING, 0);
+                context.getContentResolver().update(uri, ready, null, null);
+            }
+
+            Toast.makeText(
+                    context,
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                            ? "QR saved to Pictures/GeoKlik/QR"
+                            : "QR saved to device gallery",
+                    Toast.LENGTH_LONG
+            ).show();
+        } catch (Exception e) {
+            if (uri != null) {
+                try { context.getContentResolver().delete(uri, null, null); }
+                catch (Exception ignored) {}
+            }
+            Toast.makeText(context, "Unable to save QR.", Toast.LENGTH_LONG).show();
         }
     }
 
