@@ -12,7 +12,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ScaleGestureDetector;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,12 +24,7 @@ import androidx.appcompat.view.ActionMode;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
-import com.google.android.material.textfield.TextInputLayout;
-import com.journeyapps.barcodescanner.ScanContract;
-import com.journeyapps.barcodescanner.ScanOptions;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -47,6 +41,7 @@ import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.export.PhotoExportManager;
 import ph.gov.geocamera.data.repository.GroupRepository;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
+import ph.gov.geocamera.data.repository.PhotoReassignmentRepository;
 import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.map.OsmMapDialog;
 import ph.gov.geocamera.presentation.map.PhotoPin;
@@ -72,6 +67,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
     private ImageMetaRepository imageRepo;
     private GroupRepository groupRepo;
+    private PhotoReassignmentRepository photoReassignmentRepo;
     private GroupImagesAdapter adapter;
 
     private final List<GroupImagesAdapter.ImageItem> allImages = new ArrayList<>();
@@ -86,12 +82,10 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     private int sortMode = 0;
 
     private ActionMode actionMode;
-    private ActivityResultLauncher<ScanOptions> changeSiteQrLauncher;
-    private MaterialAutoCompleteTextView activeChangeSiteInput;
 
-    // Gallery now reuses the exact Change Project module used by the camera.
-    // The selected UUIDs are held while that picker is open and are only moved
-    // after a verified Infrastructure project is returned.
+    // Gallery reuses the same Change Project screen used by the camera. The
+    // selected UUIDs are kept while the picker is open, then moved only after
+    // a verified Infrastructure target is returned.
     private ActivityResultLauncher<Intent> changeProjectPickerLauncher;
     private final Set<String> pendingChangeSiteUuids = new LinkedHashSet<>();
 
@@ -117,6 +111,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
         imageRepo = new ImageMetaRepository(this);
         groupRepo = new GroupRepository(this);
+        photoReassignmentRepo = new PhotoReassignmentRepository(this);
 
         toolbar = findViewById(R.id.toolbar);
         rv = findViewById(R.id.rvImages);
@@ -340,7 +335,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                     }
                 }
 
-                // Re-apply because the active filter may be "Saved to device".
                 if (changed || statusFilter == 5) applyFilterAndSort();
             });
         });
@@ -499,8 +493,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (changeSite != null) {
                 Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 boolean hasLocked = imageRepo.hasLockedPhotosForChangeSite(selected);
-                // Reassignment remains Infrastructure-only. Project Activity and
-                // Personal photos keep their original classification.
                 boolean typeAllowsReassign = TYPE_INFRA.equals(captureType);
                 changeSite.setVisible(typeAllowsReassign && !hasLocked);
                 changeSite.setEnabled(typeAllowsReassign && !hasLocked);
@@ -713,7 +705,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
                         return;
                     }
 
-                    int moved = imageRepo.updateSelectedPhotosSiteId(
+                    int moved = photoReassignmentRepo.moveInfraPhotos(
                             new ArrayList<>(selected),
                             targetProjectId
                     );
@@ -750,134 +742,6 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         picker.putExtra(SetSiteActivity.EXTRA_PICK_ONLY, true);
         picker.putExtra(SetSiteActivity.EXTRA_REQUIRED_PROJECT_TYPE, TYPE_INFRA);
         changeProjectPickerLauncher.launch(picker);
-    }
-
-    // Legacy dialog helpers are kept for source compatibility but are no longer
-    // used by the long-press Move/Change Site action. Gallery now launches the
-    // camera's shared Change Project module instead.
-    private void setupChangeSiteQrLauncher() {
-        changeSiteQrLauncher = registerForActivityResult(new ScanContract(), result -> {
-            if (result == null || result.getContents() == null) return;
-
-            String scanned = normalizeProjectCode(result.getContents());
-            if (scanned.isEmpty()) {
-                Toast.makeText(this, "Invalid QR content.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if (activeChangeSiteInput != null) {
-                activeChangeSiteInput.setText(scanned, false);
-                activeChangeSiteInput.setSelection(scanned.length());
-            }
-            Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
-        });
-    }
-
-    private void showChangeSiteDialog(Set<String> selectedUuids) {
-        if (selectedUuids == null || selectedUuids.isEmpty()) return;
-        if (!TYPE_INFRA.equals(captureType)) return;
-
-        View view = getLayoutInflater().inflate(R.layout.dialog_change_site_photos, null);
-        TextInputLayout tilSite = view.findViewById(R.id.tilSite);
-        MaterialAutoCompleteTextView actSite = view.findViewById(R.id.actSite);
-        MaterialButton btnClose = view.findViewById(R.id.btnClose);
-        MaterialButton btnUseSelected = view.findViewById(R.id.btnUseSelected);
-        MaterialButton btnScanQr = view.findViewById(R.id.btnScanQr);
-
-        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
-                .setView(view)
-                .create();
-
-        btnClose.setOnClickListener(v -> dialog.dismiss());
-        btnScanQr.setOnClickListener(v -> {
-            activeChangeSiteInput = actSite;
-            startChangeSiteQrScan();
-        });
-
-        btnUseSelected.setOnClickListener(v -> {
-            String raw = actSite.getText() == null ? "" : actSite.getText().toString();
-            String newSiteCode = normalizeProjectCode(raw);
-
-            if (newSiteCode.isEmpty()) {
-                tilSite.setError("Type or scan a valid project code.");
-                return;
-            }
-
-            if ("UNCAT".equalsIgnoreCase(newSiteCode) || "UNCATEGORIZED".equalsIgnoreCase(newSiteCode)) {
-                tilSite.setError("UNCAT is not allowed here. Scan or type a project code.");
-                return;
-            }
-
-            tilSite.setError(null);
-            hideKeyboard(actSite);
-
-            if (imageRepo.hasLockedPhotosForChangeSite(selectedUuids)) {
-                Toast.makeText(this,
-                        "Only unsynced photos can be reassigned. Synced/uploading photos are locked.",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
-
-            List<String> uuids = new ArrayList<>(selectedUuids);
-            int moved = imageRepo.updateSelectedPhotosSiteId(uuids, newSiteCode);
-
-            Toast.makeText(this,
-                    "Updated " + moved + " photo(s) to " + newSiteCode,
-                    Toast.LENGTH_LONG).show();
-
-            if (actionMode != null) actionMode.finish();
-            loadImages();
-            SyncScheduler.enqueueUploadNow(getApplicationContext());
-            dialog.dismiss();
-        });
-
-        dialog.setOnDismissListener(d -> activeChangeSiteInput = null);
-        dialog.show();
-    }
-
-    private void startChangeSiteQrScan() {
-        if (changeSiteQrLauncher == null) {
-            Toast.makeText(this, "QR scanner not ready.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        ScanOptions options = new ScanOptions();
-        options.setPrompt("Scan Project Code / Site ID");
-        options.setBeepEnabled(true);
-        options.setOrientationLocked(false);
-        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
-        options.setCameraId(0);
-        changeSiteQrLauncher.launch(options);
-    }
-
-    private String normalizeProjectCode(String input) {
-        String s = input == null ? "" : input.trim();
-        if (s.isEmpty()) return "";
-
-        s = s.replace("\n", " ").replace("\r", " ").trim();
-        while (s.contains("  ")) s = s.replace("  ", " ");
-
-        if (s.regionMatches(true, 0, "SITE:", 0, 5)) s = s.substring(5).trim();
-        else if (s.regionMatches(true, 0, "PROJECT:", 0, 8)) s = s.substring(8).trim();
-        else if (s.regionMatches(true, 0, "CODE:", 0, 5)) s = s.substring(5).trim();
-
-        String[] separators = new String[]{"•", "—", "|", " - "};
-        for (String sep : separators) {
-            int idx = s.indexOf(sep);
-            if (idx > 0) {
-                s = s.substring(0, idx).trim();
-                break;
-            }
-        }
-
-        return s.trim().toUpperCase(Locale.US);
-    }
-
-    private void hideKeyboard(View v) {
-        try {
-            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null && v != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
-        } catch (Exception ignored) {}
     }
 
     private void deleteSelected(Set<String> uuids) {
