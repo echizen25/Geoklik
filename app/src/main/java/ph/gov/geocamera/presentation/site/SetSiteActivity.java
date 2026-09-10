@@ -15,10 +15,12 @@ import android.text.InputFilter;
 import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -42,6 +44,7 @@ import com.journeyapps.barcodescanner.ScanOptions;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 
 import ph.gov.geocamera.R;
@@ -55,6 +58,13 @@ public class SetSiteActivity extends AppCompatActivity {
     public static final String EXTRA_SITE_ID = "EXTRA_SITE_ID";
     public static final String EXTRA_UNCATEGORIZED = "EXTRA_UNCATEGORIZED";
 
+    // Selection-only mode lets Gallery reuse this exact Change Project module
+    // without mutating the camera's current project/capture context.
+    public static final String EXTRA_PICK_ONLY = "EXTRA_PICK_ONLY";
+    public static final String EXTRA_REQUIRED_PROJECT_TYPE = "EXTRA_REQUIRED_PROJECT_TYPE";
+    public static final String EXTRA_SELECTED_PROJECT_TYPE = "EXTRA_SELECTED_PROJECT_TYPE";
+    public static final String EXTRA_SELECTED_PROJECT_CODE = "EXTRA_SELECTED_PROJECT_CODE";
+
     private ProjectRepository projectRepo;
     private CaptureContextRepository captureContextRepo;
     private CameraPrefs cameraPrefs;
@@ -62,6 +72,9 @@ public class SetSiteActivity extends AppCompatActivity {
     private ActivityResultLauncher<ScanOptions> qrLauncher;
     private ActivityResultLauncher<String> qrImageLauncher;
     private TextInputEditText actSite;
+
+    private boolean pickOnly = false;
+    private String requiredProjectType = "";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -74,6 +87,14 @@ public class SetSiteActivity extends AppCompatActivity {
         captureContextRepo = new CaptureContextRepository(this);
         cameraPrefs = new CameraPrefs(this);
 
+        Intent request = getIntent();
+        if (request != null) {
+            pickOnly = request.getBooleanExtra(EXTRA_PICK_ONLY, false);
+            requiredProjectType = normalizeProjectType(
+                    request.getStringExtra(EXTRA_REQUIRED_PROJECT_TYPE)
+            );
+        }
+
         actSite = findViewById(R.id.actSite);
 
         MaterialButton btnUseSelected = findViewById(R.id.btnUseSelected);
@@ -82,6 +103,23 @@ public class SetSiteActivity extends AppCompatActivity {
         MaterialButton btnUploadQr = findViewById(R.id.btnUploadQr);
         MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
         MaterialButton btnClose = findViewById(R.id.btnClose);
+        View cardPersonalCapture = findViewById(R.id.cardPersonalCapture);
+        TextView tvTitle = findViewById(R.id.tvTitle);
+        TextView tvSubtitle = findViewById(R.id.tvSubtitle);
+
+        if (pickOnly) {
+            if (tvTitle != null) tvTitle.setText("Move Photos");
+            if (tvSubtitle != null) {
+                tvSubtitle.setText(
+                        CameraPrefs.DOC_INFRA.equals(requiredProjectType)
+                                ? "Paste a Project Code or use QR. Infrastructure projects only."
+                                : "Paste a Project Code or use QR."
+                );
+            }
+            if (cardPersonalCapture != null) cardPersonalCapture.setVisibility(View.GONE);
+            if (btnUncategorized != null) btnUncategorized.setVisibility(View.GONE);
+            if (btnUseSelected != null) btnUseSelected.setText("Use Project");
+        }
 
         setupProjectCodeInput();
         setupQrLaunchers();
@@ -94,9 +132,17 @@ public class SetSiteActivity extends AppCompatActivity {
         btnPasteCode.setOnClickListener(v -> pasteProjectCodeFromClipboard());
         btnScanQr.setOnClickListener(v -> startQrScan());
         btnUploadQr.setOnClickListener(v -> qrImageLauncher.launch("image/*"));
-        btnUncategorized.setOnClickListener(v -> showPersonalCaptureDialog());
+        btnUncategorized.setOnClickListener(v -> {
+            if (!pickOnly) showPersonalCaptureDialog();
+        });
 
         btnClose.setOnClickListener(v -> {
+            if (pickOnly) {
+                setResult(RESULT_CANCELED);
+                finish();
+                return;
+            }
+
             Intent i = new Intent(SetSiteActivity.this,
                     ph.gov.geocamera.presentation.home.HomeActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -294,6 +340,16 @@ public class SetSiteActivity extends AppCompatActivity {
         }
 
         boolean foundLocal = projectId != null && !projectId.trim().isEmpty();
+
+        if (pickOnly && !foundLocal) {
+            Toast.makeText(
+                    this,
+                    "Project Code not found in the synced Projects list. Refresh Projects and try again.",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
         String finalSiteId = foundLocal ? projectId.trim() : extractLeadingReference(raw);
 
         // A known target determines the capture classification automatically.
@@ -301,6 +357,32 @@ public class SetSiteActivity extends AppCompatActivity {
         String projectType = foundLocal
                 ? projectRepo.getProjectTypeById(finalSiteId)
                 : CameraPrefs.DOC_INFRA;
+
+        if (pickOnly) {
+            if (!requiredProjectType.isEmpty()
+                    && !requiredProjectType.equalsIgnoreCase(projectType)) {
+                String requiredLabel = CameraPrefs.DOC_INFRA.equals(requiredProjectType)
+                        ? "Infrastructure"
+                        : requiredProjectType.replace('_', ' ');
+                Toast.makeText(
+                        this,
+                        "Select an " + requiredLabel + " project for these photos.",
+                        Toast.LENGTH_LONG
+                ).show();
+                return;
+            }
+
+            String code = projectRepo.getProjectCodeById(finalSiteId);
+            Intent result = new Intent();
+            result.putExtra(EXTRA_SITE_ID, finalSiteId);
+            result.putExtra(EXTRA_UNCATEGORIZED, false);
+            result.putExtra(EXTRA_SELECTED_PROJECT_TYPE, projectType);
+            result.putExtra(EXTRA_SELECTED_PROJECT_CODE,
+                    code == null || code.trim().isEmpty() ? raw : code.trim());
+            setResult(RESULT_OK, result);
+            finish();
+            return;
+        }
 
         if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType)) {
             cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
@@ -343,6 +425,14 @@ public class SetSiteActivity extends AppCompatActivity {
         if (idx < 0) idx = s.indexOf(" - ");
         if (idx > 0) s = s.substring(0, idx).trim();
         return s;
+    }
+
+    private static String normalizeProjectType(String value) {
+        String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
+        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) return CameraPrefs.DOC_PROJECT_ACTIVITY;
+        if (CameraPrefs.DOC_PERSONAL.equals(type)) return CameraPrefs.DOC_PERSONAL;
+        if (CameraPrefs.DOC_INFRA.equals(type)) return CameraPrefs.DOC_INFRA;
+        return type;
     }
 
     private void showPersonalCaptureDialog() {
