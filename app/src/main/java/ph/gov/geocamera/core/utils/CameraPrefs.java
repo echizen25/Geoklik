@@ -17,6 +17,11 @@ public class CameraPrefs {
     private static final String KEY_DOCUMENTATION_TYPE = "documentation_type";
     private static final String KEY_ACTIVITY_PROJECT_ID = "activity_project_id";
 
+    // Personal Capture only: customize the existing first watermark line.
+    // These values never change INFRA / PROJECT_ACTIVITY labels.
+    private static final String KEY_PERSONAL_OVERLAY_LABEL = "personal_overlay_label";
+    private static final String KEY_PERSONAL_OVERLAY_TITLE = "personal_overlay_title";
+
     // Preserve the last Infrastructure selection when temporarily switching
     // the camera to Project Activity mode.
     private static final String KEY_INFRA_SITE_ID = "infra_site_id";
@@ -161,6 +166,21 @@ public class CameraPrefs {
         sp.edit().remove(KEY_ACTIVITY_PROJECT_ID).apply();
     }
 
+    public void savePersonalOverlay(String label, String title) {
+        sp.edit()
+                .putString(KEY_PERSONAL_OVERLAY_LABEL, cleanOverlayValue(label, "PERSONAL"))
+                .putString(KEY_PERSONAL_OVERLAY_TITLE, cleanOverlayValue(title, "Personal Capture"))
+                .apply();
+    }
+
+    public String getPersonalOverlayLabel() {
+        return cleanOverlayValue(sp.getString(KEY_PERSONAL_OVERLAY_LABEL, null), "PERSONAL");
+    }
+
+    public String getPersonalOverlayTitle() {
+        return cleanOverlayValue(sp.getString(KEY_PERSONAL_OVERLAY_TITLE, null), "Personal Capture");
+    }
+
     /** Save the current legacy Project/Site selection before entering Activity mode. */
     public void rememberInfrastructureSelection() {
         if (!hasSelection() || isDocumentationPlaceholderSelection()) return;
@@ -210,6 +230,13 @@ public class CameraPrefs {
         if (type != null && DOC_PROJECT_ACTIVITY.equalsIgnoreCase(type.trim())) return DOC_PROJECT_ACTIVITY;
         if (type != null && DOC_PERSONAL.equalsIgnoreCase(type.trim())) return DOC_PERSONAL;
         return null;
+    }
+
+    private static String cleanOverlayValue(String value, String fallback) {
+        if (value == null) return fallback;
+        String out = value.trim().replace("\n", " ").replace("\r", " ");
+        while (out.contains("  ")) out = out.replace("  ", " ");
+        return out.isEmpty() ? fallback : out;
     }
 
     public void clear() {
