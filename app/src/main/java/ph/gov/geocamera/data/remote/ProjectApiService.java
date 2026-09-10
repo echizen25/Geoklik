@@ -105,6 +105,10 @@ public class ProjectApiService {
 
                 // Optional fields. Old servers and the legacy /projects fallback
                 // omit them, which intentionally means "no geofence configured".
+                item.geofenceMetadataAvailable = !legacyInfraOnly
+                        && (o.has("geofenceLatitude")
+                        || o.has("geofenceLongitude")
+                        || o.has("geofenceRadiusMeters"));
                 item.geofenceLatitude = nullableDouble(o, "geofenceLatitude");
                 item.geofenceLongitude = nullableDouble(o, "geofenceLongitude");
                 item.geofenceRadiusMeters = nullableDouble(o, "geofenceRadiusMeters");
