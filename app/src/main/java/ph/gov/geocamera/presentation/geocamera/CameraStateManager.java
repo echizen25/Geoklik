@@ -33,6 +33,17 @@ final class CameraStateManager {
         ERROR
     }
 
+    /*
+     * TEMPORARILY DISABLED.
+     *
+     * Keep the project municipality metadata/boundary implementation in place so
+     * it can be re-enabled after the deployed API + local project cache flow has
+     * been verified. While false, project location must never disable the shutter
+     * or show a project-location block. Existing GeoKlik GPS quality rules still
+     * apply in GeoCameraActivity.
+     */
+    private static final boolean ENFORCE_INFRA_PROJECT_CITY = false;
+
     private static final long AREA_GPS_MAX_AGE_MS = 15_000L;
     private static final float AREA_MAX_GPS_ACCURACY_M = 30f;
     private static final long AREA_LOCAL_CACHE_MS = 5_000L;
@@ -71,12 +82,11 @@ final class CameraStateManager {
                 ? null
                 : new MunicipalityBoundaryRepository(source.getApplicationContext());
 
-        // The status line is also a repeatable "why can't I capture?" affordance.
-        // The automatic Snackbar is shown once when a new block reason appears;
-        // tapping the status repeats the explanation without enabling the shutter.
+        // The status line remains ready for the future location rule, but with
+        // enforcement disabled it will not surface a project-location block.
         if (this.statusText != null) {
             this.statusText.setOnClickListener(v -> {
-                if (state != State.READY) return;
+                if (!ENFORCE_INFRA_PROJECT_CITY || state != State.READY) return;
                 AreaDecision area = evaluateInfrastructureMunicipality();
                 if (!area.allowed) showBlockedNotice(area.message, true);
             });
@@ -116,31 +126,31 @@ final class CameraStateManager {
                     : label(next);
             statusText.setText(text);
             statusText.setVisibility(View.VISIBLE);
-            statusText.setClickable(next == State.READY && !area.allowed);
+            statusText.setClickable(
+                    ENFORCE_INFRA_PROJECT_CITY && next == State.READY && !area.allowed
+            );
             statusText.setContentDescription(
-                    next == State.READY && !area.allowed
+                    ENFORCE_INFRA_PROJECT_CITY && next == State.READY && !area.allowed
                             ? text + ". Tap for explanation."
                             : text
             );
         }
 
-        if (next == State.READY && !area.allowed) {
+        if (ENFORCE_INFRA_PROJECT_CITY && next == State.READY && !area.allowed) {
             showBlockedNotice(area.message, false);
         }
     }
 
     /**
-     * Final project-location rule:
-     * - INFRA: current real GPS must be inside the city/municipality registered
-     *   by the project's mun_code. brgy_code remains synced metadata but is not
-     *   used to restrict capture.
-     * - PROJECT_ACTIVITY: no city/municipality restriction; normal GPS rules only.
-     * - PERSONAL: no city/municipality restriction and remains local-only.
-     *
-     * Missing INFRA municipality metadata remains fail-closed so a project from
-     * another region cannot be used simply because its area data was unavailable.
+     * Infrastructure city/municipality validation implementation retained for a
+     * later rollout. It is intentionally bypassed while
+     * ENFORCE_INFRA_PROJECT_CITY is false.
      */
     private AreaDecision evaluateInfrastructureMunicipality() {
+        if (!ENFORCE_INFRA_PROJECT_CITY) {
+            return AreaDecision.notApplicable();
+        }
+
         if (cameraPrefs == null
                 || adminAreaRepository == null
                 || municipalityBoundaryRepository == null
@@ -257,7 +267,7 @@ final class CameraStateManager {
     }
 
     private void showBlockedNotice(String technicalMessage, boolean force) {
-        if (captureButton == null) return;
+        if (!ENFORCE_INFRA_PROJECT_CITY || captureButton == null) return;
 
         String key = clean(technicalMessage);
         if (key.isEmpty()) key = "CAPTURE BLOCKED";
