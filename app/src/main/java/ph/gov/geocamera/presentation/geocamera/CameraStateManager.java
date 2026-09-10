@@ -7,10 +7,12 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import java.util.Locale;
 
 import ph.gov.geocamera.core.utils.CameraPrefs;
-import ph.gov.geocamera.data.repository.BarangayBoundaryRepository;
+import ph.gov.geocamera.data.repository.MunicipalityBoundaryRepository;
 import ph.gov.geocamera.data.repository.ProjectAdminAreaRepository;
 import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
 
@@ -35,19 +37,23 @@ final class CameraStateManager {
     private static final float AREA_MAX_GPS_ACCURACY_M = 30f;
     private static final long AREA_LOCAL_CACHE_MS = 5_000L;
     private static final long AREA_SYNC_RETRY_MS = 30_000L;
+    private static final long BLOCK_NOTICE_REPEAT_MS = 20_000L;
 
     private final ImageButton captureButton;
     private final TextView statusText;
     private final Context appContext;
     private final CameraPrefs cameraPrefs;
     private final ProjectAdminAreaRepository adminAreaRepository;
-    private final BarangayBoundaryRepository barangayBoundaryRepository;
+    private final MunicipalityBoundaryRepository municipalityBoundaryRepository;
     private State state = State.WAITING_FOR_GPS;
 
     private String cachedProjectId = "";
     private ProjectAdminAreaRepository.Record cachedAdminArea;
     private long cachedAdminAreaAt = 0L;
     private long lastAreaSyncRequestAt = 0L;
+
+    private String lastBlockNoticeKey = "";
+    private long lastBlockNoticeAt = 0L;
 
     CameraStateManager(ImageButton captureButton, TextView statusText) {
         this.captureButton = captureButton;
@@ -61,9 +67,20 @@ final class CameraStateManager {
         this.adminAreaRepository = source == null
                 ? null
                 : new ProjectAdminAreaRepository(source.getApplicationContext());
-        this.barangayBoundaryRepository = source == null
+        this.municipalityBoundaryRepository = source == null
                 ? null
-                : new BarangayBoundaryRepository(source.getApplicationContext());
+                : new MunicipalityBoundaryRepository(source.getApplicationContext());
+
+        // The status line is also a repeatable "why can't I capture?" affordance.
+        // The automatic Snackbar is shown once when a new block reason appears;
+        // tapping the status repeats the explanation without enabling the shutter.
+        if (this.statusText != null) {
+            this.statusText.setOnClickListener(v -> {
+                if (state != State.READY) return;
+                AreaDecision area = evaluateInfrastructureMunicipality();
+                if (!area.allowed) showBlockedNotice(area.message, true);
+            });
+        }
 
         apply(State.WAITING_FOR_GPS);
     }
@@ -84,7 +101,7 @@ final class CameraStateManager {
         state = next;
 
         AreaDecision area = next == State.READY
-                ? evaluateInfrastructureBarangay()
+                ? evaluateInfrastructureMunicipality()
                 : AreaDecision.notApplicable();
 
         boolean ready = next == State.READY && area.allowed;
@@ -99,24 +116,34 @@ final class CameraStateManager {
                     : label(next);
             statusText.setText(text);
             statusText.setVisibility(View.VISIBLE);
+            statusText.setClickable(next == State.READY && !area.allowed);
+            statusText.setContentDescription(
+                    next == State.READY && !area.allowed
+                            ? text + ". Tap for explanation."
+                            : text
+            );
+        }
+
+        if (next == State.READY && !area.allowed) {
+            showBlockedNotice(area.message, false);
         }
     }
 
     /**
      * Final project-location rule:
-     * - INFRA: current real GPS must fall inside the barangay registered by the
-     *   project's mun_code + brgy_code.
-     * - PROJECT_ACTIVITY: no barangay restriction; normal GeoKlik GPS rules only.
-     * - PERSONAL: no barangay restriction and remains local-only.
+     * - INFRA: current real GPS must be inside the city/municipality registered
+     *   by the project's mun_code. brgy_code remains synced metadata but is not
+     *   used to restrict capture.
+     * - PROJECT_ACTIVITY: no city/municipality restriction; normal GPS rules only.
+     * - PERSONAL: no city/municipality restriction and remains local-only.
      *
-     * Unlike the old radius prototype, missing INFRA administrative metadata is
-     * fail-closed. This prevents a project from another region from being used
-     * simply because no exact latitude/radius was configured.
+     * Missing INFRA municipality metadata remains fail-closed so a project from
+     * another region cannot be used simply because its area data was unavailable.
      */
-    private AreaDecision evaluateInfrastructureBarangay() {
+    private AreaDecision evaluateInfrastructureMunicipality() {
         if (cameraPrefs == null
                 || adminAreaRepository == null
-                || barangayBoundaryRepository == null
+                || municipalityBoundaryRepository == null
                 || appContext == null) {
             return AreaDecision.block("PROJECT AREA CHECK UNAVAILABLE");
         }
@@ -141,54 +168,46 @@ final class CameraStateManager {
             return AreaDecision.block("PROJECT TYPE CHECK FAILED");
         }
 
-        if (!area.hasCodes()) {
-            return AreaDecision.block("PROJECT BARANGAY NOT SET");
+        if (clean(area.municipalityCode).isEmpty()) {
+            return AreaDecision.block("PROJECT CITY/MUNICIPALITY NOT SET");
         }
 
         Location gps = getFreshGpsLocation();
         if (gps == null) {
-            return AreaDecision.block("GPS REQUIRED FOR PROJECT BARANGAY");
+            return AreaDecision.block("GPS REQUIRED FOR PROJECT CITY");
         }
 
         if (!gps.hasAccuracy() || gps.getAccuracy() > AREA_MAX_GPS_ACCURACY_M) {
             String accuracy = gps.hasAccuracy()
                     ? String.format(Locale.US, "±%.0fm", gps.getAccuracy())
                     : "unknown";
-            return AreaDecision.block("BARANGAY GPS WEAK • " + accuracy);
+            return AreaDecision.block("CITY GPS WEAK • " + accuracy);
         }
 
-        BarangayBoundaryRepository.Decision decision = barangayBoundaryRepository.evaluate(
-                area.municipalityCode,
-                area.barangayCode,
-                gps.getLatitude(),
-                gps.getLongitude()
-        );
+        MunicipalityBoundaryRepository.Decision decision =
+                municipalityBoundaryRepository.evaluate(
+                        area.municipalityCode,
+                        gps.getLatitude(),
+                        gps.getLongitude()
+                );
 
-        if (decision.status == BarangayBoundaryRepository.Status.INSIDE) {
-            String name = clean(decision.barangayName);
-            return AreaDecision.allow(
-                    name.isEmpty() ? "READY • PROJECT BARANGAY" : "READY • " + name
-            );
+        if (decision.status == MunicipalityBoundaryRepository.Status.INSIDE) {
+            return AreaDecision.allow("READY • PROJECT CITY/MUNICIPALITY");
         }
 
-        if (decision.status == BarangayBoundaryRepository.Status.OUTSIDE) {
-            String name = clean(decision.barangayName);
-            return AreaDecision.block(
-                    name.isEmpty()
-                            ? "OUTSIDE PROJECT BARANGAY"
-                            : "OUTSIDE • PROJECT BRGY " + name
-            );
+        if (decision.status == MunicipalityBoundaryRepository.Status.OUTSIDE) {
+            return AreaDecision.block("OUTSIDE PROJECT CITY/MUNICIPALITY");
         }
 
-        if (decision.status == BarangayBoundaryRepository.Status.LOADING) {
-            return AreaDecision.block("LOADING PROJECT BARANGAY…");
+        if (decision.status == MunicipalityBoundaryRepository.Status.LOADING) {
+            return AreaDecision.block("LOADING PROJECT CITY/MUNICIPALITY…");
         }
 
-        if (decision.status == BarangayBoundaryRepository.Status.INVALID_CODES) {
-            return AreaDecision.block("PROJECT LOCATION CODE INVALID");
+        if (decision.status == MunicipalityBoundaryRepository.Status.INVALID_CODE) {
+            return AreaDecision.block("PROJECT MUNICIPALITY CODE INVALID");
         }
 
-        return AreaDecision.block("PROJECT BARANGAY CHECK FAILED");
+        return AreaDecision.block("PROJECT CITY CHECK FAILED");
     }
 
     private ProjectAdminAreaRepository.Record getCachedAdminArea(String projectId) {
@@ -235,6 +254,65 @@ final class CameraStateManager {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private void showBlockedNotice(String technicalMessage, boolean force) {
+        if (captureButton == null) return;
+
+        String key = clean(technicalMessage);
+        if (key.isEmpty()) key = "CAPTURE BLOCKED";
+
+        long now = System.currentTimeMillis();
+        if (!force
+                && key.equals(lastBlockNoticeKey)
+                && (now - lastBlockNoticeAt) < BLOCK_NOTICE_REPEAT_MS) {
+            return;
+        }
+
+        lastBlockNoticeKey = key;
+        lastBlockNoticeAt = now;
+
+        Snackbar.make(
+                captureButton,
+                explainBlockReason(key),
+                Snackbar.LENGTH_LONG
+        ).setAction("OK", v -> { }).show();
+    }
+
+    private String explainBlockReason(String message) {
+        String m = clean(message).toUpperCase(Locale.US);
+
+        if (m.startsWith("OUTSIDE PROJECT CITY")) {
+            return "Capture blocked: this INFRA project is registered in a different city/municipality.";
+        }
+        if (m.startsWith("PROJECT CITY/MUNICIPALITY NOT SET")) {
+            return "Capture blocked: this INFRA project has no municipality code in the synced project data.";
+        }
+        if (m.startsWith("SYNC PROJECT LOCATION")) {
+            return "Capture blocked: project location data is not synced yet. Connect to the internet and refresh Projects.";
+        }
+        if (m.startsWith("LOADING PROJECT CITY")) {
+            return "GeoKlik is loading the project city/municipality boundary. Keep internet on for the first check, then try again.";
+        }
+        if (m.startsWith("GPS REQUIRED")) {
+            return "Capture blocked: a fresh GPS fix is required to verify that you are inside the project's city/municipality.";
+        }
+        if (m.startsWith("CITY GPS WEAK")) {
+            return "Capture blocked: GPS accuracy is too weak for the city/municipality check. Move to an open area and wait for a better fix.";
+        }
+        if (m.startsWith("PROJECT MUNICIPALITY CODE INVALID")) {
+            return "Capture blocked: the project's municipality code cannot be matched to the boundary dataset.";
+        }
+        if (m.startsWith("SELECT INFRA PROJECT")) {
+            return "Capture blocked: select a valid Infrastructure project first.";
+        }
+        if (m.startsWith("PROJECT TYPE CHECK FAILED")) {
+            return "Capture blocked: the selected project's capture type could not be verified.";
+        }
+        if (m.startsWith("PROJECT AREA CHECK UNAVAILABLE")) {
+            return "Capture blocked: project location validation is temporarily unavailable.";
+        }
+        return "Capture blocked: GeoKlik could not verify the Infrastructure project location.";
     }
 
     private static String clean(String value) {
