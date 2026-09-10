@@ -31,6 +31,7 @@ final class CameraStateManager {
 
     private static final long GEOFENCE_GPS_MAX_AGE_MS = 15_000L;
     private static final float GEOFENCE_MAX_GPS_ACCURACY_M = 30f;
+    private static final long GEOFENCE_LOCAL_CACHE_MS = 5_000L;
 
     private final ImageButton captureButton;
     private final TextView statusText;
@@ -38,6 +39,10 @@ final class CameraStateManager {
     private final CameraPrefs cameraPrefs;
     private final ProjectGeofenceRepository geofenceRepository;
     private State state = State.WAITING_FOR_GPS;
+
+    private String cachedGeofenceProjectId = "";
+    private ProjectGeofenceRepository.Config cachedGeofence;
+    private long cachedGeofenceAt = 0L;
 
     CameraStateManager(ImageButton captureButton, TextView statusText) {
         this.captureButton = captureButton;
@@ -109,7 +114,7 @@ final class CameraStateManager {
             return GeofenceDecision.notApplicable();
         }
 
-        ProjectGeofenceRepository.Config config = geofenceRepository.getByProjectId(projectId);
+        ProjectGeofenceRepository.Config config = getCachedGeofence(projectId);
         if (config == null) {
             // Backward compatibility: projects without configured coordinates
             // continue to use the existing capture rules.
@@ -156,6 +161,19 @@ final class CameraStateManager {
         );
     }
 
+    private ProjectGeofenceRepository.Config getCachedGeofence(String projectId) {
+        long now = System.currentTimeMillis();
+        if (projectId.equalsIgnoreCase(cachedGeofenceProjectId)
+                && (now - cachedGeofenceAt) < GEOFENCE_LOCAL_CACHE_MS) {
+            return cachedGeofence;
+        }
+
+        cachedGeofenceProjectId = projectId;
+        cachedGeofenceAt = now;
+        cachedGeofence = geofenceRepository.getByProjectId(projectId);
+        return cachedGeofence;
+    }
+
     private Location getFreshGpsLocation() {
         try {
             LocationManager lm = (LocationManager) appContext.getSystemService(Context.LOCATION_SERVICE);
@@ -163,6 +181,10 @@ final class CameraStateManager {
 
             Location gps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             if (gps == null) return null;
+
+            // Geofence enforcement must use a real GPS provider fix. This is a
+            // second guard in addition to GeoCameraActivity's live-location checks.
+            if (gps.isFromMockProvider()) return null;
 
             long ageMs = Math.abs(System.currentTimeMillis() - gps.getTime());
             if (ageMs > GEOFENCE_GPS_MAX_AGE_MS) return null;
