@@ -85,14 +85,21 @@ public class UserRepository {
     }
 
     public String getProject() {
-        // In the camera only, Project Activity mode must not inherit the user's
-        // funding/program label (RCEF / CTF / PHILMECH). GeoCameraActivity will
-        // pair this with the selected activity project's local name/ID.
+        // Camera-only presentation override. It changes only the existing
+        // watermark/display label; the saved user profile stays untouched.
         if (sourceContext != null
                 && "ph.gov.geocamera.presentation.geocamera.GeoCameraActivity"
                 .equals(sourceContext.getClass().getName())) {
             CameraPrefs prefs = new CameraPrefs(sourceContext);
-            if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(prefs.getDocumentationType())) {
+            String type = prefs.getDocumentationType();
+
+            if (CameraPrefs.DOC_PERSONAL.equals(type)) {
+                return prefs.getPersonalOverlayLabel();
+            }
+
+            // Project Activity must not inherit the user's funding/program label
+            // (RCEF / CTF / PHILMECH). The selected activity title is paired with it.
+            if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) {
                 return "PROJECT ACTIVITY";
             }
         }
