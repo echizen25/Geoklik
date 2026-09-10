@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -49,6 +50,7 @@ import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.map.OsmMapDialog;
 import ph.gov.geocamera.presentation.map.PhotoPin;
+import ph.gov.geocamera.presentation.site.SetSiteActivity;
 
 public class GroupImagesActivity extends AppCompatActivity implements GroupImagesAdapter.Callback {
 
@@ -86,6 +88,12 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
     private ActionMode actionMode;
     private ActivityResultLauncher<ScanOptions> changeSiteQrLauncher;
     private MaterialAutoCompleteTextView activeChangeSiteInput;
+
+    // Gallery now reuses the exact Change Project module used by the camera.
+    // The selected UUIDs are held while that picker is open and are only moved
+    // after a verified Infrastructure project is returned.
+    private ActivityResultLauncher<Intent> changeProjectPickerLauncher;
+    private final Set<String> pendingChangeSiteUuids = new LinkedHashSet<>();
 
     private GridLayoutManager gridLayoutManager;
     private GridSpacingItemDecoration gridDecoration;
@@ -156,7 +164,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         rv.setAdapter(adapter);
 
         setupPinchToZoom();
-        setupChangeSiteQrLauncher();
+        setupChangeProjectPickerLauncher();
         loadImages();
     }
 
@@ -491,9 +499,8 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (changeSite != null) {
                 Set<String> selected = new LinkedHashSet<>(adapter.getSelectedUuids());
                 boolean hasLocked = imageRepo.hasLockedPhotosForChangeSite(selected);
-                // Reassignment is currently an Infrastructure-only workflow.
-                // Hiding it for Activity/Personal prevents changing the site while
-                // leaving stale monitoring_type/activity metadata behind.
+                // Reassignment remains Infrastructure-only. Project Activity and
+                // Personal photos keep their original classification.
                 boolean typeAllowsReassign = TYPE_INFRA.equals(captureType);
                 changeSite.setVisible(typeAllowsReassign && !hasLocked);
                 changeSite.setEnabled(typeAllowsReassign && !hasLocked);
@@ -525,7 +532,7 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
             if (id == R.id.action_change_site) {
                 if (!TYPE_INFRA.equals(captureType)) {
                     Toast.makeText(GroupImagesActivity.this,
-                            "Reassigning photos is available for Infrastructure captures only.",
+                            "Moving photos is available for Infrastructure captures only.",
                             Toast.LENGTH_LONG).show();
                     return true;
                 }
@@ -535,12 +542,12 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
 
                 if (imageRepo.hasLockedPhotosForChangeSite(selected)) {
                     Toast.makeText(GroupImagesActivity.this,
-                            "Only unsynced photos can be reassigned. Synced/uploading photos are locked.",
+                            "Only unsynced photos can be moved. Synced/uploading photos are locked.",
                             Toast.LENGTH_LONG).show();
                     return true;
                 }
 
-                showChangeSiteDialog(selected);
+                launchChangeProjectPicker(selected);
                 return true;
             }
 
@@ -672,6 +679,82 @@ public class GroupImagesActivity extends AppCompatActivity implements GroupImage
         b.append(s);
     }
 
+    private void setupChangeProjectPickerLauncher() {
+        changeProjectPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    Set<String> selected = new LinkedHashSet<>(pendingChangeSiteUuids);
+                    pendingChangeSiteUuids.clear();
+
+                    if (result.getResultCode() != RESULT_OK || result.getData() == null) return;
+                    if (selected.isEmpty()) return;
+
+                    Intent data = result.getData();
+                    String targetProjectId = safe(data.getStringExtra(SetSiteActivity.EXTRA_SITE_ID));
+                    String targetType = safe(data.getStringExtra(SetSiteActivity.EXTRA_SELECTED_PROJECT_TYPE));
+                    String targetCode = safe(data.getStringExtra(SetSiteActivity.EXTRA_SELECTED_PROJECT_CODE));
+
+                    if (targetProjectId.isEmpty()) {
+                        Toast.makeText(this, "No target project was selected.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    if (!TYPE_INFRA.equalsIgnoreCase(targetType)) {
+                        Toast.makeText(this,
+                                "Infrastructure photos can only be moved to another Infrastructure project.",
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    if (imageRepo.hasLockedPhotosForChangeSite(selected)) {
+                        Toast.makeText(this,
+                                "Only unsynced photos can be moved. Synced/uploading photos are locked.",
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    int moved = imageRepo.updateSelectedPhotosSiteId(
+                            new ArrayList<>(selected),
+                            targetProjectId
+                    );
+
+                    if (actionMode != null) actionMode.finish();
+                    loadImages();
+
+                    if (moved > 0) {
+                        String target = targetCode.isEmpty() ? targetProjectId : targetCode;
+                        Toast.makeText(this,
+                                "Moved " + moved + " photo(s) to " + target + ". They are PENDING for re-sync.",
+                                Toast.LENGTH_LONG).show();
+                        SyncScheduler.enqueueUploadNow(getApplicationContext());
+                    } else {
+                        Toast.makeText(this,
+                                "No photos were moved. They may already belong to that project.",
+                                Toast.LENGTH_LONG).show();
+                    }
+                }
+        );
+    }
+
+    private void launchChangeProjectPicker(Set<String> selectedUuids) {
+        if (selectedUuids == null || selectedUuids.isEmpty()) return;
+        if (changeProjectPickerLauncher == null) {
+            Toast.makeText(this, "Project picker is not ready.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        pendingChangeSiteUuids.clear();
+        pendingChangeSiteUuids.addAll(selectedUuids);
+
+        Intent picker = new Intent(this, SetSiteActivity.class);
+        picker.putExtra(SetSiteActivity.EXTRA_PICK_ONLY, true);
+        picker.putExtra(SetSiteActivity.EXTRA_REQUIRED_PROJECT_TYPE, TYPE_INFRA);
+        changeProjectPickerLauncher.launch(picker);
+    }
+
+    // Legacy dialog helpers are kept for source compatibility but are no longer
+    // used by the long-press Move/Change Site action. Gallery now launches the
+    // camera's shared Change Project module instead.
     private void setupChangeSiteQrLauncher() {
         changeSiteQrLauncher = registerForActivityResult(new ScanContract(), result -> {
             if (result == null || result.getContents() == null) return;
