@@ -17,4 +17,10 @@ public class ApiProjectItem {
     public String projectDescription;
     public String dateFrom;
     public String dateTo;
+
+    // Optional project-area geofence. Null means "not configured" and keeps
+    // the existing capture behavior for backward compatibility.
+    public Double geofenceLatitude;
+    public Double geofenceLongitude;
+    public Double geofenceRadiusMeters;
 }
