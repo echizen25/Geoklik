@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import ph.gov.geocamera.data.remote.ApiProjectItem;
 import ph.gov.geocamera.data.remote.ProjectApiService;
+import ph.gov.geocamera.data.repository.ProjectAdminAreaRepository;
 import ph.gov.geocamera.data.repository.ProjectGeofenceRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 
@@ -35,7 +36,11 @@ public final class ProjectBackgroundSync {
     private static final String PREFS_PROJECT_SYNC = "project_sync_prefs";
     private static final String KEY_LAST_PROJECT_SYNC = "last_project_sync";
     private static final String KEY_GEOFENCE_CACHE_VERSION = "geofence_cache_version";
-    private static final int GEOFENCE_CACHE_VERSION = 1;
+
+    // v2 adds the server-provided INFRA mun_code + brgy_code metadata. Reusing
+    // the existing bootstrap key forces one refresh for users upgrading from the
+    // earlier radius prototype, even if their project list was synced recently.
+    private static final int GEOFENCE_CACHE_VERSION = 2;
     private static final long PROJECT_SYNC_INTERVAL_MS = 6L * 60L * 60L * 1000L; // 6 hours
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -65,19 +70,20 @@ public final class ProjectBackgroundSync {
             try {
                 ProjectRepository repo = new ProjectRepository(appContext);
                 ProjectGeofenceRepository geofenceRepo = new ProjectGeofenceRepository(appContext);
+                ProjectAdminAreaRepository adminAreaRepo = new ProjectAdminAreaRepository(appContext);
                 SharedPreferences prefs = appContext.getSharedPreferences(PREFS_PROJECT_SYNC, Context.MODE_PRIVATE);
 
                 boolean hasLocalProjects = repo.hasAnyProjects();
                 long lastSync = prefs.getLong(KEY_LAST_PROJECT_SYNC, 0L);
                 long now = System.currentTimeMillis();
                 boolean intervalExpired = (now - lastSync) >= PROJECT_SYNC_INTERVAL_MS;
-                boolean needsGeofenceBootstrap =
+                boolean needsProjectAreaBootstrap =
                         prefs.getInt(KEY_GEOFENCE_CACHE_VERSION, 0) < GEOFENCE_CACHE_VERSION;
 
-                // A one-time bootstrap is required after installing the build that
-                // introduced geofence metadata, even if the ordinary project cache
-                // was refreshed recently by an older app version.
-                if (!force && hasLocalProjects && !intervalExpired && !needsGeofenceBootstrap) {
+                // A one-time bootstrap is required after installing a build that
+                // introduces new project-area metadata, even if an older app
+                // refreshed the ordinary project list recently.
+                if (!force && hasLocalProjects && !intervalExpired && !needsProjectAreaBootstrap) {
                     return;
                 }
 
@@ -86,21 +92,21 @@ public final class ProjectBackgroundSync {
 
                 if (items != null && !items.isEmpty()) {
                     repo.saveProjectsFromApi(items);
-                    geofenceRepo.saveFromApi(items);
+                    geofenceRepo.saveFromApi(items); // legacy radius cache kept for compatibility only
+                    adminAreaRepo.saveFromApi(items);
 
-                    // Only mark the geofence bootstrap complete if this response
-                    // actually came from a contract that exposed geofence metadata.
-                    boolean geofenceMetadataSeen = false;
+                    boolean projectAreaMetadataSeen = false;
                     for (ApiProjectItem item : items) {
-                        if (item != null && item.geofenceMetadataAvailable) {
-                            geofenceMetadataSeen = true;
+                        if (item != null
+                                && (item.adminAreaMetadataAvailable || item.geofenceMetadataAvailable)) {
+                            projectAreaMetadataSeen = true;
                             break;
                         }
                     }
 
                     SharedPreferences.Editor editor = prefs.edit()
                             .putLong(KEY_LAST_PROJECT_SYNC, System.currentTimeMillis());
-                    if (geofenceMetadataSeen) {
+                    if (projectAreaMetadataSeen) {
                         editor.putInt(KEY_GEOFENCE_CACHE_VERSION, GEOFENCE_CACHE_VERSION);
                     }
                     editor.apply();
