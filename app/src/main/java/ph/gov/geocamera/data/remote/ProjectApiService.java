@@ -103,6 +103,12 @@ public class ProjectApiService {
                 item.dateFrom = nullableString(o, "dateFrom");
                 item.dateTo = nullableString(o, "dateTo");
 
+                // Optional fields. Old servers and the legacy /projects fallback
+                // omit them, which intentionally means "no geofence configured".
+                item.geofenceLatitude = nullableDouble(o, "geofenceLatitude");
+                item.geofenceLongitude = nullableDouble(o, "geofenceLongitude");
+                item.geofenceRadiusMeters = nullableDouble(o, "geofenceRadiusMeters");
+
                 if (item.projectId.isEmpty()) continue;
                 list.add(item);
             }
@@ -120,6 +126,16 @@ public class ProjectApiService {
         if (o == null || o.isNull(key)) return null;
         String value = clean(o.optString(key, ""));
         return value.isEmpty() ? null : value;
+    }
+
+    private Double nullableDouble(JSONObject o, String key) {
+        if (o == null || o.isNull(key) || !o.has(key)) return null;
+        try {
+            double value = o.getDouble(key);
+            return Double.isFinite(value) ? value : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private String firstNonBlank(String first, String second) {
