@@ -1,56 +1,35 @@
 package ph.gov.geocamera.presentation.settings;
 
-import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.view.KeyEvent;
-import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.ArrayAdapter;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
-import com.journeyapps.barcodescanner.ScanContract;
-import com.journeyapps.barcodescanner.ScanOptions;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
-import ph.gov.geocamera.core.utils.SimpleTextWatcher;
-import ph.gov.geocamera.data.repository.SiteRepository;
+import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.presentation.common.BaseTopAppBarActivity;
+import ph.gov.geocamera.presentation.geocamera.CameraFlashController;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
 import ph.gov.geocamera.presentation.home.HomeActivity;
+import ph.gov.geocamera.presentation.site.SetSiteActivity;
 
 public class SettingsActivity extends BaseTopAppBarActivity {
 
-    private static final int SUGGEST_LIMIT = 50;
-
-    private SiteRepository siteRepo;
     private CameraPrefs cameraPrefs;
+    private ProjectRepository projectRepo;
 
-    private TextView tvCurrentSelection;
-    private TextView tvLatestDb;
-
-    private MaterialAutoCompleteTextView actSite;
-    private ArrayAdapter<String> siteAdapter;
-
-    private boolean isSelecting = false;
-
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private Runnable pendingSearch;
-
-    private ActivityResultLauncher<ScanOptions> qrLauncher;
+    private TextView tvCurrentProject;
+    private TextView tvGpsModeValue;
+    private TextView tvFlashValue;
+    private TextView tvAppVersion;
 
     @Override
     protected int getLayoutResId() {
@@ -66,243 +45,175 @@ public class SettingsActivity extends BaseTopAppBarActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        siteRepo = new SiteRepository(this);
         cameraPrefs = new CameraPrefs(this);
+        projectRepo = new ProjectRepository(this);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             toolbar.setNavigationOnClickListener(v -> finish());
-
             toolbar.setOnMenuItemClickListener(item -> {
                 int id = item.getItemId();
-
                 if (id == R.id.action_geocam) {
                     startActivity(new Intent(this, GeoCameraActivity.class));
                     return true;
                 }
-
                 if (id == R.id.action_home) {
                     Intent i = new Intent(this, HomeActivity.class);
                     i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                     startActivity(i);
                     return true;
                 }
-
                 return false;
             });
         }
 
-        tvCurrentSelection = findViewById(R.id.tvCurrentSelection);
-        tvLatestDb = findViewById(R.id.tvLatestDb);
-        actSite = findViewById(R.id.actSite);
+        tvCurrentProject = findViewById(R.id.tvCurrentProject);
+        tvGpsModeValue = findViewById(R.id.tvGpsModeValue);
+        tvFlashValue = findViewById(R.id.tvFlashValue);
+        tvAppVersion = findViewById(R.id.tvAppVersion);
 
-        MaterialButton btnUseSelected = findViewById(R.id.btnUseSelected);
-        MaterialButton btnScanQr = findViewById(R.id.btnScanQr);
-        MaterialButton btnUncategorized = findViewById(R.id.btnUncategorized);
+        View rowChangeProject = findViewById(R.id.rowChangeProject);
+        View rowGpsMode = findViewById(R.id.rowGpsMode);
+        View rowFlash = findViewById(R.id.rowFlash);
+        View rowResetCamera = findViewById(R.id.rowResetCamera);
 
-        setupDropdown();
-        setupQrLauncher();
-
-        if (btnUseSelected != null) {
-            btnUseSelected.setOnClickListener(v -> {
-                String siteId = getTypedSiteId();
-                if (siteId.isEmpty()) {
-                    Toast.makeText(this, "Please select a Site ID.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                selectSite(siteId);
-            });
+        if (rowChangeProject != null) {
+            rowChangeProject.setOnClickListener(v ->
+                    startActivity(new Intent(this, SetSiteActivity.class))
+            );
         }
 
-        if (btnScanQr != null) {
-            btnScanQr.setOnClickListener(v -> startQrScan());
+        if (rowGpsMode != null) {
+            rowGpsMode.setOnClickListener(v -> showGpsModeDialog());
         }
 
-        if (btnUncategorized != null) {
-            btnUncategorized.setOnClickListener(v -> selectUncategorized());
+        if (rowFlash != null) {
+            rowFlash.setOnClickListener(v -> showFlashDialog());
         }
 
-        refreshDisplay();
+        if (rowResetCamera != null) {
+            rowResetCamera.setOnClickListener(v -> confirmResetCameraSettings());
+        }
+
+        refreshValues();
+        bindVersion();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        refreshDisplay();
+        refreshValues();
     }
 
-    private void setupDropdown() {
-        if (actSite == null) return;
+    private void showGpsModeDialog() {
+        String[] options = new String[]{
+                "GPS Only (Outdoor)",
+                "Indoor Assist"
+        };
+        int checked = cameraPrefs.isIndoorAssistEnabled() ? 1 : 0;
 
-        List<String> initial = safeList(siteRepo.getAllSiteIds(SUGGEST_LIMIT));
-
-        siteAdapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_list_item_1,
-                new ArrayList<>(initial)
-        );
-
-        actSite.setAdapter(siteAdapter);
-        actSite.setThreshold(0);
-
-        actSite.setOnClickListener(v -> actSite.showDropDown());
-
-        actSite.setOnItemClickListener((parent, view, position, id) -> {
-            isSelecting = true;
-
-            Object item = parent.getItemAtPosition(position);
-            String chosen = item == null ? "" : item.toString();
-
-            actSite.setText(chosen, false);
-            actSite.setSelection(chosen.length());
-
-            handler.postDelayed(() -> isSelecting = false, 200);
-        });
-
-        actSite.addTextChangedListener(new SimpleTextWatcher() {
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (isSelecting) return;
-
-                String q = s == null ? "" : s.toString();
-
-                if (pendingSearch != null) {
-                    handler.removeCallbacks(pendingSearch);
-                }
-
-                pendingSearch = () -> {
-                    List<String> matches = q.trim().isEmpty()
-                            ? safeList(siteRepo.getAllSiteIds(SUGGEST_LIMIT))
-                            : safeList(siteRepo.searchSiteIds(q, SUGGEST_LIMIT));
-
-                    siteAdapter.clear();
-                    siteAdapter.addAll(matches);
-                    siteAdapter.notifyDataSetChanged();
-
-                    if (!actSite.isPopupShowing()) {
-                        actSite.showDropDown();
-                    }
-                };
-
-                handler.postDelayed(pendingSearch, 250);
-            }
-        });
-
-        actSite.setOnEditorActionListener((v, actionId, event) -> {
-            boolean isDone =
-                    actionId == EditorInfo.IME_ACTION_DONE
-                            || actionId == EditorInfo.IME_ACTION_SEARCH
-                            || actionId == EditorInfo.IME_ACTION_GO
-                            || actionId == EditorInfo.IME_ACTION_NEXT
-                            || (event != null
-                            && event.getAction() == KeyEvent.ACTION_DOWN
-                            && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
-
-            if (!isDone) return false;
-
-            hideKeyboard();
-            actSite.dismissDropDown();
-            actSite.clearFocus();
-            return true;
-        });
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("GPS Mode")
+                .setSingleChoiceItems(options, checked, (dialog, which) -> {
+                    cameraPrefs.saveIndoorAssistEnabled(which == 1);
+                    refreshValues();
+                    dialog.dismiss();
+                    Toast.makeText(
+                            this,
+                            which == 1 ? "Indoor Assist enabled" : "GPS Only enabled",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
-    private void setupQrLauncher() {
-        qrLauncher = registerForActivityResult(new ScanContract(), result -> {
-            if (result.getContents() == null) return;
+    private void showFlashDialog() {
+        String[] options = new String[]{"Automatic", "On", "Off"};
+        String mode = cameraPrefs.getFlashMode();
+        int checked = CameraPrefs.FLASH_ON.equals(mode)
+                ? 1
+                : (CameraPrefs.FLASH_OFF.equals(mode) ? 2 : 0);
 
-            String scanned = result.getContents().trim();
-
-            if (scanned.regionMatches(true, 0, "SITE:", 0, 5)) {
-                scanned = scanned.substring(5).trim();
-            }
-
-            if (scanned.isEmpty()) return;
-
-            isSelecting = true;
-            actSite.setText(scanned, false);
-            actSite.setSelection(scanned.length());
-            actSite.dismissDropDown();
-            hideKeyboard();
-            actSite.clearFocus();
-
-            handler.postDelayed(() -> isSelecting = false, 200);
-
-            Toast.makeText(this, "Scanned: " + scanned, Toast.LENGTH_SHORT).show();
-        });
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Camera Flash")
+                .setSingleChoiceItems(options, checked, (dialog, which) -> {
+                    String selected = which == 1
+                            ? CameraPrefs.FLASH_ON
+                            : (which == 2 ? CameraPrefs.FLASH_OFF : CameraPrefs.FLASH_AUTO);
+                    CameraFlashController.setMode(this, selected);
+                    refreshValues();
+                    dialog.dismiss();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
-    private void startQrScan() {
-        if (qrLauncher == null) return;
-
-        ScanOptions options = new ScanOptions();
-        options.setPrompt("Scan Site QR");
-        options.setBeepEnabled(true);
-        options.setOrientationLocked(false);
-        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
-
-        qrLauncher.launch(options);
+    private void confirmResetCameraSettings() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Reset Camera Settings")
+                .setMessage("Reset GPS mode to GPS Only and camera flash to Automatic?")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Reset", (dialog, which) -> {
+                    cameraPrefs.saveIndoorAssistEnabled(false);
+                    CameraFlashController.setMode(this, CameraPrefs.FLASH_AUTO);
+                    refreshValues();
+                    Toast.makeText(this, "Camera settings reset", Toast.LENGTH_SHORT).show();
+                })
+                .show();
     }
 
-    private void selectSite(String siteId) {
-        siteRepo.getOrCreateSite(siteId, null, null, null);
-        cameraPrefs.saveSite(siteId, false);
-
-        refreshDisplay();
-
-        Toast.makeText(this, "Site set: " + siteId, Toast.LENGTH_SHORT).show();
-    }
-
-    private void selectUncategorized() {
-        cameraPrefs.saveSite(null, true);
-
-        refreshDisplay();
-
-        Toast.makeText(this, "UNCATEGORIZED selected", Toast.LENGTH_SHORT).show();
-    }
-
-    private void refreshDisplay() {
-        if (tvCurrentSelection != null) {
-            if (cameraPrefs.hasSelection()) {
-                if (cameraPrefs.isUncategorized()) {
-                    tvCurrentSelection.setText("UNCATEGORIZED");
-                } else {
-                    String siteId = cameraPrefs.getSiteId();
-                    tvCurrentSelection.setText(
-                            siteId == null || siteId.trim().isEmpty() ? "-" : siteId
-                    );
-                }
-            } else {
-                tvCurrentSelection.setText("-");
-            }
+    private void refreshValues() {
+        if (tvGpsModeValue != null) {
+            tvGpsModeValue.setText(
+                    cameraPrefs.isIndoorAssistEnabled() ? "INDOOR ASSIST" : "GPS ONLY"
+            );
         }
 
-        if (tvLatestDb != null) {
-            String latest = siteRepo.getLatestSiteId();
-            tvLatestDb.setText("Latest in DB: " + (latest == null ? "-" : latest));
+        if (tvFlashValue != null) {
+            String mode = cameraPrefs.getFlashMode();
+            if (CameraPrefs.FLASH_ON.equals(mode)) tvFlashValue.setText("ON");
+            else if (CameraPrefs.FLASH_OFF.equals(mode)) tvFlashValue.setText("OFF");
+            else tvFlashValue.setText("AUTO");
+        }
+
+        if (tvCurrentProject != null) {
+            tvCurrentProject.setText(currentCaptureLabel());
         }
     }
 
-    private String getTypedSiteId() {
-        if (actSite == null || actSite.getText() == null) return "";
-        return actSite.getText().toString().trim();
+    private String currentCaptureLabel() {
+        String docType = cameraPrefs.getDocumentationType();
+
+        if (CameraPrefs.DOC_PERSONAL.equals(docType) || cameraPrefs.isUncategorized()) {
+            return "Personal Capture";
+        }
+
+        String projectId = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(docType)
+                ? cameraPrefs.getActivityProjectId()
+                : cameraPrefs.getSiteId();
+
+        if (projectId == null || projectId.trim().isEmpty()) {
+            return "Not selected";
+        }
+
+        String label = projectRepo.getProjectDisplayLabel(projectId);
+        if (label == null || label.trim().isEmpty()) label = projectId;
+
+        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(docType)) {
+            return "Project Activity • " + label;
+        }
+        return "Infrastructure • " + label;
     }
 
-    private void hideKeyboard() {
+    private void bindVersion() {
+        if (tvAppVersion == null) return;
         try {
-            InputMethodManager imm =
-                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-
-            if (imm != null && getCurrentFocus() != null) {
-                imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
-            } else if (imm != null && actSite != null) {
-                imm.hideSoftInputFromWindow(actSite.getWindowToken(), 0);
-            }
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            String version = info.versionName;
+            tvAppVersion.setText(version == null || version.trim().isEmpty() ? "-" : version);
         } catch (Exception ignored) {
+            tvAppVersion.setText("-");
         }
-    }
-
-    private List<String> safeList(List<String> list) {
-        return list == null ? new ArrayList<>() : list;
     }
 }
