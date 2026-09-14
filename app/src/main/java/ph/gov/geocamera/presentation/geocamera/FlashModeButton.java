@@ -83,6 +83,8 @@ public final class FlashModeButton extends AppCompatTextView {
         }
 
         try {
+            // Set first because addView() immediately triggers another attach callback.
+            movedToOverlay = true;
             parent.removeView(this);
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -92,11 +94,10 @@ public final class FlashModeButton extends AppCompatTextView {
             lp.topMargin = dp(78);
             lp.rightMargin = dp(14);
             root.addView(this, lp);
-            movedToOverlay = true;
             bringToFront();
             refreshIndicator();
         } catch (Exception ignored) {
-            // UI-only enhancement: never interfere with camera startup.
+            movedToOverlay = false;
         }
     }
 
