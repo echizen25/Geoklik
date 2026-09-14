@@ -69,7 +69,6 @@
                         android:textColorHint="?attr/colorOnSurfaceVariant"
                         android:textSize="14sp" />
                 </com.google.android.material.textfield.TextInputLayout>
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -170,9 +169,16 @@
                     android:text="Long-press a card to select it for export."
                     android:textSize="11sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <ph.gov.geocamera.presentation.gallery.GallerySyncCenterView
+            android:id="@+id/gallerySyncCenter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="10dp" />
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -192,7 +198,6 @@
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
                     android:paddingBottom="12dp" />
-
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
             <LinearLayout
@@ -267,9 +272,7 @@
                     android:text="Choose the project or site before capturing."
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
-
             </LinearLayout>
-
         </FrameLayout>
 
         <LinearLayout
@@ -301,7 +304,6 @@
                 android:textSize="12sp"
                 android:textColor="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
-
     </LinearLayout>
 
     <com.google.android.material.navigation.NavigationView
@@ -318,5 +320,4 @@
         app:itemRippleColor="?attr/colorControlHighlight"
         app:itemHorizontalPadding="18dp"
         app:itemVerticalPadding="10dp" />
-
 </androidx.drawerlayout.widget.DrawerLayout>
