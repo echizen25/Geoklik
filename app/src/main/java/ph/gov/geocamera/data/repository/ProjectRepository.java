@@ -132,6 +132,19 @@ public class ProjectRepository {
         return list;
     }
 
+    /** Lightweight local-cache check used by app startup/background sync. */
+    public boolean hasAnyProjects() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor c = null;
+        try {
+            c = db.rawQuery("SELECT 1 FROM tbl_projects LIMIT 1", null);
+            return c.moveToFirst();
+        } finally {
+            if (c != null) c.close();
+            db.close();
+        }
+    }
+
     public boolean existsProjectId(String projectId) {
         String value = normalize(projectId);
         if (value.isEmpty()) return false;
@@ -175,7 +188,6 @@ public class ProjectRepository {
                 c = null;
             }
 
-            // Project Code is the primary human-facing identifier.
             c = db.rawQuery(
                     "SELECT projectid FROM tbl_projects " +
                             "WHERE trim(code) = trim(?) COLLATE NOCASE LIMIT 1",
@@ -185,7 +197,6 @@ public class ProjectRepository {
             c.close();
             c = null;
 
-            // Still accept GUIDs for old QR codes / existing workflows.
             c = db.rawQuery(
                     "SELECT projectid FROM tbl_projects " +
                             "WHERE trim(projectid) = trim(?) COLLATE NOCASE LIMIT 1",
@@ -234,20 +245,10 @@ public class ProjectRepository {
         }
     }
 
-    /**
-     * Human-facing suggestions intentionally lead with Project Code instead of
-     * the internal GUID. Both tbl_project.code and tbl_project_activity.project_code
-     * arrive in this same local code column.
-     */
     public List<String> getProjectSuggestions(String query, int limit) {
         return getProjectSuggestions(query, limit, null);
     }
 
-    /**
-     * Same compact project suggestions, optionally restricted by project type.
-     * This is used by Gallery Change Site so Infrastructure photos only suggest
-     * Infrastructure projects while keeping the full list available elsewhere.
-     */
     public List<String> getProjectSuggestions(String query, int limit, String requiredProjectType) {
         List<String> list = new ArrayList<>();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
