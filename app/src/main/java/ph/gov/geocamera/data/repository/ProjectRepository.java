@@ -240,44 +240,71 @@ public class ProjectRepository {
      * arrive in this same local code column.
      */
     public List<String> getProjectSuggestions(String query, int limit) {
+        return getProjectSuggestions(query, limit, null);
+    }
+
+    /**
+     * Same compact project suggestions, optionally restricted by project type.
+     * This is used by Gallery Change Site so Infrastructure photos only suggest
+     * Infrastructure projects while keeping the full list available elsewhere.
+     */
+    public List<String> getProjectSuggestions(String query, int limit, String requiredProjectType) {
         List<String> list = new ArrayList<>();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = null;
 
         try {
             String q = normalize(query);
+            String type = normalize(requiredProjectType).toUpperCase(Locale.US);
+            boolean filterType = !type.isEmpty();
+            String typeWhere = filterType
+                    ? " AND upper(trim(project_type)) = ? "
+                    : "";
 
             if (q.isEmpty()) {
-                c = db.rawQuery(
-                        "SELECT projectid, code, coda FROM tbl_projects " +
-                                "ORDER BY code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC " +
-                                "LIMIT ?",
-                        new String[]{String.valueOf(limit)}
-                );
+                String sql = "SELECT projectid, code, coda FROM tbl_projects " +
+                        "WHERE 1=1 " + typeWhere +
+                        "ORDER BY CASE WHEN timestamp IS NULL OR trim(timestamp) = '' THEN 1 ELSE 0 END, " +
+                        "timestamp DESC, code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC LIMIT ?";
+
+                List<String> args = new ArrayList<>();
+                if (filterType) args.add(type);
+                args.add(String.valueOf(limit));
+                c = db.rawQuery(sql, args.toArray(new String[0]));
             } else {
-                c = db.rawQuery(
-                        "SELECT projectid, code, coda FROM tbl_projects " +
-                                "WHERE code LIKE ? COLLATE NOCASE " +
-                                "   OR coda LIKE ? COLLATE NOCASE " +
-                                "   OR projectid LIKE ? COLLATE NOCASE " +
-                                "ORDER BY " +
-                                "CASE " +
-                                "  WHEN trim(code) = trim(?) COLLATE NOCASE THEN 0 " +
-                                "  WHEN code LIKE ? COLLATE NOCASE THEN 1 " +
-                                "  WHEN coda LIKE ? COLLATE NOCASE THEN 2 " +
-                                "  ELSE 3 " +
-                                "END, code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC " +
-                                "LIMIT ?",
-                        new String[]{
-                                "%" + q + "%",
-                                "%" + q + "%",
-                                "%" + q + "%",
-                                q,
-                                q + "%",
-                                q + "%",
-                                String.valueOf(limit)
-                        }
-                );
+                String sql = "SELECT projectid, code, coda FROM tbl_projects " +
+                        "WHERE (code LIKE ? COLLATE NOCASE " +
+                        "   OR coda LIKE ? COLLATE NOCASE " +
+                        "   OR beneficiary LIKE ? COLLATE NOCASE " +
+                        "   OR projectid LIKE ? COLLATE NOCASE) " +
+                        typeWhere +
+                        "ORDER BY " +
+                        "CASE " +
+                        "  WHEN trim(code) = trim(?) COLLATE NOCASE THEN 0 " +
+                        "  WHEN trim(projectid) = trim(?) COLLATE NOCASE THEN 1 " +
+                        "  WHEN code LIKE ? COLLATE NOCASE THEN 2 " +
+                        "  WHEN projectid LIKE ? COLLATE NOCASE THEN 3 " +
+                        "  WHEN coda LIKE ? COLLATE NOCASE THEN 4 " +
+                        "  WHEN beneficiary LIKE ? COLLATE NOCASE THEN 5 " +
+                        "  ELSE 6 " +
+                        "END, timestamp DESC, code COLLATE NOCASE ASC, coda COLLATE NOCASE ASC LIMIT ?";
+
+                List<String> args = new ArrayList<>();
+                String like = "%" + q + "%";
+                String prefix = q + "%";
+                args.add(like);
+                args.add(like);
+                args.add(like);
+                args.add(like);
+                if (filterType) args.add(type);
+                args.add(q);
+                args.add(q);
+                args.add(prefix);
+                args.add(prefix);
+                args.add(prefix);
+                args.add(prefix);
+                args.add(String.valueOf(limit));
+                c = db.rawQuery(sql, args.toArray(new String[0]));
             }
 
             while (c.moveToNext()) {
@@ -418,8 +445,8 @@ public class ProjectRepository {
 
         int idx = s.indexOf(" — ");
         if (idx < 0) idx = s.indexOf(" - ");
-        if (idx < 0) return "";
-        return normalize(s.substring(0, idx));
+        if (idx > 0) return normalize(s.substring(0, idx));
+        return s;
     }
 
     private String normalizeDate(String value) {
@@ -430,36 +457,22 @@ public class ProjectRepository {
     private static String normalizeProjectType(String value) {
         String type = normalize(value).toUpperCase(Locale.US);
         if ("PROJECT_ACTIVITY".equals(type)) return "PROJECT_ACTIVITY";
+        if ("INFRA".equals(type) || "INFRASTRUCTURE".equals(type)) return "INFRA";
         return "INFRA";
     }
 
-    private static String valueAt(Cursor c, int index) {
-        if (c == null || c.isNull(index)) return "";
-        return normalize(c.getString(index));
+    private static String safeNull(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private static String normalize(String s) {
         if (s == null) return "";
-        s = s.trim();
-        s = s.replace("\n", " ").replace("\r", " ").trim();
+        s = s.trim().replace("\n", " ").replace("\r", " ");
         while (s.contains("  ")) s = s.replace("  ", " ");
-        return s;
+        return s.trim();
     }
 
-    public boolean hasAnyProjects() {
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = null;
-        try {
-            c = db.rawQuery("SELECT 1 FROM tbl_projects LIMIT 1", null);
-            return c != null && c.moveToFirst();
-        } finally {
-            if (c != null) c.close();
-            db.close();
-        }
-    }
-
-    private static String safeNull(String s) {
-        String v = normalize(s);
-        return v.isEmpty() ? null : v;
+    private static String valueAt(Cursor c, int index) {
+        return c == null || c.isNull(index) ? "" : normalize(c.getString(index));
     }
 }
