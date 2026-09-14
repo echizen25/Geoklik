@@ -4,19 +4,22 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Typeface;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.ListPopupWindow;
 
-import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
@@ -28,21 +31,23 @@ import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.local.db.GeoDbHelper;
 
 /**
- * Compact Top-5 project helper for Change Project.
+ * Compact Top-5 project dropdown for Change Project.
  *
- * Suggestions come only from the already-synced local project cache, so this
- * remains useful offline and never adds a network request while the user types.
- * Search matches Project Code, Site ID/projectid, Project Name and Beneficiary.
+ * The closed state occupies only one small row. Suggestions are shown in a
+ * temporary dropdown so long project names/beneficiaries do not make the
+ * Change Project screen tall. Data comes only from the synced local cache and
+ * works offline. Search matches Code, Site ID, Project Name and Beneficiary.
  */
 public class ProjectSuggestionsView extends LinearLayout {
 
     private static final int LIMIT = 5;
 
     private TextInputEditText input;
-    private LinearLayout rows;
-    private TextView heading;
+    private MaterialButton trigger;
     private GeoDbHelper dbHelper;
     private String requiredProjectType = "";
+    private List<ProjectHit> currentHits = new ArrayList<>();
+    private ListPopupWindow popup;
 
     public ProjectSuggestionsView(@NonNull Context context) {
         super(context);
@@ -65,20 +70,21 @@ public class ProjectSuggestionsView extends LinearLayout {
         setOrientation(VERTICAL);
         dbHelper = new GeoDbHelper(getContext().getApplicationContext());
 
-        heading = new TextView(getContext());
-        heading.setText("SUGGESTED PROJECTS");
-        heading.setTextSize(10f);
-        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setLetterSpacing(0.06f);
-        heading.setAlpha(0.72f);
-        addView(heading, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        trigger = new MaterialButton(getContext(), null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        trigger.setAllCaps(false);
+        trigger.setText("Suggested projects");
+        trigger.setTextSize(12f);
+        trigger.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+        trigger.setMinHeight(dp(42));
+        trigger.setMinimumHeight(dp(42));
+        trigger.setInsetTop(0);
+        trigger.setInsetBottom(0);
+        trigger.setPadding(dp(12), 0, dp(12), 0);
+        trigger.setCornerRadius(dp(12));
+        trigger.setOnClickListener(v -> showDropdown());
 
-        rows = new LinearLayout(getContext());
-        rows.setOrientation(VERTICAL);
-        LayoutParams rowsLp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        rowsLp.topMargin = dp(5);
-        addView(rows, rowsLp);
-
+        addView(trigger, new LayoutParams(LayoutParams.MATCH_PARENT, dp(42)));
         setVisibility(GONE);
     }
 
@@ -103,69 +109,59 @@ public class ProjectSuggestionsView extends LinearLayout {
         input.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                render(s == null ? "" : s.toString());
+                refreshSuggestions(s == null ? "" : s.toString());
             }
             @Override public void afterTextChanged(Editable s) {}
         });
 
-        // Empty query = five most recently synced projects. As the user types,
-        // these immediately become the five best local matches.
-        render(input.getText() == null ? "" : input.getText().toString());
+        // Empty query = Top 5 cached projects. Typing changes this to Top 5 matches.
+        refreshSuggestions(input.getText() == null ? "" : input.getText().toString());
     }
 
-    private void render(String query) {
-        List<ProjectHit> hits = queryLocalProjects(query, LIMIT);
-        rows.removeAllViews();
+    @Override
+    protected void onDetachedFromWindow() {
+        if (popup != null) popup.dismiss();
+        super.onDetachedFromWindow();
+    }
 
-        if (hits.isEmpty()) {
+    private void refreshSuggestions(String query) {
+        currentHits = queryLocalProjects(query, LIMIT);
+        if (popup != null) popup.dismiss();
+
+        if (currentHits.isEmpty()) {
             setVisibility(GONE);
             return;
         }
 
-        heading.setText(clean(query).isEmpty() ? "SUGGESTED PROJECTS" : "TOP MATCHES");
-        for (int i = 0; i < hits.size(); i++) {
-            final ProjectHit hit = hits.get(i);
-            MaterialCardView card = new MaterialCardView(getContext());
-            card.setCardElevation(0f);
-            card.setRadius(dp(12));
-            card.setClickable(true);
-            card.setFocusable(true);
-            card.setStrokeWidth(dp(1));
-            card.setStrokeColor(resolveColor(com.google.android.material.R.attr.colorOutline, 0xFFE0E0E0));
-            card.setCardBackgroundColor(resolveColor(com.google.android.material.R.attr.colorSurface, 0xFFFFFFFF));
-
-            TextView text = new TextView(getContext());
-            text.setPadding(dp(11), dp(8), dp(11), dp(8));
-            text.setText(buildLabel(hit));
-            text.setTextSize(11f);
-            text.setTextColor(resolveColor(com.google.android.material.R.attr.colorOnSurface, 0xFF1A1A1A));
-            text.setMaxLines(4);
-            card.addView(text, new MaterialCardView.LayoutParams(
-                    LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-
-            card.setOnClickListener(v -> choose(hit));
-
-            LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-            if (i > 0) lp.topMargin = dp(5);
-            rows.addView(card, lp);
-        }
+        boolean searching = !clean(query).isEmpty();
+        trigger.setText((searching ? "Top matches" : "Suggested projects")
+                + "  •  " + currentHits.size() + "   ▾");
+        trigger.setContentDescription((searching ? "Top project matches" : "Suggested projects")
+                + ", " + currentHits.size() + ". Double tap to open dropdown.");
         setVisibility(VISIBLE);
     }
 
-    private CharSequence buildLabel(ProjectHit hit) {
-        String code = clean(hit.code);
-        String siteId = clean(hit.projectId);
-        String name = clean(hit.name);
-        String beneficiary = clean(hit.beneficiary);
+    private void showDropdown() {
+        if (currentHits == null || currentHits.isEmpty()) return;
 
-        StringBuilder out = new StringBuilder();
-        out.append("CODE: ").append(code.isEmpty() ? "—" : code);
-        out.append("   •   SITE ID: ").append(siteId.isEmpty() ? "—" : siteId);
-        if (!name.isEmpty()) out.append('\n').append(name);
-        if (!beneficiary.isEmpty() && !beneficiary.equalsIgnoreCase(name)) {
-            out.append('\n').append("Beneficiary: ").append(beneficiary);
-        }
-        return out.toString();
+        if (popup != null) popup.dismiss();
+        popup = new ListPopupWindow(getContext());
+        popup.setAnchorView(trigger);
+        popup.setModal(true);
+        popup.setAdapter(new ProjectHitAdapter(currentHits));
+
+        int available = Math.max(dp(220), getResources().getDisplayMetrics().widthPixels - dp(52));
+        int anchorWidth = getWidth();
+        popup.setWidth(anchorWidth > 0 ? anchorWidth : available);
+        popup.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
+        popup.setOnItemClickListener((parent, view, position, id) -> {
+            if (position >= 0 && position < currentHits.size()) {
+                ProjectHit hit = currentHits.get(position);
+                popup.dismiss();
+                choose(hit);
+            }
+        });
+        popup.show();
     }
 
     private void choose(ProjectHit hit) {
@@ -177,7 +173,9 @@ public class ProjectSuggestionsView extends LinearLayout {
         input.setText(value);
         input.setSelection(value.length());
         input.clearFocus();
-        // Reuse SetSiteActivity's existing verification/classification path.
+
+        // Keep the existing verified selection path: Project Code resolves back
+        // to the stored Site ID/projectid before the camera context is changed.
         input.onEditorAction(EditorInfo.IME_ACTION_DONE);
     }
 
@@ -235,7 +233,7 @@ public class ProjectSuggestionsView extends LinearLayout {
                 result.add(hit);
             }
         } catch (Exception ignored) {
-            // Suggestions are convenience-only; never interfere with manual code/QR entry.
+            // Suggestions are convenience-only; manual code/paste/QR still work.
         } finally {
             if (c != null) c.close();
             db.close();
@@ -243,16 +241,78 @@ public class ProjectSuggestionsView extends LinearLayout {
         return result;
     }
 
-    private int resolveColor(int attr, int fallback) {
-        android.util.TypedValue value = new android.util.TypedValue();
-        if (getContext().getTheme().resolveAttribute(attr, value, true)) {
-            if (value.resourceId != 0) {
-                try { return androidx.core.content.ContextCompat.getColor(getContext(), value.resourceId); }
-                catch (Exception ignored) {}
-            }
-            return value.data;
+    private final class ProjectHitAdapter extends BaseAdapter {
+        private final List<ProjectHit> items;
+
+        ProjectHitAdapter(List<ProjectHit> items) {
+            this.items = items == null ? new ArrayList<>() : items;
         }
-        return fallback;
+
+        @Override public int getCount() { return items.size(); }
+        @Override public ProjectHit getItem(int position) { return items.get(position); }
+        @Override public long getItemId(int position) { return position; }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            LinearLayout row;
+            TextView primary;
+            TextView secondary;
+
+            if (convertView instanceof LinearLayout && convertView.getTag() instanceof TextView[]) {
+                row = (LinearLayout) convertView;
+                TextView[] views = (TextView[]) row.getTag();
+                primary = views[0];
+                secondary = views[1];
+            } else {
+                row = new LinearLayout(getContext());
+                row.setOrientation(VERTICAL);
+                row.setPadding(dp(12), dp(8), dp(12), dp(8));
+                row.setMinimumHeight(dp(54));
+
+                primary = new TextView(getContext());
+                primary.setTextSize(12f);
+                primary.setSingleLine(true);
+                primary.setEllipsize(TextUtils.TruncateAt.END);
+                primary.setTypeface(android.graphics.Typeface.DEFAULT,
+                        android.graphics.Typeface.BOLD);
+
+                secondary = new TextView(getContext());
+                secondary.setTextSize(10f);
+                secondary.setSingleLine(true);
+                secondary.setEllipsize(TextUtils.TruncateAt.END);
+                secondary.setAlpha(0.72f);
+
+                row.addView(primary, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+                LayoutParams secondaryLp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+                secondaryLp.topMargin = dp(2);
+                row.addView(secondary, secondaryLp);
+                row.setTag(new TextView[]{primary, secondary});
+            }
+
+            ProjectHit hit = getItem(position);
+            String code = clean(hit.code);
+            String siteId = clean(hit.projectId);
+            String name = clean(hit.name);
+            String beneficiary = clean(hit.beneficiary);
+
+            String shortSite = compactSiteId(siteId);
+            primary.setText("CODE: " + (code.isEmpty() ? "—" : code)
+                    + "   •   SITE: " + (shortSite.isEmpty() ? "—" : shortSite));
+
+            String detail = !beneficiary.isEmpty() ? beneficiary : name;
+            if (!beneficiary.isEmpty() && !name.isEmpty()
+                    && !beneficiary.equalsIgnoreCase(name)) {
+                detail = beneficiary + "  •  " + name;
+            }
+            secondary.setText(detail.isEmpty() ? "Synced project" : detail);
+            return row;
+        }
+    }
+
+    private static String compactSiteId(String siteId) {
+        String id = clean(siteId);
+        if (id.length() <= 14) return id;
+        return id.substring(0, 6) + "…" + id.substring(id.length() - 5);
     }
 
     private static String normalizeType(String value) {
