@@ -31,19 +31,36 @@
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="13dp" android:text="PROJECT CAPTURE" android:textColor="@color/app_text_muted" android:textSize="10sp" android:textStyle="bold" android:letterSpacing="0.06" />
 
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal" android:gravity="center_vertical">
-                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilSite" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Code, Site ID, project or beneficiary" app:boxCornerRadiusTopStart="12dp" app:boxCornerRadiusTopEnd="12dp" app:boxCornerRadiusBottomStart="12dp" app:boxCornerRadiusBottomEnd="12dp" app:boxStrokeColor="@color/app_brand_stroke" app:hintTextColor="@color/app_text_muted">
-                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/actSite" android:layout_width="match_parent" android:layout_height="wrap_content" android:imeOptions="actionDone" android:inputType="textNoSuggestions" android:minHeight="50dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:singleLine="true" android:textColor="@color/app_text_primary" android:textColorHint="@color/app_text_muted" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilSite"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Code, Site ID, project or beneficiary"
+                        app:boxCornerRadiusTopStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        app:boxStrokeColor="@color/app_brand_stroke"
+                        app:hintTextColor="@color/app_text_muted">
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/actSite"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionDone"
+                            android:inputType="textNoSuggestions"
+                            android:minHeight="50dp"
+                            android:paddingTop="10dp"
+                            android:paddingBottom="10dp"
+                            android:singleLine="true"
+                            android:textColor="@color/app_text_primary"
+                            android:textColorHint="@color/app_text_muted" />
                     </com.google.android.material.textfield.TextInputLayout>
                     <com.google.android.material.button.MaterialButton android:id="@+id/btnPasteCode" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="68dp" android:layout_height="50dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="Paste" android:textAllCaps="false" android:textColor="@color/brand_green_ui" app:cornerRadius="12dp" app:rippleColor="@color/app_brand_ripple" />
                 </LinearLayout>
 
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Search uses the synced project list. Tap a suggestion to select it immediately." android:textSize="10sp" android:textColor="@color/app_text_faint" />
-
-                <ph.gov.geocamera.presentation.site.ProjectSuggestionsView
-                    android:id="@+id/projectSuggestions"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Start typing to see matching project suggestions." android:textSize="10sp" android:textColor="@color/app_text_faint" />
 
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal" android:gravity="center_vertical">
                     <com.google.android.material.button.MaterialButton android:id="@+id/btnUseSelected" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1.25" android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="Use Project" android:textAllCaps="false" android:textColor="@android:color/white" app:backgroundTint="@color/brand_green" app:cornerRadius="12dp" app:icon="@drawable/ic_check_24" app:iconPadding="6dp" app:iconTint="@android:color/white" />
