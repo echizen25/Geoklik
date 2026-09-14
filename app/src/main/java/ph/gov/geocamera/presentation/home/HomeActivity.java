@@ -3,6 +3,7 @@ package ph.gov.geocamera.presentation.home;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
@@ -35,12 +36,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.data.remote.ApiProjectItem;
 import ph.gov.geocamera.data.remote.ProjectApiService;
-import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.data.seed.ProjectSeedImporter;
 import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
 import ph.gov.geocamera.data.sync.ProjectSyncScheduler;
-import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.gallery.GalleryActivity;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
 import ph.gov.geocamera.presentation.library.LibraryActivity;
@@ -56,9 +55,6 @@ public class HomeActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private MaterialToolbar topAppBar;
     private NavigationView navView;
-    private TextView tvHomePending;
-    private TextView tvHomeFailed;
-    private TextView tvSyncSummary;
 
     private AppUpdateManager appUpdateManager;
     private InstallStateUpdatedListener installStateUpdatedListener;
@@ -74,14 +70,11 @@ public class HomeActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawerLayout);
         topAppBar = findViewById(R.id.topAppBar);
         navView = findViewById(R.id.navView);
-        tvHomePending = findViewById(R.id.tvHomePending);
-        tvHomeFailed = findViewById(R.id.tvHomeFailed);
-        tvSyncSummary = findViewById(R.id.tvSyncSummary);
 
+        bindAppVersion();
         setupDrawerHamburger();
         setupDrawerMenu();
         setupIconClicks();
-        setupSyncCenter();
         setupBackBehavior();
 
         setupInAppUpdates();
@@ -89,7 +82,6 @@ public class HomeActivity extends AppCompatActivity {
         ProjectSeedImporter.importOrUpdate(getApplicationContext());
         ProjectSyncScheduler.schedulePeriodicProjectSync(getApplicationContext());
         ProjectBackgroundSync.syncIfNeeded(getApplicationContext(), false, null);
-        refreshSyncCenter();
     }
 
     @Override
@@ -97,7 +89,6 @@ public class HomeActivity extends AppCompatActivity {
         super.onResume();
         checkDownloadedFlexibleUpdate();
         ProjectBackgroundSync.syncIfNeeded(getApplicationContext(), false, null);
-        refreshSyncCenter();
     }
 
     @Override
@@ -108,6 +99,19 @@ public class HomeActivity extends AppCompatActivity {
             catch (Exception ignored) { }
         }
         ioExecutor.shutdown();
+    }
+
+    private void bindAppVersion() {
+        TextView versionView = findViewById(R.id.tvHeaderVersion);
+        if (versionView == null) return;
+
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            String version = info.versionName;
+            versionView.setText("Version " + ((version == null || version.trim().isEmpty()) ? "-" : version.trim()));
+        } catch (Exception ignored) {
+            versionView.setText("Version -");
+        }
     }
 
     private void setupDrawerHamburger() {
@@ -157,51 +161,6 @@ public class HomeActivity extends AppCompatActivity {
                 animateIconClick(v, () -> startActivity(new Intent(this, LibraryActivity.class))));
         if (btnSettings != null) btnSettings.setOnClickListener(v ->
                 animateIconClick(v, () -> startActivity(new Intent(this, SettingsActivity.class))));
-    }
-
-    private void setupSyncCenter() {
-        View card = findViewById(R.id.cardSyncCenter);
-        View syncAll = findViewById(R.id.btnHomeSyncAll);
-
-        if (card != null) {
-            card.setOnClickListener(v -> startActivity(new Intent(this, GalleryActivity.class)));
-        }
-        if (syncAll != null) {
-            syncAll.setOnClickListener(v -> {
-                SyncScheduler.enqueueUploadNow(getApplicationContext());
-                Toast.makeText(this, "Photo sync queued", Toast.LENGTH_SHORT).show();
-                v.postDelayed(this::refreshSyncCenter, 500L);
-            });
-        }
-    }
-
-    private void refreshSyncCenter() {
-        ioExecutor.execute(() -> {
-            int pending = 0;
-            int failed = 0;
-            try {
-                ImageMetaRepository repo = new ImageMetaRepository(getApplicationContext());
-                pending = repo.countPendingForSync();
-                failed = repo.countFailedForSyncCenter();
-            } catch (Exception ignored) { }
-
-            final int pendingCount = pending;
-            final int failedCount = failed;
-            runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                if (tvHomePending != null) tvHomePending.setText(pendingCount + "\nPending");
-                if (tvHomeFailed != null) tvHomeFailed.setText(failedCount + "\nFailed");
-                if (tvSyncSummary != null) {
-                    if (pendingCount == 0 && failedCount == 0) {
-                        tvSyncSummary.setText("All uploadable photos are synced");
-                    } else if (failedCount > 0) {
-                        tvSyncSummary.setText(failedCount + " failed • tap to review in Gallery");
-                    } else {
-                        tvSyncSummary.setText(pendingCount + " waiting for automatic upload");
-                    }
-                }
-            });
-        });
     }
 
     private void setupBackBehavior() {
