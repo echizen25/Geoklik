@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors become brighter where they are used as foreground accents. -->
+    <color name="brand_green_ui">#52C985</color>
+    <color name="brand_green_soft">#1B2B22</color>
+    <color name="brand_green_soft_stroke">#355542</color>
+
+    <color name="app_background">#0F1411</color>
+    <color name="app_background_warm">#0F1411</color>
+    <color name="app_surface">#151C18</color>
+    <color name="app_surface_variant">#202923</color>
+    <color name="app_surface_elevated">#1B241E</color>
+    <color name="app_text_primary">#F2F6F3</color>
+    <color name="app_text_secondary">#D7E0DA</color>
+    <color name="app_text_muted">#B5C2BA</color>
+    <color name="app_text_faint">#96A79D</color>
+    <color name="app_border">#354139</color>
+    <color name="app_icon_muted">#B5C2BA</color>
+    <color name="app_icon_faint">#87988E</color>
+    <color name="app_scrim">#B3000000</color>
+    <color name="app_ripple_on_light">#26FFFFFF</color>
+    <color name="app_brand_ripple">#2652C985</color>
+    <color name="app_brand_stroke">#6652C985</color>
+    <color name="app_brand_stroke_subtle">#4052C985</color>
+
+    <color name="status_pending_bg">#3B2A13</color>
+    <color name="status_pending_text">#FFB74D</color>
+    <color name="status_synced_bg">#173522</color>
+    <color name="status_synced_text">#82D99E</color>
+    <color name="outline_variant">#465249</color>
+</resources>
