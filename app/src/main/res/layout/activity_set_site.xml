@@ -48,7 +48,7 @@
                             android:id="@+id/actSite"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:imeOptions="actionDone"
+                            android:imeOptions="actionDone|flagNoExtractUi"
                             android:inputType="textNoSuggestions"
                             android:minHeight="50dp"
                             android:paddingTop="10dp"
