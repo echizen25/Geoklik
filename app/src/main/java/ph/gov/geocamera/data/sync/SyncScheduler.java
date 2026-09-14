@@ -25,18 +25,25 @@ public class SyncScheduler {
     public static final String UNIQUE_UPLOAD_WORK = "geocamera_upload_work";
 
     /**
-     * Queue upload as soon as Android has a validated network connection.
+     * Queue a photo upload pass.
      *
-     * Behavior:
-     * - keeps the original one-at-a-time upload flow
-     * - if upload work is already running, append one follow-up pass so newly
-     *   captured pending photos are not left behind
-     * - if an older worker is sitting in retry/backoff, replace it with a fresh
-     *   request so a previous API/network failure does not leave the UI stuck
-     *   on "Sync: working..."
-     * - requires network and keeps exponential retry for real transient errors
+     * Photo synchronization is intentionally MANUAL now. GeoCameraActivity still
+     * calls this compatibility entry point after a successful local save, but
+     * those calls are ignored. Gallery's explicit "Sync All" action passes the
+     * application context and is allowed to enqueue the worker.
+     *
+     * Project-list/background metadata refresh is separate from photo upload and
+     * is not affected by this rule.
      */
     public static void enqueueUploadNow(@NonNull Context context) {
+        // A capture must finish as a local PENDING photo. Do not silently upload
+        // just because a network is available. The user starts uploads from
+        // Gallery > Sync All.
+        String callerClass = context.getClass().getName();
+        if ("ph.gov.geocamera.presentation.geocamera.GeoCameraActivity".equals(callerClass)) {
+            return;
+        }
+
         final Context appContext = context.getApplicationContext();
         final WorkManager workManager = WorkManager.getInstance(appContext);
 
@@ -69,8 +76,6 @@ public class SyncScheduler {
 
             ImageMetaRepository repo = new ImageMetaRepository(appContext);
 
-            // Only recover status=UPLOADING when no worker is actually running.
-            // This avoids changing the status of a photo that is actively uploading.
             if (!running) {
                 repo.resetStuckUploading();
             }
@@ -100,12 +105,8 @@ public class SyncScheduler {
 
             ExistingWorkPolicy policy;
             if (running) {
-                // Current worker already has its batch. Queue one follow-up pass
-                // for photos that became pending while that worker was running.
                 policy = ExistingWorkPolicy.APPEND_OR_REPLACE;
             } else if (retryBackoffQueued) {
-                // A previous bad API/network attempt can leave WorkManager in
-                // exponential backoff. Start fresh as soon as sync is requested again.
                 policy = ExistingWorkPolicy.REPLACE;
             } else {
                 policy = ExistingWorkPolicy.KEEP;
@@ -119,9 +120,6 @@ public class SyncScheduler {
         }, ContextCompat.getMainExecutor(appContext));
     }
 
-    /**
-     * Optional: cancel running sync.
-     */
     public static void cancelSync(@NonNull Context context) {
         WorkManager.getInstance(context)
                 .cancelUniqueWork(UNIQUE_UPLOAD_WORK);
