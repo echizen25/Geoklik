@@ -1,6 +1,7 @@
 package ph.gov.geocamera.presentation.gallery;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -34,7 +35,6 @@ public class GallerySyncCenterView extends MaterialCardView {
     private TextView btnSyncAll;
     private ImageMetaRepository imageRepo;
     private boolean observerBound = false;
-    private int lastPending = 0;
 
     public GallerySyncCenterView(@NonNull Context context) {
         super(context);
@@ -114,17 +114,34 @@ public class GallerySyncCenterView extends MaterialCardView {
         bindWorkObserver();
     }
 
+    /** Refresh all counters from the local photo database. */
     public void refresh() {
         post(() -> {
             int pending = 0;
+            int synced = 0;
             int failed = 0;
             try {
                 pending = imageRepo.countPendingForSync();
+                synced = countSyncedPhotos();
                 failed = imageRepo.countFailedForSyncCenter();
             } catch (Exception ignored) { }
-            lastPending = pending;
-            renderCounts(pending, 0, failed);
+            renderCounts(pending, synced, failed);
         });
+    }
+
+    private int countSyncedPhotos() {
+        Cursor c = null;
+        int total = 0;
+        try {
+            c = imageRepo.getRootSiteCards("ALL", "ALL");
+            while (c != null && c.moveToNext()) {
+                // getRootSiteCards column 2 = syncedPhotos for each project/site card.
+                total += c.isNull(2) ? 0 : c.getInt(2);
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+        return total;
     }
 
     private void renderCounts(int pending, int synced, int failed) {
@@ -147,10 +164,9 @@ public class GallerySyncCenterView extends MaterialCardView {
             return;
         }
 
-        lastPending = pending;
         btnSyncAll.setEnabled(false);
         btnSyncAll.setText("SYNCING");
-        renderCounts(pending, 0, imageRepo.countFailedForSyncCenter());
+        refresh();
         SyncScheduler.enqueueUploadNow(getContext().getApplicationContext());
     }
 
@@ -171,7 +187,9 @@ public class GallerySyncCenterView extends MaterialCardView {
             for (WorkInfo info : infos) {
                 if (info == null) continue;
                 WorkInfo.State state = info.getState();
-                if (state == WorkInfo.State.RUNNING || state == WorkInfo.State.ENQUEUED || state == WorkInfo.State.BLOCKED) {
+                if (state == WorkInfo.State.RUNNING
+                        || state == WorkInfo.State.ENQUEUED
+                        || state == WorkInfo.State.BLOCKED) {
                     active = info;
                     break;
                 }
@@ -188,14 +206,9 @@ public class GallerySyncCenterView extends MaterialCardView {
         btnSyncAll.setEnabled(false);
         btnSyncAll.setText("SYNCING");
 
-        int done = active.getProgress().getInt("DONE", 0);
-        int total = active.getProgress().getInt("TOTAL", 0);
-        int failed = 0;
-        try { failed = imageRepo.countFailedForSyncCenter(); }
-        catch (Exception ignored) { }
-
-        int pending = total > 0 ? Math.max(total - done, 0) : lastPending;
-        renderCounts(pending, done, failed);
+        // UploadWorker updates tbl_imagemeta as each photo succeeds/fails.
+        // Re-read the database so the three counters reflect the real saved status.
+        refresh();
     }
 
     private boolean isOnline() {
