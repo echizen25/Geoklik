@@ -7,9 +7,9 @@
     <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Site Settings" android:textSize="26sp" android:textStyle="bold" android:textColor="@color/app_text_primary"/>
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Configure GeoKlik capture preferences and the active site." android:textSize="14sp" android:textColor="@color/app_text_muted" android:layout_marginTop="4dp"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Configure the site used by GeoCamera." android:textSize="14sp" android:textColor="@color/app_text_muted" android:layout_marginTop="4dp"/>
 
-            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:cardBackgroundColor="@color/app_surface" app:strokeColor="@color/app_border" app:strokeWidth="1dp">
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:cardBackgroundColor="@color/app_surface_elevated" app:strokeColor="@color/app_border" app:strokeWidth="1dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
                     <TextView android:text="CURRENT SITE" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/brand_green_ui" android:letterSpacing="0.08" android:layout_width="match_parent" android:layout_height="wrap_content"/>
                     <TextView android:id="@+id/tvCurrentSelection" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="-" android:textSize="22sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_marginTop="8dp"/>
@@ -17,7 +17,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:cardBackgroundColor="@color/app_surface" app:strokeColor="@color/app_border" app:strokeWidth="1dp">
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:cardBackgroundColor="@color/app_surface_elevated" app:strokeColor="@color/app_border" app:strokeWidth="1dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
                     <TextView android:text="SELECT SITE" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_width="match_parent" android:layout_height="wrap_content"/>
                     <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilSite" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="Type or select Site ID" app:boxCornerRadiusTopStart="16dp" app:boxCornerRadiusTopEnd="16dp" app:boxCornerRadiusBottomStart="16dp" app:boxCornerRadiusBottomEnd="16dp" app:endIconMode="dropdown_menu">
@@ -26,20 +26,6 @@
                     <com.google.android.material.button.MaterialButton android:id="@+id/btnUseSelected" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Use Selected Site" android:textColor="@android:color/white" android:layout_marginTop="12dp" app:backgroundTint="@color/brand_green" app:cornerRadius="16dp" app:icon="@drawable/ic_check_24" app:iconTint="@android:color/white"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
-            <TextView android:text="Camera Preferences" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_marginTop="18dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-            <TextView android:text="Flash is configured here to keep the live camera controls uncluttered." android:textSize="12sp" android:textColor="@color/app_text_muted" android:layout_marginTop="4dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-
-            <ph.gov.geocamera.presentation.settings.FlashSettingsButton
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="10dp"
-                android:gravity="center_vertical|start"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:text="Camera Flash  •  AUTOMATIC"
-                android:textStyle="bold"
-                app:cornerRadius="18dp" />
 
             <TextView android:text="Quick Actions" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_marginTop="18dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
             <com.google.android.material.button.MaterialButton android:id="@+id/btnScanQr" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Scan QR Code" android:layout_marginTop="10dp" app:icon="@drawable/ic_qr_code_24" app:cornerRadius="18dp" app:iconPadding="10dp"/>
