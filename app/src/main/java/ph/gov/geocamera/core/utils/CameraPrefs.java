@@ -12,6 +12,7 @@ public class CameraPrefs {
     private static final String KEY_UNCATEGORIZED = "uncategorized";
     private static final String KEY_DESCRIPTION = "photo_description";
     private static final String KEY_INDOOR_ASSIST = "indoor_assist_enabled";
+    private static final String KEY_FLASH_MODE = "camera_flash_mode";
 
     // Capture classification persisted locally and stamped into each photo.
     private static final String KEY_DOCUMENTATION_TYPE = "documentation_type";
@@ -40,6 +41,10 @@ public class CameraPrefs {
     public static final String DOC_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
     public static final String DOC_PERSONAL = "PERSONAL";
     public static final String SHOT_GENERAL = "GENERAL";
+
+    public static final String FLASH_AUTO = "AUTO";
+    public static final String FLASH_ON = "ON";
+    public static final String FLASH_OFF = "OFF";
 
     private final SharedPreferences sp;
 
@@ -126,6 +131,20 @@ public class CameraPrefs {
 
     public boolean isIndoorAssistEnabled() {
         return sp.getBoolean(KEY_INDOOR_ASSIST, false);
+    }
+
+    public void saveFlashMode(String mode) {
+        sp.edit().putString(KEY_FLASH_MODE, normalizeFlashMode(mode)).apply();
+    }
+
+    public String getFlashMode() {
+        return normalizeFlashMode(sp.getString(KEY_FLASH_MODE, FLASH_AUTO));
+    }
+
+    private static String normalizeFlashMode(String mode) {
+        if (mode != null && FLASH_ON.equalsIgnoreCase(mode.trim())) return FLASH_ON;
+        if (mode != null && FLASH_OFF.equalsIgnoreCase(mode.trim())) return FLASH_OFF;
+        return FLASH_AUTO;
     }
 
     public void saveDocumentationType(String type) {
