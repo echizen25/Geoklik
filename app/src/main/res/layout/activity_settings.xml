@@ -1,35 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/app_background">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/app_background">
 
-    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="wrap_content" android:title="Settings" android:background="?attr/colorPrimary" app:titleTextColor="@android:color/white" app:navigationIcon="@drawable/ic_arrow_back_24" app:navigationIconTint="@android:color/white" app:itemIconTint="@android:color/white" app:itemRippleColor="#40FFFFFF" app:menu="@menu/menu_settings_toolbar"/>
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:title="Settings"
+        android:background="?attr/colorPrimary"
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="@drawable/ic_arrow_back_24"
+        app:navigationIconTint="@android:color/white"
+        app:itemIconTint="@android:color/white"
+        app:itemRippleColor="#40FFFFFF"
+        app:menu="@menu/menu_settings_toolbar" />
 
-    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Site Settings" android:textSize="26sp" android:textStyle="bold" android:textColor="@color/app_text_primary"/>
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Configure the site used by GeoCamera." android:textSize="14sp" android:textColor="@color/app_text_muted" android:layout_marginTop="4dp"/>
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:cardBackgroundColor="@color/app_surface_elevated" app:strokeColor="@color/app_border" app:strokeWidth="1dp">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
-                    <TextView android:text="CURRENT SITE" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/brand_green_ui" android:letterSpacing="0.08" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-                    <TextView android:id="@+id/tvCurrentSelection" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="-" android:textSize="22sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_marginTop="8dp"/>
-                    <TextView android:id="@+id/tvLatestDb" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Latest in DB: -" android:textSize="13sp" android:textColor="@color/app_text_muted" android:layout_marginTop="6dp"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Capture"
+                android:textColor="@color/app_text_muted"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardBackgroundColor="@color/app_surface_elevated"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/app_border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/rowChangeProject"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="64dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="10dp"
+                        android:background="?attr/selectableItemBackground">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Change Project / Site" android:textColor="@color/app_text_primary" android:textSize="15sp" android:textStyle="bold" />
+                            <TextView android:id="@+id/tvCurrentProject" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:maxLines="2" android:ellipsize="end" android:text="Not selected" android:textColor="@color/app_text_muted" android:textSize="12sp" />
+                        </LinearLayout>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textColor="@color/app_text_muted" android:textSize="24sp" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/app_border" />
+
+                    <LinearLayout android:id="@+id/rowGpsMode" android:layout_width="match_parent" android:layout_height="60dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="16dp" android:background="?attr/selectableItemBackground">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GPS Mode" android:textColor="@color/app_text_primary" android:textSize="15sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Location behavior during capture" android:textColor="@color/app_text_muted" android:textSize="12sp" />
+                        </LinearLayout>
+                        <TextView android:id="@+id/tvGpsModeValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GPS ONLY" android:textColor="@color/brand_green_ui" android:textSize="12sp" android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/app_border" />
+
+                    <LinearLayout android:id="@+id/rowFlash" android:layout_width="match_parent" android:layout_height="60dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="16dp" android:background="?attr/selectableItemBackground">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Camera Flash" android:textColor="@color/app_text_primary" android:textSize="15sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Default flash behavior for photos" android:textColor="@color/app_text_muted" android:textSize="12sp" />
+                        </LinearLayout>
+                        <TextView android:id="@+id/tvFlashValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AUTO" android:textColor="@color/brand_green_ui" android:textSize="12sp" android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" app:cardCornerRadius="22dp" app:cardElevation="2dp" app:cardBackgroundColor="@color/app_surface_elevated" app:strokeColor="@color/app_border" app:strokeWidth="1dp">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
-                    <TextView android:text="SELECT SITE" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilSite" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="Type or select Site ID" app:boxCornerRadiusTopStart="16dp" app:boxCornerRadiusTopEnd="16dp" app:boxCornerRadiusBottomStart="16dp" app:boxCornerRadiusBottomEnd="16dp" app:endIconMode="dropdown_menu">
-                        <com.google.android.material.textfield.MaterialAutoCompleteTextView android:id="@+id/actSite" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:inputType="text" android:imeOptions="actionDone" android:textColor="@color/app_text_primary" android:textColorHint="@color/app_text_muted"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/btnUseSelected" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Use Selected Site" android:textColor="@android:color/white" android:layout_marginTop="12dp" app:backgroundTint="@color/brand_green" app:cornerRadius="16dp" app:icon="@drawable/ic_check_24" app:iconTint="@android:color/white"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="App" android:textColor="@color/app_text_muted" android:textSize="12sp" android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardBackgroundColor="@color/app_surface_elevated"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/app_border"
+                app:strokeWidth="1dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="16dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Photo Storage" android:textColor="@color/app_text_primary" android:textSize="14sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/tvStorageValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="On-device" android:textColor="@color/app_text_muted" android:textSize="12sp" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/app_border" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="16dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="GeoKlik Version" android:textColor="@color/app_text_primary" android:textSize="14sp" android:textStyle="bold" />
+                        <TextView android:id="@+id/tvAppVersion" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-" android:textColor="@color/app_text_muted" android:textSize="12sp" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/app_border" />
+                    <LinearLayout android:id="@+id/rowResetCamera" android:layout_width="match_parent" android:layout_height="56dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="16dp" android:background="?attr/selectableItemBackground">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Reset Camera Settings" android:textColor="@color/app_text_primary" android:textSize="14sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Reset" android:textColor="@color/brand_green_ui" android:textSize="12sp" android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <TextView android:text="Quick Actions" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/app_text_primary" android:layout_marginTop="18dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-            <com.google.android.material.button.MaterialButton android:id="@+id/btnScanQr" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Scan QR Code" android:layout_marginTop="10dp" app:icon="@drawable/ic_qr_code_24" app:cornerRadius="18dp" app:iconPadding="10dp"/>
-            <com.google.android.material.button.MaterialButton android:id="@+id/btnUncategorized" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Use UNCATEGORIZED" android:layout_marginTop="8dp" app:cornerRadius="18dp"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:gravity="center" android:text="Camera preferences are saved on this device." android:textColor="@color/app_text_faint" android:textSize="11sp" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>
