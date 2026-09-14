@@ -27,14 +27,16 @@ public class SyncScheduler {
     /**
      * Photo synchronization is manual. Only the user's Gallery > Sync All action
      * may enqueue uploads. Compatibility calls left in capture/reassignment flows
-     * are intentionally ignored so a saved or moved photo remains PENDING.
+     * cancel any legacy queued upload and leave photos PENDING.
      */
     public static void enqueueUploadNow(@NonNull Context context) {
-        if (!isExplicitGallerySyncRequest()) return;
-
         final Context appContext = context.getApplicationContext();
-        final WorkManager workManager = WorkManager.getInstance(appContext);
+        if (!isExplicitGallerySyncRequest()) {
+            WorkManager.getInstance(appContext).cancelUniqueWork(UNIQUE_UPLOAD_WORK);
+            return;
+        }
 
+        final WorkManager workManager = WorkManager.getInstance(appContext);
         ListenableFuture<List<WorkInfo>> future =
                 workManager.getWorkInfosForUniqueWork(UNIQUE_UPLOAD_WORK);
 
