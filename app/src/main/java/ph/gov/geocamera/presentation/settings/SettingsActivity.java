@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -14,6 +15,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -28,6 +30,12 @@ import ph.gov.geocamera.presentation.home.HomeActivity;
 import ph.gov.geocamera.presentation.site.SetSiteActivity;
 
 public class SettingsActivity extends BaseTopAppBarActivity {
+
+    private static final String[] PROJECT_PROGRAM_OPTIONS = new String[]{
+            "RCEF",
+            "CFIDP",
+            "PHILMECH"
+    };
 
     private CameraPrefs cameraPrefs;
     private ProjectRepository projectRepo;
@@ -140,7 +148,7 @@ public class SettingsActivity extends BaseTopAppBarActivity {
         TextInputEditText etMiddle = addField(container, "Middle name", profile.middleName, false);
         TextInputEditText etLast = addField(container, "Last name", profile.lastName, false);
         TextInputEditText etDesignation = addField(container, "Designation", profile.designation, false);
-        TextInputEditText etProject = addField(container, "Project / Program", profile.project, true);
+        MaterialAutoCompleteTextView actProject = addProjectProgramField(container, profile.project);
 
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle("Edit Profile")
@@ -156,14 +164,14 @@ public class SettingsActivity extends BaseTopAppBarActivity {
                     String middle = textOf(etMiddle);
                     String last = textOf(etLast);
                     String designation = textOf(etDesignation);
-                    String project = textOf(etProject);
+                    String project = textOf(actProject);
 
                     if (first.isEmpty() || last.isEmpty()) {
                         Toast.makeText(this, "First name and last name are required.", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    if (project.isEmpty()) {
-                        Toast.makeText(this, "Project / Program is required.", Toast.LENGTH_SHORT).show();
+                    if (!isValidProjectProgram(project)) {
+                        Toast.makeText(this, "Select RCEF, CFIDP, or PHILMECH.", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
@@ -208,6 +216,53 @@ public class SettingsActivity extends BaseTopAppBarActivity {
         lp.topMargin = parent.getChildCount() == 0 ? 0 : dp(10);
         parent.addView(til, lp);
         return edit;
+    }
+
+    private MaterialAutoCompleteTextView addProjectProgramField(LinearLayout parent, String value) {
+        TextInputLayout til = new TextInputLayout(this);
+        til.setHint("Project / Program");
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        til.setEndIconMode(TextInputLayout.END_ICON_DROPDOWN_MENU);
+
+        MaterialAutoCompleteTextView dropdown = new MaterialAutoCompleteTextView(this);
+        dropdown.setSingleLine(true);
+        dropdown.setInputType(InputType.TYPE_NULL);
+        dropdown.setKeyListener(null);
+        dropdown.setCursorVisible(false);
+        dropdown.setAdapter(new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                PROJECT_PROGRAM_OPTIONS
+        ));
+
+        String normalized = normalizeProjectProgram(value);
+        if (!normalized.isEmpty()) dropdown.setText(normalized, false);
+
+        til.addView(dropdown, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        lp.topMargin = parent.getChildCount() == 0 ? 0 : dp(10);
+        parent.addView(til, lp);
+        return dropdown;
+    }
+
+    private String normalizeProjectProgram(String value) {
+        if (value == null) return "";
+        String cleaned = value.trim().toUpperCase();
+        if ("RCEF".equals(cleaned)) return "RCEF";
+        if ("CFIDP".equals(cleaned) || "CTF".equals(cleaned)) return "CFIDP";
+        if ("PHILMECH".equals(cleaned)) return "PHILMECH";
+        return "";
+    }
+
+    private boolean isValidProjectProgram(String value) {
+        return !normalizeProjectProgram(value).isEmpty();
     }
 
     private void showGpsModeDialog() {
@@ -354,8 +409,8 @@ public class SettingsActivity extends BaseTopAppBarActivity {
         }
     }
 
-    private static String textOf(TextInputEditText edit) {
-        return edit == null || edit.getText() == null ? "" : edit.getText().toString().trim();
+    private static String textOf(TextView view) {
+        return view == null || view.getText() == null ? "" : view.getText().toString().trim();
     }
 
     private int dp(int value) {
