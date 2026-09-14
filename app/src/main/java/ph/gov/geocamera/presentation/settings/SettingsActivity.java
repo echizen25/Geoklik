@@ -3,7 +3,10 @@ package ph.gov.geocamera.presentation.settings;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -11,10 +14,13 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import ph.gov.geocamera.R;
 import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.repository.ProjectRepository;
+import ph.gov.geocamera.data.repository.UserRepository;
 import ph.gov.geocamera.presentation.common.BaseTopAppBarActivity;
 import ph.gov.geocamera.presentation.geocamera.CameraFlashController;
 import ph.gov.geocamera.presentation.geocamera.GeoCameraActivity;
@@ -25,11 +31,15 @@ public class SettingsActivity extends BaseTopAppBarActivity {
 
     private CameraPrefs cameraPrefs;
     private ProjectRepository projectRepo;
+    private UserRepository userRepo;
 
     private TextView tvCurrentProject;
     private TextView tvGpsModeValue;
     private TextView tvFlashValue;
     private TextView tvAppVersion;
+    private TextView tvProfileName;
+    private TextView tvProfileDesignation;
+    private TextView tvProfileProject;
 
     @Override
     protected int getLayoutResId() {
@@ -47,6 +57,7 @@ public class SettingsActivity extends BaseTopAppBarActivity {
 
         cameraPrefs = new CameraPrefs(this);
         projectRepo = new ProjectRepository(this);
+        userRepo = new UserRepository(this);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
@@ -67,15 +78,23 @@ public class SettingsActivity extends BaseTopAppBarActivity {
             });
         }
 
+        tvProfileName = findViewById(R.id.tvProfileName);
+        tvProfileDesignation = findViewById(R.id.tvProfileDesignation);
+        tvProfileProject = findViewById(R.id.tvProfileProject);
         tvCurrentProject = findViewById(R.id.tvCurrentProject);
         tvGpsModeValue = findViewById(R.id.tvGpsModeValue);
         tvFlashValue = findViewById(R.id.tvFlashValue);
         tvAppVersion = findViewById(R.id.tvAppVersion);
 
+        View rowEditProfile = findViewById(R.id.rowEditProfile);
         View rowChangeProject = findViewById(R.id.rowChangeProject);
         View rowGpsMode = findViewById(R.id.rowGpsMode);
         View rowFlash = findViewById(R.id.rowFlash);
         View rowResetCamera = findViewById(R.id.rowResetCamera);
+
+        if (rowEditProfile != null) {
+            rowEditProfile.setOnClickListener(v -> showEditProfileDialog());
+        }
 
         if (rowChangeProject != null) {
             rowChangeProject.setOnClickListener(v ->
@@ -103,6 +122,92 @@ public class SettingsActivity extends BaseTopAppBarActivity {
     protected void onResume() {
         super.onResume();
         refreshValues();
+    }
+
+    private void showEditProfileDialog() {
+        UserRepository.UserProfile profile = userRepo.getProfile();
+        if (profile == null) {
+            Toast.makeText(this, "No local user profile found.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        int pad = dp(18);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(pad, dp(6), pad, 0);
+
+        TextInputEditText etFirst = addField(container, "First name", profile.firstName, false);
+        TextInputEditText etMiddle = addField(container, "Middle name", profile.middleName, false);
+        TextInputEditText etLast = addField(container, "Last name", profile.lastName, false);
+        TextInputEditText etDesignation = addField(container, "Designation", profile.designation, false);
+        TextInputEditText etProject = addField(container, "Project / Program", profile.project, true);
+
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Edit Profile")
+                .setMessage("These details are used by GeoKlik for local user identification and camera overlays.")
+                .setView(container)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String first = textOf(etFirst);
+                    String middle = textOf(etMiddle);
+                    String last = textOf(etLast);
+                    String designation = textOf(etDesignation);
+                    String project = textOf(etProject);
+
+                    if (first.isEmpty() || last.isEmpty()) {
+                        Toast.makeText(this, "First name and last name are required.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (project.isEmpty()) {
+                        Toast.makeText(this, "Project / Program is required.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    boolean saved = userRepo.updateProfile(
+                            first, middle, last, designation, project
+                    );
+                    if (!saved) {
+                        Toast.makeText(this, "Profile could not be updated.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    dialog.dismiss();
+                    refreshProfile();
+                    Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show();
+                }));
+        dialog.show();
+    }
+
+    private TextInputEditText addField(LinearLayout parent,
+                                       String hint,
+                                       String value,
+                                       boolean caps) {
+        TextInputLayout til = new TextInputLayout(this);
+        til.setHint(hint);
+        til.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+
+        TextInputEditText edit = new TextInputEditText(this);
+        edit.setSingleLine(true);
+        edit.setInputType(InputType.TYPE_CLASS_TEXT |
+                (caps ? InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+                        : InputType.TYPE_TEXT_FLAG_CAP_WORDS));
+        edit.setText(value == null ? "" : value);
+        til.addView(edit, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        lp.topMargin = parent.getChildCount() == 0 ? 0 : dp(10);
+        parent.addView(til, lp);
+        return edit;
     }
 
     private void showGpsModeDialog() {
@@ -164,6 +269,8 @@ public class SettingsActivity extends BaseTopAppBarActivity {
     }
 
     private void refreshValues() {
+        refreshProfile();
+
         if (tvGpsModeValue != null) {
             tvGpsModeValue.setText(
                     cameraPrefs.isIndoorAssistEnabled() ? "INDOOR ASSIST" : "GPS ONLY"
@@ -179,6 +286,36 @@ public class SettingsActivity extends BaseTopAppBarActivity {
 
         if (tvCurrentProject != null) {
             tvCurrentProject.setText(currentCaptureLabel());
+        }
+    }
+
+    private void refreshProfile() {
+        UserRepository.UserProfile profile = userRepo == null ? null : userRepo.getProfile();
+
+        if (profile == null) {
+            if (tvProfileName != null) tvProfileName.setText("No local profile");
+            if (tvProfileDesignation != null) tvProfileDesignation.setText("Complete user setup first");
+            if (tvProfileProject != null) tvProfileProject.setText("-");
+            return;
+        }
+
+        String fullName = profile.fullName();
+        if (tvProfileName != null) {
+            tvProfileName.setText(fullName.isEmpty() ? "GeoKlik User" : fullName);
+        }
+        if (tvProfileDesignation != null) {
+            tvProfileDesignation.setText(
+                    profile.designation == null || profile.designation.trim().isEmpty()
+                            ? "No designation"
+                            : profile.designation.trim()
+            );
+        }
+        if (tvProfileProject != null) {
+            tvProfileProject.setText(
+                    profile.project == null || profile.project.trim().isEmpty()
+                            ? "No project assigned"
+                            : profile.project.trim()
+            );
         }
     }
 
@@ -215,5 +352,13 @@ public class SettingsActivity extends BaseTopAppBarActivity {
         } catch (Exception ignored) {
             tvAppVersion.setText("-");
         }
+    }
+
+    private static String textOf(TextInputEditText edit) {
+        return edit == null || edit.getText() == null ? "" : edit.getText().toString().trim();
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
