@@ -7,7 +7,6 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.util.AttributeSet;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,15 +25,16 @@ import java.util.List;
 import ph.gov.geocamera.data.repository.ImageMetaRepository;
 import ph.gov.geocamera.data.sync.SyncScheduler;
 
-/** Compact operational sync summary shown only in Gallery. */
+/** Minimal Gallery sync counters with a manual Sync All fallback. */
 public class GallerySyncCenterView extends MaterialCardView {
 
-    private TextView tvSummary;
     private TextView tvPending;
+    private TextView tvSynced;
     private TextView tvFailed;
     private TextView btnSyncAll;
     private ImageMetaRepository imageRepo;
     private boolean observerBound = false;
+    private int lastPending = 0;
 
     public GallerySyncCenterView(@NonNull Context context) {
         super(context);
@@ -53,87 +53,57 @@ public class GallerySyncCenterView extends MaterialCardView {
 
     private void init() {
         imageRepo = new ImageMetaRepository(getContext().getApplicationContext());
-        setRadius(dp(14));
-        setCardElevation(dp(1));
+        setRadius(dp(12));
+        setCardElevation(0f);
         setStrokeWidth(dp(1));
-        setStrokeColor(Color.rgb(217, 231, 225));
+        setStrokeColor(Color.rgb(225, 234, 230));
         setCardBackgroundColor(Color.WHITE);
         setUseCompatPadding(false);
 
-        LinearLayout root = new LinearLayout(getContext());
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(12), dp(10), dp(12), dp(10));
-        addView(root, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(6), dp(8), dp(6));
+        addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
-        LinearLayout top = new LinearLayout(getContext());
-        top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        root.addView(top, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        tvPending = makeStat(Color.rgb(198, 106, 0));
+        tvSynced = makeStat(Color.rgb(11, 93, 75));
+        tvFailed = makeStat(Color.rgb(198, 40, 40));
 
-        LinearLayout labels = new LinearLayout(getContext());
-        labels.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams labelsLp = new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f);
-        top.addView(labels, labelsLp);
-
-        TextView title = new TextView(getContext());
-        title.setText("SYNC CENTER");
-        title.setTextColor(Color.rgb(11, 93, 75));
-        title.setTextSize(11f);
-        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
-        labels.addView(title);
-
-        tvSummary = new TextView(getContext());
-        tvSummary.setText("Checking photo sync status...");
-        tvSummary.setTextColor(Color.rgb(100, 116, 110));
-        tvSummary.setTextSize(10f);
-        LinearLayout.LayoutParams summaryLp = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-        summaryLp.topMargin = dp(2);
-        labels.addView(tvSummary, summaryLp);
+        row.addView(tvPending, new LinearLayout.LayoutParams(0, dp(30), 1f));
+        row.addView(tvSynced, new LinearLayout.LayoutParams(0, dp(30), 1f));
+        row.addView(tvFailed, new LinearLayout.LayoutParams(0, dp(30), 1f));
 
         btnSyncAll = new TextView(getContext());
         btnSyncAll.setText("SYNC ALL");
         btnSyncAll.setTextColor(Color.rgb(11, 93, 75));
-        btnSyncAll.setTextSize(10f);
+        btnSyncAll.setTextSize(9f);
         btnSyncAll.setGravity(Gravity.CENTER);
         btnSyncAll.setTypeface(btnSyncAll.getTypeface(), android.graphics.Typeface.BOLD);
-        btnSyncAll.setPadding(dp(12), 0, dp(12), 0);
-        btnSyncAll.setMinWidth(dp(74));
-        btnSyncAll.setMinHeight(dp(36));
+        btnSyncAll.setPadding(dp(10), 0, dp(10), 0);
+        btnSyncAll.setMinWidth(dp(66));
+        btnSyncAll.setMinHeight(dp(30));
+
         android.graphics.drawable.GradientDrawable buttonBg = new android.graphics.drawable.GradientDrawable();
         buttonBg.setColor(Color.rgb(239, 248, 244));
-        buttonBg.setCornerRadius(dp(18));
+        buttonBg.setCornerRadius(dp(15));
         buttonBg.setStroke(dp(1), Color.rgb(190, 220, 208));
         btnSyncAll.setBackground(buttonBg);
         btnSyncAll.setClickable(true);
         btnSyncAll.setFocusable(true);
-        top.addView(btnSyncAll, new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(36)));
-
-        LinearLayout stats = new LinearLayout(getContext());
-        stats.setOrientation(LinearLayout.HORIZONTAL);
-        stats.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams statsLp = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        statsLp.topMargin = dp(8);
-        root.addView(stats, statsLp);
-
-        tvPending = makeStat(Color.rgb(198, 106, 0));
-        tvFailed = makeStat(Color.rgb(198, 40, 40));
-        stats.addView(tvPending, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-
-        View divider = new View(getContext());
-        divider.setBackgroundColor(Color.rgb(228, 236, 232));
-        stats.addView(divider, new LinearLayout.LayoutParams(dp(1), dp(24)));
-
-        stats.addView(tvFailed, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(btnSyncAll, new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(30)));
 
         btnSyncAll.setOnClickListener(v -> startManualSync());
+        renderCounts(0, 0, 0);
     }
 
     private TextView makeStat(int color) {
         TextView view = new TextView(getContext());
         view.setGravity(Gravity.CENTER);
         view.setTextColor(color);
-        view.setTextSize(10f);
+        view.setTextSize(9f);
         view.setTypeface(view.getTypeface(), android.graphics.Typeface.BOLD);
+        view.setSingleLine(true);
         return view;
     }
 
@@ -152,18 +122,15 @@ public class GallerySyncCenterView extends MaterialCardView {
                 pending = imageRepo.countPendingForSync();
                 failed = imageRepo.countFailedForSyncCenter();
             } catch (Exception ignored) { }
-
-            tvPending.setText(pending + " Pending");
-            tvFailed.setText(failed + " Failed");
-
-            if (pending == 0 && failed == 0) {
-                tvSummary.setText("All uploadable photos are synced");
-            } else if (failed > 0) {
-                tvSummary.setText(failed + " failed • review items before retrying");
-            } else {
-                tvSummary.setText(pending + " waiting for automatic upload");
-            }
+            lastPending = pending;
+            renderCounts(pending, 0, failed);
         });
+    }
+
+    private void renderCounts(int pending, int synced, int failed) {
+        tvPending.setText(pending + " Pending");
+        tvSynced.setText(synced + " Synced");
+        tvFailed.setText(failed + " Failed");
     }
 
     private void startManualSync() {
@@ -180,9 +147,10 @@ public class GallerySyncCenterView extends MaterialCardView {
             return;
         }
 
+        lastPending = pending;
         btnSyncAll.setEnabled(false);
         btnSyncAll.setText("SYNCING");
-        tvSummary.setText("Preparing " + pending + " photo(s)...");
+        renderCounts(pending, 0, imageRepo.countFailedForSyncCenter());
         SyncScheduler.enqueueUploadNow(getContext().getApplicationContext());
     }
 
@@ -219,15 +187,15 @@ public class GallerySyncCenterView extends MaterialCardView {
 
         btnSyncAll.setEnabled(false);
         btnSyncAll.setText("SYNCING");
+
         int done = active.getProgress().getInt("DONE", 0);
         int total = active.getProgress().getInt("TOTAL", 0);
-        if (active.getState() == WorkInfo.State.RUNNING) {
-            tvSummary.setText(total > 0 ? "Uploading photos • " + done + "/" + total : "Uploading photos...");
-        } else if (active.getState() == WorkInfo.State.BLOCKED) {
-            tvSummary.setText("Sync waiting for requirements...");
-        } else {
-            tvSummary.setText("Sync queued...");
-        }
+        int failed = 0;
+        try { failed = imageRepo.countFailedForSyncCenter(); }
+        catch (Exception ignored) { }
+
+        int pending = total > 0 ? Math.max(total - done, 0) : lastPending;
+        renderCounts(pending, done, failed);
     }
 
     private boolean isOnline() {
