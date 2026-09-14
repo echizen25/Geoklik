@@ -63,9 +63,6 @@ public class SetSiteActivity extends AppCompatActivity {
 
     public static final String EXTRA_SITE_ID = "EXTRA_SITE_ID";
     public static final String EXTRA_UNCATEGORIZED = "EXTRA_UNCATEGORIZED";
-
-    // Selection-only mode lets Gallery reuse this exact Change Project module
-    // without mutating the camera's current project/capture context.
     public static final String EXTRA_PICK_ONLY = "EXTRA_PICK_ONLY";
     public static final String EXTRA_REQUIRED_PROJECT_TYPE = "EXTRA_REQUIRED_PROJECT_TYPE";
     public static final String EXTRA_SELECTED_PROJECT_TYPE = "EXTRA_SELECTED_PROJECT_TYPE";
@@ -131,10 +128,10 @@ public class SetSiteActivity extends AppCompatActivity {
         setupProjectCodeInput();
         setupQrLaunchers();
 
-        // Keep capture targets in the local cache for code/type resolution.
-        // Suggestions are shown only as a floating dropdown from the input field.
         ProjectBackgroundSync.syncIfNeeded(this, false, updated -> runOnUiThread(() -> {
-            if (updated) refreshProjectSuggestions(currentProjectQuery(), false);
+            if (updated && !currentProjectQuery().trim().isEmpty()) {
+                refreshProjectSuggestions(currentProjectQuery(), false);
+            }
         }));
 
         btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
@@ -169,9 +166,9 @@ public class SetSiteActivity extends AppCompatActivity {
                 new ArrayList<>()
         );
         actSite.setAdapter(projectSuggestionAdapter);
-        actSite.setThreshold(0);
+        actSite.setThreshold(1);
         actSite.setSingleLine(true);
-        actSite.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        actSite.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
 
         actSite.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -179,16 +176,25 @@ public class SetSiteActivity extends AppCompatActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                String query = s == null ? "" : s.toString();
+                String query = s == null ? "" : s.toString().trim();
+                if (query.isEmpty()) {
+                    projectSuggestionAdapter.clear();
+                    projectSuggestionAdapter.notifyDataSetChanged();
+                    actSite.dismissDropDown();
+                    return;
+                }
                 refreshProjectSuggestions(query, actSite.hasFocus());
             }
         });
 
-        actSite.setOnClickListener(v -> refreshProjectSuggestions(currentProjectQuery(), true));
         actSite.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) refreshProjectSuggestions(currentProjectQuery(), false);
-            else actSite.dismissDropDown();
+            if (hasFocus && !currentProjectQuery().trim().isEmpty()) {
+                refreshProjectSuggestions(currentProjectQuery(), false);
+            } else if (!hasFocus) {
+                actSite.dismissDropDown();
+            }
         });
+
         actSite.setOnItemClickListener((parent, view, position, id) -> {
             Object item = parent == null ? null : parent.getItemAtPosition(position);
             if (item == null) return;
@@ -228,8 +234,6 @@ public class SetSiteActivity extends AppCompatActivity {
             submitCurrentProjectCode();
             return true;
         });
-
-        refreshProjectSuggestions("", false);
     }
 
     private String currentProjectQuery() {
@@ -241,9 +245,17 @@ public class SetSiteActivity extends AppCompatActivity {
     private void refreshProjectSuggestions(String query, boolean showDropdown) {
         if (actSite == null || projectSuggestionAdapter == null || projectRepo == null) return;
 
+        String cleanQuery = query == null ? "" : query.trim();
+        if (cleanQuery.isEmpty()) {
+            projectSuggestionAdapter.clear();
+            projectSuggestionAdapter.notifyDataSetChanged();
+            actSite.dismissDropDown();
+            return;
+        }
+
         List<String> suggestions;
         try {
-            suggestions = projectRepo.getProjectSuggestions(query, 6, requiredProjectType);
+            suggestions = projectRepo.getProjectSuggestions(cleanQuery, 6, requiredProjectType);
         } catch (Exception ignored) {
             suggestions = Collections.emptyList();
         }
@@ -445,8 +457,6 @@ public class SetSiteActivity extends AppCompatActivity {
 
         String finalSiteId = foundLocal ? projectId.trim() : extractLeadingReference(raw);
 
-        // A known target determines the capture classification automatically.
-        // Unknown/offline legacy codes default to INFRA to preserve the existing upload workflow.
         String projectType = foundLocal
                 ? projectRepo.getProjectTypeById(finalSiteId)
                 : CameraPrefs.DOC_INFRA;
