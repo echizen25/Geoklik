@@ -25,17 +25,12 @@ public class SyncScheduler {
     public static final String UNIQUE_UPLOAD_WORK = "geocamera_upload_work";
 
     /**
-     * Photo synchronization is manual. Only the user's Gallery > Sync All action
-     * may enqueue uploads. Compatibility calls left in capture/reassignment flows
-     * cancel any legacy queued upload and leave photos PENDING.
+     * Queue pending GeoKlik photos for upload. WorkManager keeps the request
+     * waiting until a validated network is available, so capture flows can call
+     * this safely while offline and uploads resume automatically once online.
      */
     public static void enqueueUploadNow(@NonNull Context context) {
         final Context appContext = context.getApplicationContext();
-        if (!isExplicitGallerySyncRequest()) {
-            WorkManager.getInstance(appContext).cancelUniqueWork(UNIQUE_UPLOAD_WORK);
-            return;
-        }
-
         final WorkManager workManager = WorkManager.getInstance(appContext);
         ListenableFuture<List<WorkInfo>> future =
                 workManager.getWorkInfosForUniqueWork(UNIQUE_UPLOAD_WORK);
@@ -88,19 +83,6 @@ public class SyncScheduler {
 
             workManager.enqueueUniqueWork(UNIQUE_UPLOAD_WORK, policy, request);
         }, ContextCompat.getMainExecutor(appContext));
-    }
-
-    private static boolean isExplicitGallerySyncRequest() {
-        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-        if (stack == null) return false;
-        for (StackTraceElement frame : stack) {
-            if (frame == null) continue;
-            if ("ph.gov.geocamera.presentation.gallery.GalleryActivity".equals(frame.getClassName())
-                    && "startSyncAll".equals(frame.getMethodName())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public static void cancelSync(@NonNull Context context) {
