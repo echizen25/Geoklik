@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F6F8FB">
+    android:background="@color/app_background">
 
-    <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
@@ -22,7 +20,6 @@
         app:itemRippleColor="#40FFFFFF"
         app:menu="@menu/menu_settings_toolbar"/>
 
-    <!-- Content -->
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -34,31 +31,30 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Page Title -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Site Settings"
                 android:textSize="26sp"
                 android:textStyle="bold"
-                android:textColor="#111827"/>
+                android:textColor="@color/app_text_primary"/>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Configure the site used by GeoCamera."
                 android:textSize="14sp"
-                android:textColor="#6B7280"
+                android:textColor="@color/app_text_muted"
                 android:layout_marginTop="4dp"/>
 
-            <!-- Current Site -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
                 app:cardCornerRadius="22dp"
                 app:cardElevation="2dp"
-                app:strokeColor="#E5E7EB"
+                app:cardBackgroundColor="@color/app_surface"
+                app:strokeColor="@color/app_border"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -71,7 +67,7 @@
                         android:text="CURRENT SITE"
                         android:textSize="12sp"
                         android:textStyle="bold"
-                        android:textColor="#0B5A3C"
+                        android:textColor="@color/brand_green_ui"
                         android:letterSpacing="0.08"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"/>
@@ -83,7 +79,7 @@
                         android:text="-"
                         android:textSize="22sp"
                         android:textStyle="bold"
-                        android:textColor="#111827"
+                        android:textColor="@color/app_text_primary"
                         android:layout_marginTop="8dp"/>
 
                     <TextView
@@ -92,21 +88,19 @@
                         android:layout_height="wrap_content"
                         android:text="Latest in DB: -"
                         android:textSize="13sp"
-                        android:textColor="#6B7280"
+                        android:textColor="@color/app_text_muted"
                         android:layout_marginTop="6dp"/>
-
                 </LinearLayout>
-
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Select Site -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 app:cardCornerRadius="22dp"
                 app:cardElevation="2dp"
-                app:strokeColor="#E5E7EB"
+                app:cardBackgroundColor="@color/app_surface"
+                app:strokeColor="@color/app_border"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -119,6 +113,7 @@
                         android:text="SELECT SITE"
                         android:textSize="16sp"
                         android:textStyle="bold"
+                        android:textColor="@color/app_text_primary"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"/>
 
@@ -141,8 +136,9 @@
                             android:layout_height="wrap_content"
                             android:minHeight="56dp"
                             android:inputType="text"
-                            android:imeOptions="actionDone"/>
-
+                            android:imeOptions="actionDone"
+                            android:textColor="@color/app_text_primary"
+                            android:textColorHint="@color/app_text_muted"/>
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.button.MaterialButton
@@ -152,20 +148,18 @@
                         android:text="Use Selected Site"
                         android:textColor="@android:color/white"
                         android:layout_marginTop="12dp"
-                        app:backgroundTint="#0B5A3C"
+                        app:backgroundTint="@color/brand_green"
                         app:cornerRadius="16dp"
                         app:icon="@drawable/ic_check_24"
                         app:iconTint="@android:color/white"/>
-
                 </LinearLayout>
-
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Quick Actions -->
             <TextView
                 android:text="Quick Actions"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:textColor="@color/app_text_primary"
                 android:layout_marginTop="18dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
@@ -187,9 +181,6 @@
                 android:text="Use UNCATEGORIZED"
                 android:layout_marginTop="8dp"
                 app:cornerRadius="18dp"/>
-
         </LinearLayout>
-
     </androidx.core.widget.NestedScrollView>
-
 </LinearLayout>
