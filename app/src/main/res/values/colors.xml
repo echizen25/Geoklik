@@ -3,7 +3,6 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Brand / fixed capture colors -->
     <color name="brand_green">#004B24</color>
     <color name="brand_green_ui">#0B5A3C</color>
     <color name="brand_green_soft">#EAF5EF</color>
@@ -11,29 +10,28 @@
     <color name="splash_bg">#0B1220</color>
     <color name="splash_green">#01361A</color>
 
-    <!-- Semantic application colors. Override these in values-night. -->
+    <!-- Light mode intentionally keeps GeoKlik's original warm/clean look. -->
     <color name="app_background">#F6F8FB</color>
     <color name="app_background_warm">#FFFCF2</color>
-    <color name="app_surface">#FFFFFF</color>
+    <color name="app_surface">#FFFCF2</color>
     <color name="app_surface_variant">#F3F6F4</color>
-    <color name="app_surface_elevated">#FFFFFF</color>
-    <color name="app_text_primary">#111827</color>
+    <color name="app_surface_elevated">#FFFFFFFF</color>
+    <color name="app_text_primary">#1A1A1A</color>
     <color name="app_text_secondary">#4B5563</color>
     <color name="app_text_muted">#6B7280</color>
-    <color name="app_text_faint">#7A7A7A</color>
-    <color name="app_border">#E5E7EB</color>
+    <color name="app_text_faint">#707770</color>
+    <color name="app_border">#D8DED9</color>
     <color name="app_icon_muted">#6B7280</color>
-    <color name="app_icon_faint">#9CA3AF</color>
+    <color name="app_icon_faint">#8F9892</color>
     <color name="app_scrim">#99000000</color>
     <color name="app_ripple_on_light">#14000000</color>
     <color name="app_brand_ripple">#140B5A3C</color>
     <color name="app_brand_stroke">#330B5A3C</color>
     <color name="app_brand_stroke_subtle">#1A0B5A3C</color>
 
-    <!-- Status colors keep their semantic meaning in both themes. -->
     <color name="status_pending_bg">#FFF3E0</color>
     <color name="status_pending_text">#F57C00</color>
     <color name="status_synced_bg">#E8F5E9</color>
     <color name="status_synced_text">#2E7D32</color>
-    <color name="outline_variant">#E0E0E0</color>
+    <color name="outline_variant">#D8DED9</color>
 </resources>
