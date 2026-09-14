@@ -105,6 +105,10 @@ public final class CameraGestureController {
     public void attachCamera(@NonNull Camera camera) {
         this.camera = camera;
 
+        // Apply the persisted AUTO / ON / OFF still-photo flash preference as
+        // soon as the CameraX back camera is available.
+        CameraFlashController.attach(activity, camera);
+
         if (activity instanceof LifecycleOwner) {
             camera.getCameraInfo().getZoomState().removeObservers((LifecycleOwner) activity);
             camera.getCameraInfo().getZoomState().observe((LifecycleOwner) activity,
