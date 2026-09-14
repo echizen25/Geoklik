@@ -6,6 +6,8 @@
         <item name="colorSecondary">@color/brand_green</item>
         <item name="colorOnSecondary">@color/white</item>
 
+        <!-- Light mode mirrors the original GeoKlik warm surface. Night values
+             are supplied independently under values-night. -->
         <item name="android:colorBackground">@color/app_background_warm</item>
         <item name="colorSurface">@color/app_surface</item>
         <item name="colorOnSurface">@color/app_text_primary</item>
