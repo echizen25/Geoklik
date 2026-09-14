@@ -25,24 +25,12 @@ public class SyncScheduler {
     public static final String UNIQUE_UPLOAD_WORK = "geocamera_upload_work";
 
     /**
-     * Queue a photo upload pass.
-     *
-     * Photo synchronization is intentionally MANUAL now. GeoCameraActivity still
-     * calls this compatibility entry point after a successful local save, but
-     * those calls are ignored. Gallery's explicit "Sync All" action passes the
-     * application context and is allowed to enqueue the worker.
-     *
-     * Project-list/background metadata refresh is separate from photo upload and
-     * is not affected by this rule.
+     * Photo synchronization is manual. Only the user's Gallery > Sync All action
+     * may enqueue uploads. Compatibility calls left in capture/reassignment flows
+     * are intentionally ignored so a saved or moved photo remains PENDING.
      */
     public static void enqueueUploadNow(@NonNull Context context) {
-        // A capture must finish as a local PENDING photo. Do not silently upload
-        // just because a network is available. The user starts uploads from
-        // Gallery > Sync All.
-        String callerClass = context.getClass().getName();
-        if ("ph.gov.geocamera.presentation.geocamera.GeoCameraActivity".equals(callerClass)) {
-            return;
-        }
+        if (!isExplicitGallerySyncRequest()) return;
 
         final Context appContext = context.getApplicationContext();
         final WorkManager workManager = WorkManager.getInstance(appContext);
@@ -59,11 +47,7 @@ public class SyncScheduler {
                 if (infos != null) {
                     for (WorkInfo info : infos) {
                         if (info == null) continue;
-
-                        if (info.getState() == WorkInfo.State.RUNNING) {
-                            running = true;
-                        }
-
+                        if (info.getState() == WorkInfo.State.RUNNING) running = true;
                         if (info.getState() == WorkInfo.State.ENQUEUED
                                 && info.getRunAttemptCount() > 0) {
                             retryBackoffQueued = true;
@@ -71,14 +55,10 @@ public class SyncScheduler {
                     }
                 }
             } catch (Exception ignored) {
-                // Fall back to normal KEEP behavior below.
             }
 
             ImageMetaRepository repo = new ImageMetaRepository(appContext);
-
-            if (!running) {
-                repo.resetStuckUploading();
-            }
+            if (!running) repo.resetStuckUploading();
 
             int totalAllPending = repo.countPendingForSync();
             if (totalAllPending <= 0) return;
@@ -95,33 +75,33 @@ public class SyncScheduler {
                     new OneTimeWorkRequest.Builder(UploadWorker.class)
                             .setConstraints(constraints)
                             .setInputData(input)
-                            .setBackoffCriteria(
-                                    BackoffPolicy.EXPONENTIAL,
-                                    20,
-                                    TimeUnit.SECONDS
-                            )
+                            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 20, TimeUnit.SECONDS)
                             .addTag(UNIQUE_UPLOAD_WORK)
                             .build();
 
             ExistingWorkPolicy policy;
-            if (running) {
-                policy = ExistingWorkPolicy.APPEND_OR_REPLACE;
-            } else if (retryBackoffQueued) {
-                policy = ExistingWorkPolicy.REPLACE;
-            } else {
-                policy = ExistingWorkPolicy.KEEP;
-            }
+            if (running) policy = ExistingWorkPolicy.APPEND_OR_REPLACE;
+            else if (retryBackoffQueued) policy = ExistingWorkPolicy.REPLACE;
+            else policy = ExistingWorkPolicy.KEEP;
 
-            workManager.enqueueUniqueWork(
-                    UNIQUE_UPLOAD_WORK,
-                    policy,
-                    request
-            );
+            workManager.enqueueUniqueWork(UNIQUE_UPLOAD_WORK, policy, request);
         }, ContextCompat.getMainExecutor(appContext));
     }
 
+    private static boolean isExplicitGallerySyncRequest() {
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        if (stack == null) return false;
+        for (StackTraceElement frame : stack) {
+            if (frame == null) continue;
+            if ("ph.gov.geocamera.presentation.gallery.GalleryActivity".equals(frame.getClassName())
+                    && "startSyncAll".equals(frame.getMethodName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void cancelSync(@NonNull Context context) {
-        WorkManager.getInstance(context)
-                .cancelUniqueWork(UNIQUE_UPLOAD_WORK);
+        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_UPLOAD_WORK);
     }
 }
