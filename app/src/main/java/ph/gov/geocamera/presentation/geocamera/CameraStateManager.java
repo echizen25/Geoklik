@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.Locale;
@@ -14,6 +15,7 @@ import java.util.Locale;
 import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.repository.MunicipalityBoundaryRepository;
 import ph.gov.geocamera.data.repository.ProjectAdminAreaRepository;
+import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
 
 /** Keeps the shutter and capture-status label consistent across the capture lifecycle. */
@@ -34,28 +36,31 @@ final class CameraStateManager {
     }
 
     /*
-     * TEMPORARILY DISABLED.
+     * Rollout strategy:
+     * - DIAGNOSE=true: evaluate INFRA municipality and show useful warnings/details.
+     * - ENFORCE=false: never disable the shutter because of the project municipality yet.
      *
-     * Keep the project municipality metadata/boundary implementation in place so
-     * it can be re-enabled after the deployed API + local project cache flow has
-     * been verified. While false, project location must never disable the shutter
-     * or show a project-location block. Existing GeoKlik GPS quality rules still
-     * apply in GeoCameraActivity.
+     * This lets field testing expose bad/missing mun_code data without preventing
+     * legitimate documentation. Once the project-location feed is verified, only
+     * ENFORCE_INFRA_PROJECT_CITY needs to be enabled.
      */
+    private static final boolean DIAGNOSE_INFRA_PROJECT_CITY = true;
     private static final boolean ENFORCE_INFRA_PROJECT_CITY = false;
 
     private static final long AREA_GPS_MAX_AGE_MS = 15_000L;
     private static final float AREA_MAX_GPS_ACCURACY_M = 30f;
     private static final long AREA_LOCAL_CACHE_MS = 5_000L;
     private static final long AREA_SYNC_RETRY_MS = 30_000L;
-    private static final long BLOCK_NOTICE_REPEAT_MS = 20_000L;
+    private static final long NOTICE_REPEAT_MS = 20_000L;
 
     private final ImageButton captureButton;
     private final TextView statusText;
+    private final Context uiContext;
     private final Context appContext;
     private final CameraPrefs cameraPrefs;
     private final ProjectAdminAreaRepository adminAreaRepository;
     private final MunicipalityBoundaryRepository municipalityBoundaryRepository;
+    private final ProjectRepository projectRepository;
     private State state = State.WAITING_FOR_GPS;
 
     private String cachedProjectId = "";
@@ -63,8 +68,8 @@ final class CameraStateManager {
     private long cachedAdminAreaAt = 0L;
     private long lastAreaSyncRequestAt = 0L;
 
-    private String lastBlockNoticeKey = "";
-    private long lastBlockNoticeAt = 0L;
+    private String lastNoticeKey = "";
+    private long lastNoticeAt = 0L;
 
     CameraStateManager(ImageButton captureButton, TextView statusText) {
         this.captureButton = captureButton;
@@ -73,6 +78,7 @@ final class CameraStateManager {
         Context source = captureButton != null
                 ? captureButton.getContext()
                 : (statusText != null ? statusText.getContext() : null);
+        this.uiContext = source;
         this.appContext = source == null ? null : source.getApplicationContext();
         this.cameraPrefs = source == null ? null : new CameraPrefs(source);
         this.adminAreaRepository = source == null
@@ -81,14 +87,18 @@ final class CameraStateManager {
         this.municipalityBoundaryRepository = source == null
                 ? null
                 : new MunicipalityBoundaryRepository(source.getApplicationContext());
+        this.projectRepository = source == null
+                ? null
+                : new ProjectRepository(source.getApplicationContext());
 
-        // The status line remains ready for the future location rule, but with
-        // enforcement disabled it will not surface a project-location block.
+        // The status line doubles as a location-diagnostics affordance. A field
+        // user can tap LOCATION WARNING / LOCATION CHECK to see the selected
+        // project code, expected mun_code, GPS coordinates, and exact check result.
         if (this.statusText != null) {
             this.statusText.setOnClickListener(v -> {
-                if (!ENFORCE_INFRA_PROJECT_CITY || state != State.READY) return;
+                if (!DIAGNOSE_INFRA_PROJECT_CITY || state != State.READY) return;
                 AreaDecision area = evaluateInfrastructureMunicipality();
-                if (!area.allowed) showBlockedNotice(area.message, true);
+                if (area.message != null) showLocationDetails(area.message);
             });
         }
 
@@ -110,46 +120,56 @@ final class CameraStateManager {
         if (next == null) return;
         state = next;
 
-        AreaDecision area = next == State.READY
+        AreaDecision area = next == State.READY && DIAGNOSE_INFRA_PROJECT_CITY
                 ? evaluateInfrastructureMunicipality()
                 : AreaDecision.notApplicable();
 
-        boolean ready = next == State.READY && area.allowed;
+        // Project-location diagnostics are intentionally non-blocking while
+        // ENFORCE is false. Normal GeoKlik GPS/camera state still controls READY.
+        boolean ready = next == State.READY
+                && (!ENFORCE_INFRA_PROJECT_CITY || area.allowed);
+
         if (captureButton != null) {
             captureButton.setEnabled(ready);
             captureButton.setAlpha(ready ? 1f : 0.35f);
         }
 
         if (statusText != null) {
-            String text = next == State.READY && area.message != null
-                    ? area.message
-                    : label(next);
+            String text;
+            if (next == State.READY && area.message != null) {
+                if (area.allowed) {
+                    text = area.message;
+                } else if (ENFORCE_INFRA_PROJECT_CITY) {
+                    text = area.message;
+                } else {
+                    text = diagnosticStatusLabel(area.message);
+                }
+            } else {
+                text = label(next);
+            }
+
             statusText.setText(text);
             statusText.setVisibility(View.VISIBLE);
-            statusText.setClickable(
-                    ENFORCE_INFRA_PROJECT_CITY && next == State.READY && !area.allowed
-            );
+            statusText.setClickable(next == State.READY && area.message != null);
             statusText.setContentDescription(
-                    ENFORCE_INFRA_PROJECT_CITY && next == State.READY && !area.allowed
-                            ? text + ". Tap for explanation."
+                    next == State.READY && area.message != null
+                            ? text + ". Tap for location details."
                             : text
             );
         }
 
-        if (ENFORCE_INFRA_PROJECT_CITY && next == State.READY && !area.allowed) {
-            showBlockedNotice(area.message, false);
+        if (next == State.READY && !area.allowed && area.message != null) {
+            showLocationNotice(area.message, false);
         }
     }
 
     /**
-     * Infrastructure city/municipality validation implementation retained for a
-     * later rollout. It is intentionally bypassed while
-     * ENFORCE_INFRA_PROJECT_CITY is false.
+     * Evaluate only Infrastructure projects. Project Activity and Personal are
+     * never municipality-restricted. During diagnostic rollout a failed result
+     * is displayed but does not disable the shutter.
      */
     private AreaDecision evaluateInfrastructureMunicipality() {
-        if (!ENFORCE_INFRA_PROJECT_CITY) {
-            return AreaDecision.notApplicable();
-        }
+        if (!DIAGNOSE_INFRA_PROJECT_CITY) return AreaDecision.notApplicable();
 
         if (cameraPrefs == null
                 || adminAreaRepository == null
@@ -202,7 +222,7 @@ final class CameraStateManager {
                 );
 
         if (decision.status == MunicipalityBoundaryRepository.Status.INSIDE) {
-            return AreaDecision.allow("READY • PROJECT CITY/MUNICIPALITY");
+            return AreaDecision.allow("READY • LOCATION MATCH");
         }
 
         if (decision.status == MunicipalityBoundaryRepository.Status.OUTSIDE) {
@@ -238,7 +258,10 @@ final class CameraStateManager {
         if ((now - lastAreaSyncRequestAt) < AREA_SYNC_RETRY_MS) return;
         lastAreaSyncRequestAt = now;
         try {
-            ProjectBackgroundSync.syncIfNeeded(appContext, false, updated -> {
+            // Force only when the selected INFRA project has no cached admin-area
+            // metadata. This fixes the case where the ordinary 6-hour project sync
+            // is recent but mun_code was never cached by an older app build.
+            ProjectBackgroundSync.syncIfNeeded(appContext, true, updated -> {
                 if (updated) {
                     cachedAdminAreaAt = 0L;
                     cachedAdminArea = null;
@@ -266,63 +289,140 @@ final class CameraStateManager {
         }
     }
 
-    private void showBlockedNotice(String technicalMessage, boolean force) {
-        if (!ENFORCE_INFRA_PROJECT_CITY || captureButton == null) return;
+    private String diagnosticStatusLabel(String message) {
+        String m = clean(message).toUpperCase(Locale.US);
+        if (m.startsWith("OUTSIDE PROJECT CITY")) return "LOCATION WARNING • TAP DETAILS";
+        if (m.startsWith("SYNC PROJECT LOCATION")) return "LOCATION CHECK • SYNCING…";
+        if (m.startsWith("LOADING PROJECT CITY")) return "LOCATION CHECK • LOADING…";
+        if (m.startsWith("PROJECT CITY/MUNICIPALITY NOT SET")) return "LOCATION DATA MISSING • TAP DETAILS";
+        if (m.startsWith("PROJECT MUNICIPALITY CODE INVALID")) return "LOCATION CODE ERROR • TAP DETAILS";
+        if (m.startsWith("GPS REQUIRED")) return "LOCATION CHECK • GPS REQUIRED";
+        if (m.startsWith("CITY GPS WEAK")) return "LOCATION CHECK • GPS WEAK";
+        return "LOCATION CHECK WARNING • TAP DETAILS";
+    }
+
+    private void showLocationNotice(String technicalMessage, boolean force) {
+        if (captureButton == null) return;
 
         String key = clean(technicalMessage);
-        if (key.isEmpty()) key = "CAPTURE BLOCKED";
+        if (key.isEmpty()) key = "LOCATION CHECK WARNING";
 
         long now = System.currentTimeMillis();
         if (!force
-                && key.equals(lastBlockNoticeKey)
-                && (now - lastBlockNoticeAt) < BLOCK_NOTICE_REPEAT_MS) {
+                && key.equals(lastNoticeKey)
+                && (now - lastNoticeAt) < NOTICE_REPEAT_MS) {
             return;
         }
 
-        lastBlockNoticeKey = key;
-        lastBlockNoticeAt = now;
+        lastNoticeKey = key;
+        lastNoticeAt = now;
 
         Snackbar.make(
                 captureButton,
-                explainBlockReason(key),
+                explainDiagnostic(key),
                 Snackbar.LENGTH_LONG
-        ).setAction("OK", v -> { }).show();
+        ).setAction("DETAILS", v -> showLocationDetails(key)).show();
     }
 
-    private String explainBlockReason(String message) {
+    private String explainDiagnostic(String message) {
         String m = clean(message).toUpperCase(Locale.US);
+        String projectCode = selectedProjectCode();
+        String munCode = expectedMunicipalityCode();
+        String prefix = projectCode.isEmpty() ? "INFRA" : projectCode;
 
         if (m.startsWith("OUTSIDE PROJECT CITY")) {
-            return "Capture blocked: this INFRA project is registered in a different city/municipality.";
+            return "Location warning: " + prefix + " expects municipality code "
+                    + valueOrDash(munCode) + ". Capture is allowed while validation is in test mode.";
         }
         if (m.startsWith("PROJECT CITY/MUNICIPALITY NOT SET")) {
-            return "Capture blocked: this INFRA project has no municipality code in the synced project data.";
+            return "Location data missing for " + prefix
+                    + ": mun_code is empty. Capture is currently allowed.";
         }
         if (m.startsWith("SYNC PROJECT LOCATION")) {
-            return "Capture blocked: project location data is not synced yet. Connect to the internet and refresh Projects.";
+            return "Location data for " + prefix
+                    + " is not cached yet. GeoKlik is refreshing Projects; capture remains allowed.";
         }
         if (m.startsWith("LOADING PROJECT CITY")) {
-            return "GeoKlik is loading the project city/municipality boundary. Keep internet on for the first check, then try again.";
+            return "Loading municipality boundary for code " + valueOrDash(munCode)
+                    + ". Capture remains allowed during validation testing.";
         }
         if (m.startsWith("GPS REQUIRED")) {
-            return "Capture blocked: a fresh GPS fix is required to verify that you are inside the project's city/municipality.";
+            return "Location check needs a fresh GPS fix. Capture remains controlled by the normal camera GPS rules.";
         }
         if (m.startsWith("CITY GPS WEAK")) {
-            return "Capture blocked: GPS accuracy is too weak for the city/municipality check. Move to an open area and wait for a better fix.";
+            return "Location check GPS is weak. Tap DETAILS to see the selected project and expected municipality code.";
         }
         if (m.startsWith("PROJECT MUNICIPALITY CODE INVALID")) {
-            return "Capture blocked: the project's municipality code cannot be matched to the boundary dataset.";
+            return "Location code error: " + prefix + " has mun_code " + valueOrDash(munCode)
+                    + ", which cannot be matched to the boundary dataset.";
         }
-        if (m.startsWith("SELECT INFRA PROJECT")) {
-            return "Capture blocked: select a valid Infrastructure project first.";
+        return "Location check warning for " + prefix + ". Tap DETAILS to inspect the project/location values.";
+    }
+
+    private void showLocationDetails(String technicalMessage) {
+        if (uiContext == null) return;
+
+        String projectId = cameraPrefs == null ? "" : clean(cameraPrefs.getSiteId());
+        String projectCode = selectedProjectCode();
+        ProjectAdminAreaRepository.Record area = projectId.isEmpty()
+                ? null
+                : getCachedAdminArea(projectId);
+        String munCode = area == null ? "" : clean(area.municipalityCode);
+        String brgyCode = area == null ? "" : clean(area.barangayCode);
+        Location gps = getFreshGpsLocation();
+
+        StringBuilder message = new StringBuilder();
+        message.append("Project Code: ").append(valueOrDash(projectCode)).append('\n');
+        message.append("Project ID: ").append(valueOrDash(projectId)).append('\n');
+        message.append("Expected mun_code: ").append(valueOrDash(munCode)).append('\n');
+        message.append("brgy_code (reference only): ").append(valueOrDash(brgyCode)).append('\n');
+
+        if (gps != null) {
+            message.append("GPS: ")
+                    .append(String.format(Locale.US, "%.6f, %.6f", gps.getLatitude(), gps.getLongitude()))
+                    .append('\n');
+            message.append("GPS accuracy: ")
+                    .append(gps.hasAccuracy()
+                            ? String.format(Locale.US, "±%.0f m", gps.getAccuracy())
+                            : "unknown")
+                    .append('\n');
+        } else {
+            message.append("GPS: no fresh GPS fix\n");
         }
-        if (m.startsWith("PROJECT TYPE CHECK FAILED")) {
-            return "Capture blocked: the selected project's capture type could not be verified.";
+
+        message.append("Result: ").append(valueOrDash(technicalMessage)).append('\n');
+        message.append("Capture: ")
+                .append(ENFORCE_INFRA_PROJECT_CITY ? "BLOCKED when invalid" : "ALLOWED (diagnostic mode)");
+
+        try {
+            new MaterialAlertDialogBuilder(uiContext)
+                    .setTitle("Project Location Check")
+                    .setMessage(message.toString())
+                    .setPositiveButton("OK", null)
+                    .show();
+        } catch (Exception ignored) {
+            showLocationNotice(technicalMessage, true);
         }
-        if (m.startsWith("PROJECT AREA CHECK UNAVAILABLE")) {
-            return "Capture blocked: project location validation is temporarily unavailable.";
-        }
-        return "Capture blocked: GeoKlik could not verify the Infrastructure project location.";
+    }
+
+    private String selectedProjectCode() {
+        if (cameraPrefs == null || projectRepository == null) return "";
+        String projectId = clean(cameraPrefs.getSiteId());
+        if (projectId.isEmpty()) return "";
+        return clean(projectRepository.getProjectCodeById(projectId));
+    }
+
+    private String expectedMunicipalityCode() {
+        if (cameraPrefs == null || adminAreaRepository == null) return "";
+        String projectId = clean(cameraPrefs.getSiteId());
+        if (projectId.isEmpty()) return "";
+        ProjectAdminAreaRepository.Record area = getCachedAdminArea(projectId);
+        return area == null ? "" : clean(area.municipalityCode);
+    }
+
+    private static String valueOrDash(String value) {
+        String v = clean(value);
+        return v.isEmpty() ? "—" : v;
     }
 
     private static String clean(String value) {
