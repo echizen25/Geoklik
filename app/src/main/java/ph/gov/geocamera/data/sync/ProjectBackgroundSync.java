@@ -57,7 +57,7 @@ public final class ProjectBackgroundSync {
                 ProjectAdminAreaRepository adminAreaRepo = new ProjectAdminAreaRepository(appContext);
                 SharedPreferences prefs = appContext.getSharedPreferences(PREFS_PROJECT_SYNC, Context.MODE_PRIVATE);
 
-                boolean hasLocalProjects = repo.hasAnyProjects();
+                boolean hasLocalProjects = !repo.getProjectList().isEmpty();
                 long lastSync = prefs.getLong(KEY_LAST_PROJECT_SYNC, 0L);
                 long now = System.currentTimeMillis();
                 boolean intervalExpired = (now - lastSync) >= PROJECT_SYNC_INTERVAL_MS;
