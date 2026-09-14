@@ -11,14 +11,17 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -29,6 +32,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.zxing.BarcodeFormat;
@@ -42,8 +46,10 @@ import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -71,7 +77,8 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private ActivityResultLauncher<ScanOptions> qrLauncher;
     private ActivityResultLauncher<String> qrImageLauncher;
-    private TextInputEditText actSite;
+    private MaterialAutoCompleteTextView actSite;
+    private ArrayAdapter<String> projectSuggestionAdapter;
 
     private boolean pickOnly = false;
     private String requiredProjectType = "";
@@ -112,8 +119,8 @@ public class SetSiteActivity extends AppCompatActivity {
             if (tvSubtitle != null) {
                 tvSubtitle.setText(
                         CameraPrefs.DOC_INFRA.equals(requiredProjectType)
-                                ? "Paste a Project Code or use QR. Infrastructure projects only."
-                                : "Paste a Project Code or use QR."
+                                ? "Choose an Infrastructure project, paste a Project Code, or use QR."
+                                : "Choose a project, paste a Project Code, or use QR."
                 );
             }
             if (cardPersonalCapture != null) cardPersonalCapture.setVisibility(View.GONE);
@@ -124,9 +131,11 @@ public class SetSiteActivity extends AppCompatActivity {
         setupProjectCodeInput();
         setupQrLaunchers();
 
-        // Keep capture targets in the local cache for code/type resolution,
-        // but never expose the full synced project list on this screen.
-        ProjectBackgroundSync.syncIfNeeded(this, false, null);
+        // Keep capture targets in the local cache for code/type resolution.
+        // Suggestions are shown only as a floating dropdown from the input field.
+        ProjectBackgroundSync.syncIfNeeded(this, false, updated -> runOnUiThread(() -> {
+            if (updated) refreshProjectSuggestions(currentProjectQuery(), false);
+        }));
 
         btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
         btnPasteCode.setOnClickListener(v -> pasteProjectCodeFromClipboard());
@@ -154,8 +163,57 @@ public class SetSiteActivity extends AppCompatActivity {
     private void setupProjectCodeInput() {
         if (actSite == null) return;
 
+        projectSuggestionAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                new ArrayList<>()
+        );
+        actSite.setAdapter(projectSuggestionAdapter);
+        actSite.setThreshold(0);
         actSite.setSingleLine(true);
         actSite.setImeOptions(EditorInfo.IME_ACTION_DONE);
+
+        actSite.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void afterTextChanged(Editable s) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s == null ? "" : s.toString();
+                refreshProjectSuggestions(query, actSite.hasFocus());
+            }
+        });
+
+        actSite.setOnClickListener(v -> refreshProjectSuggestions(currentProjectQuery(), true));
+        actSite.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) refreshProjectSuggestions(currentProjectQuery(), false);
+            else actSite.dismissDropDown();
+        });
+        actSite.setOnItemClickListener((parent, view, position, id) -> {
+            Object item = parent == null ? null : parent.getItemAtPosition(position);
+            if (item == null) return;
+
+            String selected = item.toString().trim();
+            if (selected.isEmpty()) return;
+
+            String projectId = null;
+            try {
+                projectId = projectRepo.resolveProjectId(selected);
+            } catch (Exception ignored) {
+            }
+
+            String value = selected;
+            if (projectId != null && !projectId.trim().isEmpty()) {
+                String code = projectRepo.getProjectCodeById(projectId.trim());
+                if (code != null && !code.trim().isEmpty()) value = code.trim();
+                else value = projectId.trim();
+            }
+
+            actSite.setText(value, false);
+            actSite.setSelection(value.length());
+            actSite.dismissDropDown();
+        });
+
         actSite.setOnEditorActionListener((v, actionId, event) -> {
             boolean isDone =
                     actionId == EditorInfo.IME_ACTION_DONE
@@ -170,6 +228,37 @@ public class SetSiteActivity extends AppCompatActivity {
             submitCurrentProjectCode();
             return true;
         });
+
+        refreshProjectSuggestions("", false);
+    }
+
+    private String currentProjectQuery() {
+        return actSite == null || actSite.getText() == null
+                ? ""
+                : actSite.getText().toString();
+    }
+
+    private void refreshProjectSuggestions(String query, boolean showDropdown) {
+        if (actSite == null || projectSuggestionAdapter == null || projectRepo == null) return;
+
+        List<String> suggestions;
+        try {
+            suggestions = projectRepo.getProjectSuggestions(query, 6, requiredProjectType);
+        } catch (Exception ignored) {
+            suggestions = Collections.emptyList();
+        }
+
+        projectSuggestionAdapter.clear();
+        if (suggestions != null && !suggestions.isEmpty()) {
+            projectSuggestionAdapter.addAll(suggestions);
+        }
+        projectSuggestionAdapter.notifyDataSetChanged();
+
+        if (showDropdown && actSite.hasFocus() && projectSuggestionAdapter.getCount() > 0) {
+            actSite.post(actSite::showDropDown);
+        } else if (projectSuggestionAdapter.getCount() == 0) {
+            actSite.dismissDropDown();
+        }
     }
 
     private void pasteProjectCodeFromClipboard() {
@@ -195,7 +284,7 @@ public class SetSiteActivity extends AppCompatActivity {
             return;
         }
 
-        actSite.setText(pasted);
+        actSite.setText(pasted, false);
         actSite.setSelection(pasted.length());
         actSite.requestFocus();
         Toast.makeText(this, "Project code pasted", Toast.LENGTH_SHORT).show();
@@ -244,7 +333,7 @@ public class SetSiteActivity extends AppCompatActivity {
             return;
         }
 
-        actSite.setText(scanned);
+        actSite.setText(scanned, false);
         actSite.setSelection(scanned.length());
         hideKeyboard();
         actSite.clearFocus();
@@ -255,6 +344,7 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private void submitCurrentProjectCode() {
         hideKeyboard();
+        actSite.dismissDropDown();
         actSite.clearFocus();
 
         String raw = actSite.getText() == null ? "" : actSite.getText().toString();
@@ -297,7 +387,10 @@ public class SetSiteActivity extends AppCompatActivity {
     private void startQrScan() {
         hideKeyboard();
 
-        if (actSite != null) actSite.clearFocus();
+        if (actSite != null) {
+            actSite.dismissDropDown();
+            actSite.clearFocus();
+        }
 
         ScanOptions options = new ScanOptions();
         options.setPrompt("Scan Project QR");
@@ -460,141 +553,87 @@ public class SetSiteActivity extends AppCompatActivity {
         TextInputLayout tilTitle = new TextInputLayout(this);
         tilTitle.setHint("Overlay Title");
         tilTitle.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-        titleParams.topMargin = dp(12);
-        tilTitle.setLayoutParams(titleParams);
 
         TextInputEditText etTitle = new TextInputEditText(this);
         etTitle.setSingleLine(true);
         etTitle.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         etTitle.setFilters(new InputFilter[]{new InputFilter.LengthFilter(60)});
-        etTitle.setText(cameraPrefs.getPersonalOverlayTitle());
         tilTitle.addView(etTitle, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
 
+        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        titleLp.topMargin = dp(12);
         container.addView(tilLabel);
-        container.addView(tilTitle);
+        container.addView(tilTitle, titleLp);
 
-        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
                 .setTitle("Personal Capture")
-                .setMessage("Customize the existing first watermark line. These settings apply only to Personal photos.")
+                .setMessage("Set the overlay label and a title for this photo session.")
                 .setView(container)
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Use Personal", null)
-                .create();
+                .setPositiveButton("Continue", null);
 
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
         dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener(v -> {
-                    String label = cleanPersonalOverlayText(
-                            etLabel.getText() == null ? "" : etLabel.getText().toString(),
-                            "PERSONAL",
-                            30
-                    );
-                    String title = cleanPersonalOverlayText(
-                            etTitle.getText() == null ? "" : etTitle.getText().toString(),
-                            "Personal Capture",
-                            60
-                    );
+                    String label = etLabel.getText() == null ? "" : etLabel.getText().toString().trim();
+                    String title = etTitle.getText() == null ? "" : etTitle.getText().toString().trim();
 
-                    cameraPrefs.savePersonalOverlay(label, title);
+                    if (label.isEmpty()) {
+                        tilLabel.setError("Overlay label is required.");
+                        return;
+                    }
+                    if (title.isEmpty()) {
+                        tilTitle.setError("Title is required.");
+                        return;
+                    }
+
                     cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
-                    cameraPrefs.clearActivityProjectId();
+                    cameraPrefs.savePersonalOverlayLabel(label);
+                    cameraPrefs.saveActivityProjectId("");
                     captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
-
-                    // Keep a readable local target so the existing watermark can
-                    // render the custom title without changing the INFRA/Activity
-                    // watermark implementation. PERSONAL remains local-only because
-                    // monitoring_type, not siteId, controls synchronization.
-                    cameraPrefs.saveSite(title, false);
+                    cameraPrefs.saveSite("", true);
 
                     dialog.dismiss();
-                    Toast.makeText(
-                            this,
-                            label + " | " + title + "\nOn device only",
-                            Toast.LENGTH_SHORT
-                    ).show();
-                    finishWithResult(title, false);
+                    finishWithResult("", true, title, CameraPrefs.DOC_PERSONAL, label);
                 }));
-
         dialog.show();
     }
 
-    private String cleanPersonalOverlayText(String value, String fallback, int maxLength) {
-        String out = value == null ? "" : value.trim();
-        out = out.replace("\n", " ").replace("\r", " ");
-        out = out.replaceAll("[\\\\/:*?\"<>|]", "-");
-        while (out.contains("  ")) out = out.replace("  ", " ");
-        while (out.contains("--")) out = out.replace("--", "-");
-        out = out.trim();
-        if (out.isEmpty()) out = fallback;
-        if (out.length() > maxLength) out = out.substring(0, maxLength).trim();
-        return out;
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
     private String decodeQrFromImage(Uri uri) throws Exception {
-        Bitmap source = decodeScaledBitmap(uri, 2200);
-        if (source == null) return null;
+        Bitmap bitmap;
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            bitmap = BitmapFactory.decodeStream(in);
+        }
+        if (bitmap == null) return null;
 
         try {
             int[] rotations = new int[]{0, 90, 180, 270};
             for (int degrees : rotations) {
-                Bitmap candidate = source;
-                if (degrees != 0) {
-                    Matrix matrix = new Matrix();
-                    matrix.postRotate(degrees);
-                    candidate = Bitmap.createBitmap(
-                            source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
-                }
-
+                Bitmap candidate = degrees == 0 ? bitmap : rotateBitmap(bitmap, degrees);
                 try {
-                    String result = decodeQrBitmap(candidate);
-                    if (result != null && !result.trim().isEmpty()) return result.trim();
-                } catch (Exception ignored) {
+                    String decoded = decodeQrBitmap(candidate);
+                    if (decoded != null && !decoded.trim().isEmpty()) return decoded;
                 } finally {
-                    if (candidate != source && !candidate.isRecycled()) candidate.recycle();
+                    if (candidate != bitmap && !candidate.isRecycled()) candidate.recycle();
                 }
             }
             return null;
         } finally {
-            if (!source.isRecycled()) source.recycle();
-        }
-    }
-
-    private Bitmap decodeScaledBitmap(Uri uri, int maxDimension) throws Exception {
-        BitmapFactory.Options bounds = new BitmapFactory.Options();
-        bounds.inJustDecodeBounds = true;
-
-        try (InputStream input = getContentResolver().openInputStream(uri)) {
-            BitmapFactory.decodeStream(input, null, bounds);
-        }
-
-        int sample = 1;
-        while (bounds.outWidth / sample > maxDimension
-                || bounds.outHeight / sample > maxDimension) {
-            sample *= 2;
-        }
-
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inSampleSize = Math.max(1, sample);
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-
-        try (InputStream input = getContentResolver().openInputStream(uri)) {
-            return BitmapFactory.decodeStream(input, null, options);
+            if (!bitmap.isRecycled()) bitmap.recycle();
         }
     }
 
     private String decodeQrBitmap(Bitmap bitmap) throws Exception {
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
+        if (width <= 0 || height <= 0) return null;
+
         int[] pixels = new int[width * height];
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
 
@@ -606,16 +645,44 @@ public class SetSiteActivity extends AppCompatActivity {
                 Collections.singletonList(BarcodeFormat.QR_CODE));
         hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
 
-        MultiFormatReader reader = new MultiFormatReader();
-        Result result = reader.decode(binaryBitmap, hints);
+        Result result = new MultiFormatReader().decode(binaryBitmap, hints);
         return result == null ? null : result.getText();
     }
 
-    private void finishWithResult(String projectId, boolean uncategorized) {
+    private Bitmap rotateBitmap(Bitmap source, int degrees) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degrees);
+        return Bitmap.createBitmap(
+                source,
+                0,
+                0,
+                source.getWidth(),
+                source.getHeight(),
+                matrix,
+                true
+        );
+    }
+
+    private void finishWithResult(String siteId, boolean uncategorized) {
+        finishWithResult(siteId, uncategorized, null, null, null);
+    }
+
+    private void finishWithResult(String siteId,
+                                  boolean uncategorized,
+                                  String sessionTitle,
+                                  String documentationType,
+                                  String personalOverlayLabel) {
         Intent result = new Intent();
-        result.putExtra(EXTRA_SITE_ID, projectId);
+        result.putExtra(EXTRA_SITE_ID, siteId);
         result.putExtra(EXTRA_UNCATEGORIZED, uncategorized);
+        if (sessionTitle != null) result.putExtra("EXTRA_SESSION_TITLE", sessionTitle);
+        if (documentationType != null) result.putExtra("EXTRA_DOCUMENTATION_TYPE", documentationType);
+        if (personalOverlayLabel != null) result.putExtra("EXTRA_PERSONAL_OVERLAY_LABEL", personalOverlayLabel);
         setResult(RESULT_OK, result);
         finish();
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
