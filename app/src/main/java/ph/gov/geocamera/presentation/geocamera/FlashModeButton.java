@@ -2,22 +2,31 @@ package ph.gov.geocamera.presentation.geocamera;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.util.AttributeSet;
 import android.view.Gravity;
-import android.widget.Toast;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatTextView;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
 import ph.gov.geocamera.core.utils.CameraPrefs;
 
-/** Compact camera control for AUTO / ON / OFF still-photo flash modes. */
+/**
+ * Read-only camera flash indicator.
+ *
+ * Flash selection now lives in the main Settings module. This view removes
+ * itself from the crowded right-side camera controls and becomes a small
+ * overlay indicator. OFF is intentionally hidden; AUTO and ON remain visible
+ * so the field user knows that flash may fire.
+ */
 public final class FlashModeButton extends AppCompatTextView {
 
     private CameraPrefs prefs;
+    private boolean movedToOverlay = false;
 
     public FlashModeButton(@NonNull Context context) {
         super(context);
@@ -42,70 +51,92 @@ public final class FlashModeButton extends AppCompatTextView {
         setTextColor(Color.WHITE);
         setTextSize(9f);
         setAllCaps(false);
-        setMaxLines(2);
-        setClickable(true);
-        setFocusable(true);
-        setOnClickListener(v -> showModeDialog());
-        refreshLabel();
+        setMaxLines(1);
+        setClickable(false);
+        setFocusable(false);
+        setPadding(dp(9), dp(5), dp(9), dp(5));
+        setBackground(makeIndicatorBackground());
+        setElevation(dp(10));
+        refreshIndicator();
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        refreshLabel();
+        refreshIndicator();
+        if (!movedToOverlay) post(this::moveOutOfControlPanel);
     }
 
-    private void showModeDialog() {
-        final String[] labels = {"Automatic", "On", "Off"};
-        final String[] values = {
-                CameraPrefs.FLASH_AUTO,
-                CameraPrefs.FLASH_ON,
-                CameraPrefs.FLASH_OFF
-        };
-
-        String current = prefs.getFlashMode();
-        int checked = CameraPrefs.FLASH_ON.equals(current)
-                ? 1
-                : (CameraPrefs.FLASH_OFF.equals(current) ? 2 : 0);
-
-        new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Camera Flash")
-                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
-                    String selected = values[which];
-                    CameraFlashController.setMode(getContext(), selected);
-                    refreshLabel();
-                    dialog.dismiss();
-
-                    if (!CameraFlashController.hasFlashUnit()) {
-                        Toast.makeText(
-                                getContext(),
-                                "This camera does not report a hardware flash unit.",
-                                Toast.LENGTH_SHORT
-                        ).show();
-                    } else {
-                        Toast.makeText(
-                                getContext(),
-                                "Flash: " + labels[which],
-                                Toast.LENGTH_SHORT
-                        ).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        if (hasWindowFocus) refreshIndicator();
     }
 
-    private void refreshLabel() {
+    private void moveOutOfControlPanel() {
+        if (movedToOverlay) return;
+        FrameLayout root = findRootFrame(this);
+        ViewGroup parent = getParent() instanceof ViewGroup ? (ViewGroup) getParent() : null;
+        if (root == null || parent == null || parent == root) {
+            refreshIndicator();
+            return;
+        }
+
+        try {
+            parent.removeView(this);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.TOP | Gravity.END
+            );
+            lp.topMargin = dp(78);
+            lp.rightMargin = dp(14);
+            root.addView(this, lp);
+            movedToOverlay = true;
+            bringToFront();
+            refreshIndicator();
+        } catch (Exception ignored) {
+            // UI-only enhancement: never interfere with camera startup.
+        }
+    }
+
+    private void refreshIndicator() {
         if (prefs == null) return;
         String mode = prefs.getFlashMode();
-        if (CameraPrefs.FLASH_ON.equals(mode)) {
-            setText("FLASH\nON");
-            setContentDescription("Flash On");
-        } else if (CameraPrefs.FLASH_OFF.equals(mode)) {
-            setText("FLASH\nOFF");
+        if (CameraPrefs.FLASH_OFF.equals(mode)) {
+            setText("");
             setContentDescription("Flash Off");
+            setVisibility(View.GONE);
+        } else if (CameraPrefs.FLASH_ON.equals(mode)) {
+            setText("⚡ ON");
+            setContentDescription("Flash On");
+            setVisibility(View.VISIBLE);
         } else {
-            setText("FLASH\nAUTO");
+            setText("⚡ AUTO");
             setContentDescription("Flash Automatic");
+            setVisibility(View.VISIBLE);
         }
+    }
+
+    private GradientDrawable makeIndicatorBackground() {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.argb(175, 0, 0, 0));
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), Color.argb(90, 255, 255, 255));
+        return bg;
+    }
+
+    private FrameLayout findRootFrame(View view) {
+        android.view.ViewParent parent = view.getParent();
+        FrameLayout candidate = null;
+        while (parent instanceof View) {
+            if (parent instanceof FrameLayout) candidate = (FrameLayout) parent;
+            parent = parent.getParent();
+        }
+        return candidate;
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
