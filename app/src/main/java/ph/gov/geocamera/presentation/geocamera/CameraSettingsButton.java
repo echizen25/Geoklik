@@ -126,6 +126,10 @@ public class CameraSettingsButton extends AppCompatImageButton {
                 .create();
 
         projectButton.setOnClickListener(v -> {
+            // Set this before dismissing: if GPS was also changed in this same
+            // window, the dismiss callback must not recreate the old camera
+            // before the project picker can open.
+            awaitingProjectPicker = true;
             dialog.dismiss();
             openProjectPicker();
         });
@@ -169,6 +173,7 @@ public class CameraSettingsButton extends AppCompatImageButton {
 
     private void openProjectPicker() {
         if (hostActivity == null) {
+            awaitingProjectPicker = false;
             // Very defensive fallback for preview/non-Activity contexts.
             if (activityListener != null) activityListener.onClick(this);
             return;
