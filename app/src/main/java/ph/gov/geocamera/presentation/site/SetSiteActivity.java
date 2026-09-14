@@ -26,9 +26,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.ComponentActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -59,7 +59,7 @@ import ph.gov.geocamera.data.repository.CaptureContextRepository;
 import ph.gov.geocamera.data.repository.ProjectRepository;
 import ph.gov.geocamera.data.sync.ProjectBackgroundSync;
 
-public class SetSiteActivity extends AppCompatActivity {
+public class SetSiteActivity extends ComponentActivity {
 
     public static final String EXTRA_SITE_ID = "EXTRA_SITE_ID";
     public static final String EXTRA_UNCATEGORIZED = "EXTRA_UNCATEGORIZED";
@@ -94,13 +94,10 @@ public class SetSiteActivity extends AppCompatActivity {
         Intent request = getIntent();
         if (request != null) {
             pickOnly = request.getBooleanExtra(EXTRA_PICK_ONLY, false);
-            requiredProjectType = normalizeProjectType(
-                    request.getStringExtra(EXTRA_REQUIRED_PROJECT_TYPE)
-            );
+            requiredProjectType = normalizeProjectType(request.getStringExtra(EXTRA_REQUIRED_PROJECT_TYPE));
         }
 
         actSite = findViewById(R.id.actSite);
-
         MaterialButton btnUseSelected = findViewById(R.id.btnUseSelected);
         MaterialButton btnPasteCode = findViewById(R.id.btnPasteCode);
         MaterialButton btnScanQr = findViewById(R.id.btnScanQr);
@@ -114,11 +111,9 @@ public class SetSiteActivity extends AppCompatActivity {
         if (pickOnly) {
             if (tvTitle != null) tvTitle.setText("Move Photos");
             if (tvSubtitle != null) {
-                tvSubtitle.setText(
-                        CameraPrefs.DOC_INFRA.equals(requiredProjectType)
-                                ? "Choose an Infrastructure project, paste a Project Code, or use QR."
-                                : "Choose a project, paste a Project Code, or use QR."
-                );
+                tvSubtitle.setText(CameraPrefs.DOC_INFRA.equals(requiredProjectType)
+                        ? "Choose an Infrastructure project, paste a Project Code, or use QR."
+                        : "Choose a project, paste a Project Code, or use QR.");
             }
             if (cardPersonalCapture != null) cardPersonalCapture.setVisibility(View.GONE);
             if (btnUncategorized != null) btnUncategorized.setVisibility(View.GONE);
@@ -134,37 +129,33 @@ public class SetSiteActivity extends AppCompatActivity {
             }
         }));
 
-        btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
-        btnPasteCode.setOnClickListener(v -> pasteProjectCodeFromClipboard());
-        btnScanQr.setOnClickListener(v -> startQrScan());
-        btnUploadQr.setOnClickListener(v -> qrImageLauncher.launch("image/*"));
-        btnUncategorized.setOnClickListener(v -> {
+        if (btnUseSelected != null) btnUseSelected.setOnClickListener(v -> submitCurrentProjectCode());
+        if (btnPasteCode != null) btnPasteCode.setOnClickListener(v -> pasteProjectCodeFromClipboard());
+        if (btnScanQr != null) btnScanQr.setOnClickListener(v -> startQrScan());
+        if (btnUploadQr != null) btnUploadQr.setOnClickListener(v -> qrImageLauncher.launch("image/*"));
+        if (btnUncategorized != null) btnUncategorized.setOnClickListener(v -> {
             if (!pickOnly) showPersonalCaptureDialog();
         });
 
-        btnClose.setOnClickListener(v -> {
-            if (pickOnly) {
-                setResult(RESULT_CANCELED);
+        if (btnClose != null) {
+            btnClose.setOnClickListener(v -> {
+                if (pickOnly) {
+                    setResult(RESULT_CANCELED);
+                    finish();
+                    return;
+                }
+                Intent i = new Intent(SetSiteActivity.this, ph.gov.geocamera.presentation.home.HomeActivity.class);
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
                 finish();
-                return;
-            }
-
-            Intent i = new Intent(SetSiteActivity.this,
-                    ph.gov.geocamera.presentation.home.HomeActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(i);
-            finish();
-        });
+            });
+        }
     }
 
     private void setupProjectCodeInput() {
         if (actSite == null) return;
 
-        projectSuggestionAdapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_dropdown_item_1line,
-                new ArrayList<>()
-        );
+        projectSuggestionAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, new ArrayList<>());
         actSite.setAdapter(projectSuggestionAdapter);
         actSite.setThreshold(1);
         actSite.setSingleLine(true);
@@ -173,9 +164,7 @@ public class SetSiteActivity extends AppCompatActivity {
         actSite.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void afterTextChanged(Editable s) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 String query = s == null ? "" : s.toString().trim();
                 if (query.isEmpty()) {
                     projectSuggestionAdapter.clear();
@@ -198,15 +187,11 @@ public class SetSiteActivity extends AppCompatActivity {
         actSite.setOnItemClickListener((parent, view, position, id) -> {
             Object item = parent == null ? null : parent.getItemAtPosition(position);
             if (item == null) return;
-
             String selected = item.toString().trim();
             if (selected.isEmpty()) return;
 
             String projectId = null;
-            try {
-                projectId = projectRepo.resolveProjectId(selected);
-            } catch (Exception ignored) {
-            }
+            try { projectId = projectRepo.resolveProjectId(selected); } catch (Exception ignored) {}
 
             String value = selected;
             if (projectId != null && !projectId.trim().isEmpty()) {
@@ -221,15 +206,11 @@ public class SetSiteActivity extends AppCompatActivity {
         });
 
         actSite.setOnEditorActionListener((v, actionId, event) -> {
-            boolean isDone =
-                    actionId == EditorInfo.IME_ACTION_DONE
-                            || actionId == EditorInfo.IME_ACTION_SEARCH
-                            || actionId == EditorInfo.IME_ACTION_GO
-                            || actionId == EditorInfo.IME_ACTION_NEXT
-                            || (event != null
-                            && event.getAction() == KeyEvent.ACTION_DOWN
-                            && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
-
+            boolean isDone = actionId == EditorInfo.IME_ACTION_DONE
+                    || actionId == EditorInfo.IME_ACTION_SEARCH
+                    || actionId == EditorInfo.IME_ACTION_GO
+                    || actionId == EditorInfo.IME_ACTION_NEXT
+                    || (event != null && event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
             if (!isDone) return false;
             submitCurrentProjectCode();
             return true;
@@ -237,14 +218,11 @@ public class SetSiteActivity extends AppCompatActivity {
     }
 
     private String currentProjectQuery() {
-        return actSite == null || actSite.getText() == null
-                ? ""
-                : actSite.getText().toString();
+        return actSite == null || actSite.getText() == null ? "" : actSite.getText().toString();
     }
 
     private void refreshProjectSuggestions(String query, boolean showDropdown) {
         if (actSite == null || projectSuggestionAdapter == null || projectRepo == null) return;
-
         String cleanQuery = query == null ? "" : query.trim();
         if (cleanQuery.isEmpty()) {
             projectSuggestionAdapter.clear();
@@ -261,9 +239,7 @@ public class SetSiteActivity extends AppCompatActivity {
         }
 
         projectSuggestionAdapter.clear();
-        if (suggestions != null && !suggestions.isEmpty()) {
-            projectSuggestionAdapter.addAll(suggestions);
-        }
+        if (suggestions != null && !suggestions.isEmpty()) projectSuggestionAdapter.addAll(suggestions);
         projectSuggestionAdapter.notifyDataSetChanged();
 
         if (showDropdown && actSite.hasFocus() && projectSuggestionAdapter.getCount() > 0) {
@@ -274,28 +250,22 @@ public class SetSiteActivity extends AppCompatActivity {
     }
 
     private void pasteProjectCodeFromClipboard() {
-        ClipboardManager clipboard =
-                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard == null || !clipboard.hasPrimaryClip()) {
             Toast.makeText(this, "Clipboard is empty.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         ClipData clip = clipboard.getPrimaryClip();
         if (clip == null || clip.getItemCount() == 0) {
             Toast.makeText(this, "Clipboard is empty.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         CharSequence value = clip.getItemAt(0).coerceToText(this);
         String pasted = normalizeScannedValue(value == null ? "" : value.toString());
-
         if (pasted.isEmpty()) {
             Toast.makeText(this, "Clipboard does not contain a project code.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         actSite.setText(pasted, false);
         actSite.setSelection(pasted.length());
         actSite.requestFocus();
@@ -308,34 +278,22 @@ public class SetSiteActivity extends AppCompatActivity {
             applyQrValue(result.getContents(), "QR scanned");
         });
 
-        qrImageLauncher = registerForActivityResult(
-                new ActivityResultContracts.GetContent(),
-                uri -> {
-                    if (uri == null) return;
-
-                    Toast.makeText(this, "Reading QR image…", Toast.LENGTH_SHORT).show();
-                    new Thread(() -> {
-                        String value = null;
-                        try {
-                            value = decodeQrFromImage(uri);
-                        } catch (Exception ignored) {
-                        }
-
-                        final String decoded = value;
-                        runOnUiThread(() -> {
-                            if (decoded == null || decoded.trim().isEmpty()) {
-                                Toast.makeText(
-                                        this,
-                                        "No readable QR code found in that image.",
-                                        Toast.LENGTH_LONG
-                                ).show();
-                                return;
-                            }
-                            applyQrValue(decoded, "QR image read");
-                        });
-                    }).start();
-                }
-        );
+        qrImageLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+            if (uri == null) return;
+            Toast.makeText(this, "Reading QR image…", Toast.LENGTH_SHORT).show();
+            new Thread(() -> {
+                String value = null;
+                try { value = decodeQrFromImage(uri); } catch (Exception ignored) {}
+                final String decoded = value;
+                runOnUiThread(() -> {
+                    if (decoded == null || decoded.trim().isEmpty()) {
+                        Toast.makeText(this, "No readable QR code found in that image.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    applyQrValue(decoded, "QR image read");
+                });
+            }).start();
+        });
     }
 
     private void applyQrValue(String value, String message) {
@@ -344,12 +302,10 @@ public class SetSiteActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid QR content.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         actSite.setText(scanned, false);
         actSite.setSelection(scanned.length());
         hideKeyboard();
         actSite.clearFocus();
-
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
         handler.postDelayed(() -> selectSiteFromInput(scanned), 120);
     }
@@ -358,52 +314,41 @@ public class SetSiteActivity extends AppCompatActivity {
         hideKeyboard();
         actSite.dismissDropDown();
         actSite.clearFocus();
-
         String raw = actSite.getText() == null ? "" : actSite.getText().toString();
         raw = normalizeScannedValue(raw);
-
         if (raw.isEmpty()) {
             Toast.makeText(this, "Enter, paste, or scan a Project Code.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         selectSiteFromInput(raw);
     }
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (ev != null && ev.getAction() == MotionEvent.ACTION_DOWN) {
-            if (getCurrentFocus() != null) {
-                hideKeyboard();
-                getCurrentFocus().clearFocus();
-            }
+        if (ev != null && ev.getAction() == MotionEvent.ACTION_DOWN && getCurrentFocus() != null) {
+            hideKeyboard();
+            getCurrentFocus().clearFocus();
         }
-
         return super.dispatchTouchEvent(ev);
     }
 
     private void hideKeyboard() {
         try {
-            InputMethodManager imm =
-                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
             if (imm != null && getCurrentFocus() != null) {
                 imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
             } else if (imm != null && actSite != null) {
                 imm.hideSoftInputFromWindow(actSite.getWindowToken(), 0);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private void startQrScan() {
         hideKeyboard();
-
         if (actSite != null) {
             actSite.dismissDropDown();
             actSite.clearFocus();
         }
-
         ScanOptions options = new ScanOptions();
         options.setPrompt("Scan Project QR");
         options.setBeepEnabled(true);
@@ -416,18 +361,11 @@ public class SetSiteActivity extends AppCompatActivity {
     private String normalizeScannedValue(String input) {
         String s = input == null ? "" : input.trim();
         if (s.isEmpty()) return "";
-
         s = s.replace("\n", " ").replace("\r", " ").trim();
         while (s.contains("  ")) s = s.replace("  ", " ");
-
-        if (s.regionMatches(true, 0, "SITE:", 0, 5)) {
-            s = s.substring(5).trim();
-        } else if (s.regionMatches(true, 0, "PROJECT:", 0, 8)) {
-            s = s.substring(8).trim();
-        } else if (s.regionMatches(true, 0, "CODE:", 0, 5)) {
-            s = s.substring(5).trim();
-        }
-
+        if (s.regionMatches(true, 0, "SITE:", 0, 5)) s = s.substring(5).trim();
+        else if (s.regionMatches(true, 0, "PROJECT:", 0, 8)) s = s.substring(8).trim();
+        else if (s.regionMatches(true, 0, "CODE:", 0, 5)) s = s.substring(5).trim();
         return s.trim();
     }
 
@@ -437,51 +375,29 @@ public class SetSiteActivity extends AppCompatActivity {
             Toast.makeText(this, "Invalid Project Code.", Toast.LENGTH_SHORT).show();
             return;
         }
-
         String projectId = null;
-        try {
-            projectId = projectRepo.resolveProjectId(raw);
-        } catch (Exception ignored) {
-        }
-
+        try { projectId = projectRepo.resolveProjectId(raw); } catch (Exception ignored) {}
         boolean foundLocal = projectId != null && !projectId.trim().isEmpty();
-
         if (pickOnly && !foundLocal) {
-            Toast.makeText(
-                    this,
-                    "Project Code not found in the synced Projects list. Refresh Projects and try again.",
-                    Toast.LENGTH_LONG
-            ).show();
+            Toast.makeText(this, "Project Code not found in the synced Projects list. Refresh Projects and try again.", Toast.LENGTH_LONG).show();
             return;
         }
 
         String finalSiteId = foundLocal ? projectId.trim() : extractLeadingReference(raw);
-
-        String projectType = foundLocal
-                ? projectRepo.getProjectTypeById(finalSiteId)
-                : CameraPrefs.DOC_INFRA;
+        String projectType = foundLocal ? projectRepo.getProjectTypeById(finalSiteId) : CameraPrefs.DOC_INFRA;
 
         if (pickOnly) {
-            if (!requiredProjectType.isEmpty()
-                    && !requiredProjectType.equalsIgnoreCase(projectType)) {
-                String requiredLabel = CameraPrefs.DOC_INFRA.equals(requiredProjectType)
-                        ? "Infrastructure"
-                        : requiredProjectType.replace('_', ' ');
-                Toast.makeText(
-                        this,
-                        "Select an " + requiredLabel + " project for these photos.",
-                        Toast.LENGTH_LONG
-                ).show();
+            if (!requiredProjectType.isEmpty() && !requiredProjectType.equalsIgnoreCase(projectType)) {
+                String requiredLabel = CameraPrefs.DOC_INFRA.equals(requiredProjectType) ? "Infrastructure" : requiredProjectType.replace('_', ' ');
+                Toast.makeText(this, "Select an " + requiredLabel + " project for these photos.", Toast.LENGTH_LONG).show();
                 return;
             }
-
             String code = projectRepo.getProjectCodeById(finalSiteId);
             Intent result = new Intent();
             result.putExtra(EXTRA_SITE_ID, finalSiteId);
             result.putExtra(EXTRA_UNCATEGORIZED, false);
             result.putExtra(EXTRA_SELECTED_PROJECT_TYPE, projectType);
-            result.putExtra(EXTRA_SELECTED_PROJECT_CODE,
-                    code == null || code.trim().isEmpty() ? raw : code.trim());
+            result.putExtra(EXTRA_SELECTED_PROJECT_CODE, code == null || code.trim().isEmpty() ? raw : code.trim());
             setResult(RESULT_OK, result);
             finish();
             return;
@@ -498,27 +414,13 @@ public class SetSiteActivity extends AppCompatActivity {
         }
 
         cameraPrefs.saveSite(finalSiteId, false);
-
         if (foundLocal) {
             String label = projectRepo.getProjectDisplayLabel(finalSiteId);
-            String typeLabel = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType)
-                    ? "Project Activity"
-                    : "Infrastructure";
-
-            Toast.makeText(
-                    this,
-                    (label == null || label.trim().isEmpty() ? "Project verified" : label)
-                            + "\n" + typeLabel,
-                    Toast.LENGTH_SHORT
-            ).show();
+            String typeLabel = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType) ? "Project Activity" : "Infrastructure";
+            Toast.makeText(this, (label == null || label.trim().isEmpty() ? "Project verified" : label) + "\n" + typeLabel, Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(
-                    this,
-                    "Code saved for offline use. Server verification will still apply during sync.",
-                    Toast.LENGTH_LONG
-            ).show();
+            Toast.makeText(this, "Code saved for offline use. Server verification will still apply during sync.", Toast.LENGTH_LONG).show();
         }
-
         finishWithResult(finalSiteId, false);
     }
 
@@ -540,7 +442,6 @@ public class SetSiteActivity extends AppCompatActivity {
 
     private void showPersonalCaptureDialog() {
         int padding = dp(20);
-
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(padding, dp(8), padding, 0);
@@ -548,35 +449,24 @@ public class SetSiteActivity extends AppCompatActivity {
         TextInputLayout tilLabel = new TextInputLayout(this);
         tilLabel.setHint("Overlay Label");
         tilLabel.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-
         TextInputEditText etLabel = new TextInputEditText(this);
         etLabel.setSingleLine(true);
         etLabel.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
         etLabel.setFilters(new InputFilter[]{new InputFilter.LengthFilter(30)});
         etLabel.setText(cameraPrefs.getPersonalOverlayLabel());
         etLabel.setSelection(etLabel.getText() == null ? 0 : etLabel.getText().length());
-        tilLabel.addView(etLabel, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
+        tilLabel.addView(etLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextInputLayout tilTitle = new TextInputLayout(this);
         tilTitle.setHint("Overlay Title");
         tilTitle.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-
         TextInputEditText etTitle = new TextInputEditText(this);
         etTitle.setSingleLine(true);
         etTitle.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         etTitle.setFilters(new InputFilter[]{new InputFilter.LengthFilter(60)});
-        tilTitle.addView(etTitle, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
+        tilTitle.addView(etTitle, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
+        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         titleLp.topMargin = dp(12);
         container.addView(tilLabel);
         container.addView(tilTitle, titleLp);
@@ -589,29 +479,25 @@ public class SetSiteActivity extends AppCompatActivity {
                 .setPositiveButton("Continue", null);
 
         androidx.appcompat.app.AlertDialog dialog = builder.create();
-        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(v -> {
-                    String label = etLabel.getText() == null ? "" : etLabel.getText().toString().trim();
-                    String title = etTitle.getText() == null ? "" : etTitle.getText().toString().trim();
-
-                    if (label.isEmpty()) {
-                        tilLabel.setError("Overlay label is required.");
-                        return;
-                    }
-                    if (title.isEmpty()) {
-                        tilTitle.setError("Title is required.");
-                        return;
-                    }
-
-                    cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
-                    cameraPrefs.savePersonalOverlay(label, title);
-                    cameraPrefs.saveActivityProjectId("");
-                    captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
-                    cameraPrefs.saveSite("", true);
-
-                    dialog.dismiss();
-                    finishWithResult("", true, title, CameraPrefs.DOC_PERSONAL, label);
-                }));
+        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String label = etLabel.getText() == null ? "" : etLabel.getText().toString().trim();
+            String title = etTitle.getText() == null ? "" : etTitle.getText().toString().trim();
+            if (label.isEmpty()) {
+                tilLabel.setError("Overlay label is required.");
+                return;
+            }
+            if (title.isEmpty()) {
+                tilTitle.setError("Title is required.");
+                return;
+            }
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
+            cameraPrefs.savePersonalOverlay(label, title);
+            cameraPrefs.saveActivityProjectId("");
+            captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
+            cameraPrefs.saveSite("", true);
+            dialog.dismiss();
+            finishWithResult("", true, title, CameraPrefs.DOC_PERSONAL, label);
+        }));
         dialog.show();
     }
 
@@ -621,7 +507,6 @@ public class SetSiteActivity extends AppCompatActivity {
             bitmap = BitmapFactory.decodeStream(in);
         }
         if (bitmap == null) return null;
-
         try {
             int[] rotations = new int[]{0, 90, 180, 270};
             for (int degrees : rotations) {
@@ -643,18 +528,13 @@ public class SetSiteActivity extends AppCompatActivity {
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
         if (width <= 0 || height <= 0) return null;
-
         int[] pixels = new int[width * height];
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
-
         RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
         BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
-
         Map<DecodeHintType, Object> hints = new EnumMap<>(DecodeHintType.class);
-        hints.put(DecodeHintType.POSSIBLE_FORMATS,
-                Collections.singletonList(BarcodeFormat.QR_CODE));
+        hints.put(DecodeHintType.POSSIBLE_FORMATS, Collections.singletonList(BarcodeFormat.QR_CODE));
         hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
-
         Result result = new MultiFormatReader().decode(binaryBitmap, hints);
         return result == null ? null : result.getText();
     }
@@ -662,26 +542,14 @@ public class SetSiteActivity extends AppCompatActivity {
     private Bitmap rotateBitmap(Bitmap source, int degrees) {
         Matrix matrix = new Matrix();
         matrix.postRotate(degrees);
-        return Bitmap.createBitmap(
-                source,
-                0,
-                0,
-                source.getWidth(),
-                source.getHeight(),
-                matrix,
-                true
-        );
+        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
     }
 
     private void finishWithResult(String siteId, boolean uncategorized) {
         finishWithResult(siteId, uncategorized, null, null, null);
     }
 
-    private void finishWithResult(String siteId,
-                                  boolean uncategorized,
-                                  String sessionTitle,
-                                  String documentationType,
-                                  String personalOverlayLabel) {
+    private void finishWithResult(String siteId, boolean uncategorized, String sessionTitle, String documentationType, String personalOverlayLabel) {
         Intent result = new Intent();
         result.putExtra(EXTRA_SITE_ID, siteId);
         result.putExtra(EXTRA_UNCATEGORIZED, uncategorized);
