@@ -24,4 +24,11 @@
         android:title="Export Selected Sites"
         android:icon="@drawable/ic_export_24"
         app:showAsAction="never"/>
+
+    <!-- Compatibility-only resource. Gallery sync is automatic; this item stays hidden. -->
+    <item
+        android:id="@+id/action_sync_all"
+        android:title="Sync All"
+        android:visible="false"
+        app:showAsAction="never"/>
 </menu>
