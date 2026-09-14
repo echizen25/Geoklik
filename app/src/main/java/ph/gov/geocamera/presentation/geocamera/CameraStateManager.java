@@ -91,9 +91,6 @@ final class CameraStateManager {
                 ? null
                 : new ProjectRepository(source.getApplicationContext());
 
-        // The status line doubles as a location-diagnostics affordance. A field
-        // user can tap LOCATION WARNING / LOCATION CHECK to see the selected
-        // project code, expected mun_code, GPS coordinates, and exact check result.
         if (this.statusText != null) {
             this.statusText.setOnClickListener(v -> {
                 if (!DIAGNOSE_INFRA_PROJECT_CITY || state != State.READY) return;
@@ -124,8 +121,6 @@ final class CameraStateManager {
                 ? evaluateInfrastructureMunicipality()
                 : AreaDecision.notApplicable();
 
-        // Project-location diagnostics are intentionally non-blocking while
-        // ENFORCE is false. Normal GeoKlik GPS/camera state still controls READY.
         boolean ready = next == State.READY
                 && (!ENFORCE_INFRA_PROJECT_CITY || area.allowed);
 
@@ -163,11 +158,6 @@ final class CameraStateManager {
         }
     }
 
-    /**
-     * Evaluate only Infrastructure projects. Project Activity and Personal are
-     * never municipality-restricted. During diagnostic rollout a failed result
-     * is displayed but does not disable the shutter.
-     */
     private AreaDecision evaluateInfrastructureMunicipality() {
         if (!DIAGNOSE_INFRA_PROJECT_CITY) return AreaDecision.notApplicable();
 
@@ -258,9 +248,6 @@ final class CameraStateManager {
         if ((now - lastAreaSyncRequestAt) < AREA_SYNC_RETRY_MS) return;
         lastAreaSyncRequestAt = now;
         try {
-            // Force only when the selected INFRA project has no cached admin-area
-            // metadata. This fixes the case where the ordinary 6-hour project sync
-            // is recent but mun_code was never cached by an older app build.
             ProjectBackgroundSync.syncIfNeeded(appContext, true, updated -> {
                 if (updated) {
                     cachedAdminAreaAt = 0L;
@@ -306,22 +293,23 @@ final class CameraStateManager {
 
         String key = clean(technicalMessage);
         if (key.isEmpty()) key = "LOCATION CHECK WARNING";
+        final String noticeKey = key;
 
         long now = System.currentTimeMillis();
         if (!force
-                && key.equals(lastNoticeKey)
+                && noticeKey.equals(lastNoticeKey)
                 && (now - lastNoticeAt) < NOTICE_REPEAT_MS) {
             return;
         }
 
-        lastNoticeKey = key;
+        lastNoticeKey = noticeKey;
         lastNoticeAt = now;
 
         Snackbar.make(
                 captureButton,
-                explainDiagnostic(key),
+                explainDiagnostic(noticeKey),
                 Snackbar.LENGTH_LONG
-        ).setAction("DETAILS", v -> showLocationDetails(key)).show();
+        ).setAction("DETAILS", v -> showLocationDetails(noticeKey)).show();
     }
 
     private String explainDiagnostic(String message) {
