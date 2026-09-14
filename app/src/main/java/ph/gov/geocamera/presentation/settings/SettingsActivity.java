@@ -33,7 +33,7 @@ public class SettingsActivity extends BaseTopAppBarActivity {
 
     private static final String[] PROJECT_PROGRAM_OPTIONS = new String[]{
             "RCEF",
-            "CFIDP",
+            "CTF",
             "PHILMECH"
     };
 
@@ -171,7 +171,7 @@ public class SettingsActivity extends BaseTopAppBarActivity {
                         return;
                     }
                     if (!isValidProjectProgram(project)) {
-                        Toast.makeText(this, "Select RCEF, CFIDP, or PHILMECH.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Select RCEF, CTF, or PHILMECH.", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
@@ -256,7 +256,7 @@ public class SettingsActivity extends BaseTopAppBarActivity {
         if (value == null) return "";
         String cleaned = value.trim().toUpperCase();
         if ("RCEF".equals(cleaned)) return "RCEF";
-        if ("CFIDP".equals(cleaned) || "CTF".equals(cleaned)) return "CFIDP";
+        if ("CTF".equals(cleaned) || "CFIDP".equals(cleaned)) return "CTF";
         if ("PHILMECH".equals(cleaned)) return "PHILMECH";
         return "";
     }
