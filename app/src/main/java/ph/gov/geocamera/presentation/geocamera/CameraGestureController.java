@@ -32,11 +32,13 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Adds field-friendly camera gestures without changing GeoKlik's capture pipeline:
- * pinch-to-zoom, a live zoom ratio indicator, and tap-to-focus with an animated ring.
+ * pinch-to-zoom, a live zoom ratio indicator, a capability-aware wide shortcut,
+ * and tap-to-focus with an animated ring.
  */
 public final class CameraGestureController {
 
     private static final long FOCUS_FADE_DELAY_MS = 650L;
+    private static final float NORMAL_ZOOM_RATIO = 1.0f;
 
     private final Activity activity;
     private final PreviewView previewView;
@@ -100,13 +102,13 @@ public final class CameraGestureController {
             gestureDetector.onTouchEvent(event);
             return true;
         });
+
+        zoomIndicator.setOnClickListener(v -> toggleWideZoom());
     }
 
     public void attachCamera(@NonNull Camera camera) {
         this.camera = camera;
 
-        // Apply the persisted AUTO / ON / OFF still-photo flash preference as
-        // soon as the CameraX back camera is available.
         CameraFlashController.attach(activity, camera);
 
         if (activity instanceof LifecycleOwner) {
@@ -128,6 +130,27 @@ public final class CameraGestureController {
 
         float target = state.getZoomRatio() * scaleFactor;
         target = Math.max(state.getMinZoomRatio(), Math.min(state.getMaxZoomRatio(), target));
+        currentCamera.getCameraControl().setZoomRatio(target);
+    }
+
+    private void toggleWideZoom() {
+        Camera currentCamera = camera;
+        if (currentCamera == null) return;
+
+        ZoomState state = currentCamera.getCameraInfo().getZoomState().getValue();
+        if (state == null) return;
+
+        float minZoom = state.getMinZoomRatio();
+        float current = state.getZoomRatio();
+
+        if (minZoom >= NORMAL_ZOOM_RATIO - 0.01f) {
+            currentCamera.getCameraControl().setZoomRatio(NORMAL_ZOOM_RATIO);
+            return;
+        }
+
+        float target = current < NORMAL_ZOOM_RATIO - 0.05f
+                ? NORMAL_ZOOM_RATIO
+                : minZoom;
         currentCamera.getCameraControl().setZoomRatio(target);
     }
 
@@ -163,8 +186,17 @@ public final class CameraGestureController {
 
     private void renderZoomState(ZoomState state) {
         if (state == null) return;
+
         zoomIndicator.setText(formatZoom(state.getZoomRatio()));
         zoomIndicator.setVisibility(View.VISIBLE);
+
+        boolean hasWide = state.getMinZoomRatio() < NORMAL_ZOOM_RATIO - 0.01f;
+        zoomIndicator.setClickable(hasWide);
+        zoomIndicator.setFocusable(hasWide);
+        zoomIndicator.setAlpha(hasWide ? 1f : 0.88f);
+        zoomIndicator.setContentDescription(hasWide
+                ? "Zoom. Tap to switch between wide and 1x."
+                : "Zoom. Pinch to zoom.");
     }
 
     private String formatZoom(float ratio) {
