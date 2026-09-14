@@ -594,7 +594,7 @@ public class SetSiteActivity extends AppCompatActivity {
                     }
 
                     cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PERSONAL);
-                    cameraPrefs.savePersonalOverlayLabel(label);
+                    cameraPrefs.savePersonalOverlay(label, title);
                     cameraPrefs.saveActivityProjectId("");
                     captureContextRepo.setCurrent(CameraPrefs.DOC_PERSONAL, null);
                     cameraPrefs.saveSite("", true);
