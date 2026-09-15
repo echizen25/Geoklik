@@ -26,9 +26,23 @@
         <item name="android:spinnerStyle">@style/Widget.GeoCamera.Spinner</item>
     </style>
 
+    <!-- Keep toolbar appearance exactly the same as normal/light resources. -->
     <style name="ThemeOverlay.GeoCamera.GalleryToolbar" parent="ThemeOverlay.Material3.Dark.ActionBar">
         <item name="colorControlNormal">@android:color/white</item>
         <item name="android:colorControlNormal">@android:color/white</item>
+        <item name="popupTheme">@style/ThemeOverlay.GeoCamera.Popup</item>
+    </style>
+
+    <style name="ThemeOverlay.GeoCamera.Popup" parent="ThemeOverlay.Material3.Light">
+        <item name="android:colorBackground">@color/app_surface_elevated</item>
+        <item name="colorSurface">@color/app_surface_elevated</item>
+        <item name="colorOnSurface">@color/app_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/app_text_secondary</item>
+        <item name="android:textColorPrimary">@color/app_text_primary</item>
+        <item name="android:textColorSecondary">@color/app_text_secondary</item>
+        <item name="colorControlNormal">@color/app_text_secondary</item>
+        <item name="android:colorControlNormal">@color/app_text_secondary</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
     <style name="Widget.GeoCamera.Spinner" parent="@android:style/Widget.Holo.Light.Spinner">
