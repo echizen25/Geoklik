@@ -27,6 +27,7 @@ import ph.gov.geocamera.R;
 
 public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> {
 
+    private static final String TYPE_ACTIVITY = "ACTIVITY";
     private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
     private static final String TYPE_PERSONAL = "PERSONAL";
 
@@ -55,7 +56,7 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
     private final List<DateItem> items = new ArrayList<>();
 
     private final SimpleDateFormat sdfDb = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    private final SimpleDateFormat sdfUi = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault());
+    private final SimpleDateFormat sdfUi = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
 
     public SiteDatesAdapter(Context context, String captureType, OnClick onClick) {
         this.context = context;
@@ -80,14 +81,12 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(context).inflate(R.layout.item_date_card, parent, false);
-        return new VH(v);
+        return new VH(LayoutInflater.from(context).inflate(R.layout.item_date_card, parent, false));
     }
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
         DateItem it = items.get(position);
-
         h.tvDate.setText(prettyDate(it.sessionDate));
 
         int total = Math.max(0, it.totalPhotos);
@@ -96,30 +95,19 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         bindStatus(h, it, total);
         bindRemarks(h, it);
         bindThumbnail(h, it);
-
-        h.btnRemarks.setOnClickListener(v -> {
-            if (onClick != null) onClick.onRemarksClick(it);
-        });
-
-        h.itemView.setOnClickListener(v -> {
-            if (onClick != null) onClick.onClick(it);
-        });
+        h.btnRemarks.setOnClickListener(v -> { if (onClick != null) onClick.onRemarksClick(it); });
+        h.itemView.setOnClickListener(v -> { if (onClick != null) onClick.onClick(it); });
     }
 
     private void bindStatus(@NonNull VH h, @NonNull DateItem it, int total) {
         String status;
         int color;
-
         if (TYPE_PERSONAL.equals(captureType)) {
             status = total <= 0 ? "NO PHOTOS" : "ON DEVICE";
             color = Color.parseColor("#546E7A");
         } else {
-            boolean localOnly = total > 0
-                    && it.unsyncedPhotos > 0
-                    && it.pendingPhotos == 0
-                    && it.uploadingPhotos == 0
-                    && it.failedPhotos == 0;
-
+            boolean localOnly = total > 0 && it.unsyncedPhotos > 0 && it.pendingPhotos == 0
+                    && it.uploadingPhotos == 0 && it.failedPhotos == 0;
             if (total <= 0) {
                 status = "NO PHOTOS";
                 color = ContextCompat.getColor(context, android.R.color.darker_gray);
@@ -140,42 +128,35 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
                 color = Color.parseColor("#2E7D32");
             }
         }
-
-        h.tvSyncStatus.setText("Status: " + status);
+        h.tvSyncStatus.setText(status);
         h.tvSyncStatus.setTextColor(color);
     }
 
     private void bindRemarks(@NonNull VH h, @NonNull DateItem it) {
         String r = it.remarks == null ? "" : it.remarks.trim();
-
         if (!r.isEmpty()) {
             h.tvRemarks.setVisibility(View.VISIBLE);
-            if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
-                h.tvRemarks.setText("Album: " + r);
+            if (TYPE_ACTIVITY.equals(captureType) || TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+                h.tvRemarks.setText("Album • " + r);
             } else if (TYPE_PERSONAL.equals(captureType)) {
-                h.tvRemarks.setText("Note: " + r);
+                h.tvRemarks.setText("Note • " + r);
             } else {
-                h.tvRemarks.setText("Remarks: " + r);
+                h.tvRemarks.setText("Remarks • " + r);
             }
-            h.btnRemarks.setText("Edit Note");
+            h.btnRemarks.setText("Edit");
         } else {
             h.tvRemarks.setVisibility(View.GONE);
             h.tvRemarks.setText("");
-            h.btnRemarks.setText("Add Note");
+            h.btnRemarks.setText("Note");
         }
     }
 
     private void bindThumbnail(@NonNull VH h, @NonNull DateItem it) {
         String path = it.latestFilename == null ? "" : it.latestFilename.trim();
-
         if (!path.isEmpty() && new File(path).exists()) {
-            Glide.with(context)
-                    .load(new File(path))
-                    .thumbnail(0.25f)
-                    .centerCrop()
+            Glide.with(context).load(new File(path)).thumbnail(0.25f).centerCrop()
                     .placeholder(R.drawable.ph_shimer_tiny)
-                    .error(android.R.drawable.ic_menu_gallery)
-                    .into(h.imgLatest);
+                    .error(android.R.drawable.ic_menu_gallery).into(h.imgLatest);
         } else {
             h.imgLatest.setImageResource(android.R.drawable.ic_menu_gallery);
         }
@@ -186,29 +167,24 @@ public class SiteDatesAdapter extends RecyclerView.Adapter<SiteDatesAdapter.VH> 
         try {
             Date d = sdfDb.parse(yyyyMmDd.trim());
             return d == null ? yyyyMmDd : sdfUi.format(d);
-        } catch (ParseException e) {
-            return yyyyMmDd;
-        }
+        } catch (ParseException e) { return yyyyMmDd; }
     }
 
     private static String normalizeType(String type) {
         if (type == null) return "INFRA";
         String value = type.trim().toUpperCase(Locale.US);
+        if (TYPE_ACTIVITY.equals(value)) return TYPE_ACTIVITY;
         if (TYPE_PROJECT_ACTIVITY.equals(value)) return TYPE_PROJECT_ACTIVITY;
         if (TYPE_PERSONAL.equals(value)) return TYPE_PERSONAL;
         return "INFRA";
     }
 
-    @Override
-    public int getItemCount() {
-        return items.size();
-    }
+    @Override public int getItemCount() { return items.size(); }
 
     static class VH extends RecyclerView.ViewHolder {
         ShapeableImageView imgLatest;
         TextView tvDate, tvPhotoCount, tvSyncStatus, tvRemarks;
         MaterialButton btnRemarks;
-
         VH(@NonNull View v) {
             super(v);
             imgLatest = v.findViewById(R.id.imgDateThumb);
