@@ -37,6 +37,9 @@
                 android:id="@+id/chipInfra" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
                 android:text="Infrastructure" android:textSize="12sp" />
             <com.google.android.material.chip.Chip
+                android:id="@+id/chipProject" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
+                android:text="Projects" android:textSize="12sp" />
+            <com.google.android.material.chip.Chip
                 android:id="@+id/chipActivity" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
                 android:text="Activities" android:textSize="12sp" />
         </com.google.android.material.chip.ChipGroup>
