@@ -19,7 +19,7 @@ public class CameraPrefs {
     private static final String KEY_ACTIVITY_PROJECT_ID = "activity_project_id";
 
     // Personal Capture only: customize the existing first watermark line.
-    // These values never change INFRA / PROJECT_ACTIVITY labels.
+    // These values never change project-backed documentation labels.
     private static final String KEY_PERSONAL_OVERLAY_LABEL = "personal_overlay_label";
     private static final String KEY_PERSONAL_OVERLAY_TITLE = "personal_overlay_title";
 
@@ -38,6 +38,7 @@ public class CameraPrefs {
     private static final String KEY_SHOT_TYPE = "shot_type";
 
     public static final String DOC_INFRA = "INFRA";
+    public static final String DOC_ACTIVITY = "ACTIVITY";
     public static final String DOC_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
     public static final String DOC_PERSONAL = "PERSONAL";
     public static final String SHOT_GENERAL = "GENERAL";
@@ -246,6 +247,7 @@ public class CameraPrefs {
 
     private String normalizeDocumentationType(String type) {
         if (type != null && DOC_INFRA.equalsIgnoreCase(type.trim())) return DOC_INFRA;
+        if (type != null && DOC_ACTIVITY.equalsIgnoreCase(type.trim())) return DOC_ACTIVITY;
         if (type != null && DOC_PROJECT_ACTIVITY.equalsIgnoreCase(type.trim())) return DOC_PROJECT_ACTIVITY;
         if (type != null && DOC_PERSONAL.equalsIgnoreCase(type.trim())) return DOC_PERSONAL;
         return null;
