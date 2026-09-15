@@ -36,6 +36,7 @@ public class SiteDatesActivity extends AppCompatActivity {
     public static final String EXTRA_DIVISION_CODE = "divisionCode";
 
     private static final String TYPE_INFRA = "INFRA";
+    private static final String TYPE_ACTIVITY = "ACTIVITY";
     private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
     private static final String TYPE_PERSONAL = "PERSONAL";
 
@@ -187,6 +188,10 @@ public class SiteDatesActivity extends AppCompatActivity {
 
         if (TYPE_PERSONAL.equals(captureType)) {
             toolbar.setSubtitle("On-device photos");
+        } else if (TYPE_ACTIVITY.equals(captureType)) {
+            toolbar.setSubtitle(divisionCode.isEmpty()
+                    ? "Activity"
+                    : "Activity • " + divisionCode);
         } else if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
             toolbar.setSubtitle(divisionCode.isEmpty()
                     ? "Project Activity"
@@ -247,6 +252,12 @@ public class SiteDatesActivity extends AppCompatActivity {
             prefs.saveActivityProjectId(siteId);
             prefs.saveSite(siteId, false);
             captureContext.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, siteId);
+            cam.putExtra("siteId", siteId);
+        } else if (TYPE_ACTIVITY.equals(captureType)) {
+            prefs.saveDocumentationType(CameraPrefs.DOC_ACTIVITY);
+            prefs.clearActivityProjectId();
+            prefs.saveSite(siteId, false);
+            captureContext.setCurrent(CameraPrefs.DOC_ACTIVITY, null);
             cam.putExtra("siteId", siteId);
         } else {
             prefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
@@ -347,7 +358,7 @@ public class SiteDatesActivity extends AppCompatActivity {
         com.google.android.material.textfield.TextInputEditText etRemarks =
                 view.findViewById(R.id.etRemarks);
 
-        if (TYPE_PROJECT_ACTIVITY.equals(captureType)) {
+        if (TYPE_ACTIVITY.equals(captureType) || TYPE_PROJECT_ACTIVITY.equals(captureType)) {
             tvDialogSubtitle.setText("Add an album note for this activity date");
         } else if (TYPE_PERSONAL.equals(captureType)) {
             tvDialogSubtitle.setText("Add a note for these personal photos");
@@ -549,6 +560,7 @@ public class SiteDatesActivity extends AppCompatActivity {
 
     private static String normalizeCaptureType(String value) {
         String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
+        if (TYPE_ACTIVITY.equals(type)) return TYPE_ACTIVITY;
         if (TYPE_PROJECT_ACTIVITY.equals(type)) return TYPE_PROJECT_ACTIVITY;
         if (TYPE_PERSONAL.equals(type)) return TYPE_PERSONAL;
         return TYPE_INFRA;
