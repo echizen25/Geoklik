@@ -14,9 +14,9 @@ import ph.gov.geocamera.data.local.db.GeoDbHelper;
 /**
  * Local capture classification state.
  *
- * INFRA and PROJECT_ACTIVITY are eligible for synchronization through their
- * respective API routes. PERSONAL is intentionally local-only and is stamped
- * into each photo so Gallery can keep it separate from project documentation.
+ * INFRA, ACTIVITY and PROJECT_ACTIVITY are eligible for synchronization.
+ * PERSONAL is intentionally local-only and is stamped into each photo so
+ * Gallery can keep it separate from project documentation.
  */
 public class CaptureContextRepository {
 
@@ -77,6 +77,9 @@ public class CaptureContextRepository {
         if (value != null && CameraPrefs.DOC_INFRA.equalsIgnoreCase(value.trim())) {
             return CameraPrefs.DOC_INFRA;
         }
+        if (value != null && CameraPrefs.DOC_ACTIVITY.equalsIgnoreCase(value.trim())) {
+            return CameraPrefs.DOC_ACTIVITY;
+        }
         if (value != null && CameraPrefs.DOC_PROJECT_ACTIVITY.equalsIgnoreCase(value.trim())) {
             return CameraPrefs.DOC_PROJECT_ACTIVITY;
         }
@@ -87,6 +90,8 @@ public class CaptureContextRepository {
     }
 
     private String normalizeActivityProjectId(String type, String value) {
+        // Legacy PROJECT_ACTIVITY route still needs its dedicated activity id.
+        // Standalone ACTIVITY uses siteId/project_id on the unified upload route.
         if (!CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) return null;
         if (value == null || value.trim().isEmpty()) return null;
         return value.trim();
