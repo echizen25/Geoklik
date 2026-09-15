@@ -7,11 +7,11 @@
     android:layout_marginTop="4dp"
     android:layout_marginBottom="2dp"
     android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardBackgroundColor="@color/app_surface_variant"
     app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
     app:cardUseCompatPadding="false"
-    app:strokeColor="?attr/colorOutline"
+    app:strokeColor="@color/app_brand_stroke_subtle"
     app:strokeWidth="1dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
