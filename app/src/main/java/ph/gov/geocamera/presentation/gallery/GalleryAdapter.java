@@ -43,6 +43,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         implements ListPreloader.PreloadModelProvider<File> {
 
     private static final String TYPE_INFRA = "INFRA";
+    private static final String TYPE_ACTIVITY = "ACTIVITY";
     private static final String TYPE_PROJECT_ACTIVITY = "PROJECT_ACTIVITY";
     private static final String TYPE_PERSONAL = "PERSONAL";
     private static final String ERR_NO_PROJECT_ACTIVITY_FOUND = "NO_PROJECT_ACTIVITY_FOUND";
@@ -172,18 +173,23 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
     public void onBindViewHolder(@NonNull SiteVH h, int position) {
         SiteItem item = items.get(position);
         preloadSizeProvider.setView(h.imgLatest);
+        boolean activity = TYPE_ACTIVITY.equals(item.projectType);
         boolean projectActivity = TYPE_PROJECT_ACTIVITY.equals(item.projectType);
         boolean personal = TYPE_PERSONAL.equals(item.projectType);
 
         String title = personal ? "Personal Capture"
-                : projectActivity
+                : (activity || projectActivity)
                 ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
                 : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
-        h.tvSite.setText(safe(title, personal ? "Personal Capture" : projectActivity ? "Project Activity" : "SITE"));
+        h.tvSite.setText(safe(title, personal ? "Personal Capture" : activity ? "Activity" : projectActivity ? "Project Activity" : "SITE"));
 
         h.tvProjectLabel.setVisibility(View.VISIBLE);
         if (personal) {
             h.tvProjectLabel.setText("PERSONAL CAPTURE");
+        } else if (activity) {
+            String line = "ACTIVITY";
+            if (!item.divisionCode.isEmpty()) line += " • " + item.divisionCode;
+            h.tvProjectLabel.setText(line);
         } else if (projectActivity) {
             String line = "PROJECT ACTIVITY";
             if (!item.divisionCode.isEmpty()) line += " • " + item.divisionCode;
@@ -238,6 +244,11 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
             cameraPrefs.saveActivityProjectId(item.siteId);
             cameraPrefs.saveSite(item.siteId, false);
             captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, item.siteId);
+        } else if (TYPE_ACTIVITY.equals(type)) {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_ACTIVITY);
+            cameraPrefs.clearActivityProjectId();
+            cameraPrefs.saveSite(item.siteId, false);
+            captureContextRepo.setCurrent(CameraPrefs.DOC_ACTIVITY, null);
         } else {
             cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
             cameraPrefs.clearActivityProjectId();
@@ -303,21 +314,26 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
     }
 
     private void showProjectDetails(@NonNull SiteItem item) {
+        boolean activity = TYPE_ACTIVITY.equals(item.projectType);
         boolean projectActivity = TYPE_PROJECT_ACTIVITY.equals(item.projectType);
         boolean personal = TYPE_PERSONAL.equals(item.projectType);
         String title = personal ? "Personal Capture"
-                : projectActivity ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
+                : (activity || projectActivity) ? firstNonEmpty(item.coda, item.project, item.siteName, item.projectCode, item.siteId)
                 : firstNonEmpty(item.projectCode, item.project, item.siteName, item.siteId);
 
         StringBuilder message = new StringBuilder();
         if (personal) {
             message.append("Type: Personal Capture\nStorage: On device only\n");
         } else {
-            message.append("Type: ").append(projectActivity ? "Project Activity" : "Infrastructure").append("\n");
-            if (projectActivity) {
-                message.append("Project Title: ").append(safe(item.coda, safe(title, "—"))).append("\n");
+            String typeLabel = activity ? "Activity" : projectActivity ? "Project Activity" : "Infrastructure";
+            message.append("Type: ").append(typeLabel).append("\n");
+            if (activity || projectActivity) {
+                message.append(activity ? "Activity Title: " : "Project Title: ")
+                        .append(safe(item.coda, safe(title, "—"))).append("\n");
                 if (!item.divisionCode.isEmpty()) message.append("Division: ").append(item.divisionCode).append("\n");
-            } else message.append("Beneficiary: ").append(safe(item.beneficiary, "—")).append("\n");
+            } else {
+                message.append("Beneficiary: ").append(safe(item.beneficiary, "—")).append("\n");
+            }
             message.append("Code: ").append(safe(item.projectCode, "—")).append("\n")
                     .append("Project ID: ").append(safe(item.projectId, "—")).append("\n");
         }
@@ -328,8 +344,12 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
         if (!item.lastSyncError.isEmpty() && !personal) message.append("\nLast Error: ").append(friendlyError(item.lastSyncError));
         message.append("\n\nLatest: ").append(formatMonthDayYearFromDb(item.latestTimestamp));
 
+        String dialogTitle = personal ? "Personal Capture"
+                : activity ? "Activity Details"
+                : projectActivity ? "Project Activity Details"
+                : "Project Details";
         new MaterialAlertDialogBuilder(context)
-                .setTitle(personal ? "Personal Capture" : projectActivity ? "Project Activity Details" : "Project Details")
+                .setTitle(dialogTitle)
                 .setMessage(message.toString())
                 .setPositiveButton("Open Photos", (d, w) -> {
                     Intent i = new Intent(context, SiteDatesActivity.class);
@@ -426,6 +446,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.SiteVH>
 
     private static String normalizeProjectType(String value) {
         String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
+        if (TYPE_ACTIVITY.equals(type)) return TYPE_ACTIVITY;
         if (TYPE_PROJECT_ACTIVITY.equals(type)) return TYPE_PROJECT_ACTIVITY;
         if (TYPE_PERSONAL.equals(type)) return TYPE_PERSONAL;
         return TYPE_INFRA;
