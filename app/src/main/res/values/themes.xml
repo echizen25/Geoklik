@@ -1,13 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <style name="Theme.GeoCamera" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.GeoCamera" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/brand_green</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorSecondary">@color/brand_green</item>
         <item name="colorOnSecondary">@color/white</item>
 
-        <!-- Light mode mirrors the original GeoKlik warm surface. Night values
-             are supplied independently under values-night. -->
+        <!-- GeoKlik intentionally uses one visual system in both phone modes. -->
         <item name="android:colorBackground">@color/app_background_warm</item>
         <item name="colorSurface">@color/app_surface</item>
         <item name="colorOnSurface">@color/app_text_primary</item>
@@ -19,6 +18,7 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@color/app_background_warm</item>
         <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
 
         <item name="colorControlActivated">@color/brand_green</item>
         <item name="colorControlHighlight">#1A004B24</item>
@@ -43,9 +43,10 @@
         <item name="postSplashScreenTheme">@style/Theme.GeoCamera</item>
     </style>
 
-    <style name="Theme.GeoCamera.DialogActivity" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.GeoCamera.DialogActivity" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 </resources>
