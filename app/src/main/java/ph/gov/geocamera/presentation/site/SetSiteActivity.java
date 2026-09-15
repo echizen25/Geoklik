@@ -404,10 +404,19 @@ public class SetSiteActivity extends ComponentActivity {
         }
 
         if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType)) {
+            // Keep the existing dedicated Project Activity compatibility flow.
             cameraPrefs.saveDocumentationType(CameraPrefs.DOC_PROJECT_ACTIVITY);
             cameraPrefs.saveActivityProjectId(finalSiteId);
             captureContextRepo.setCurrent(CameraPrefs.DOC_PROJECT_ACTIVITY, finalSiteId);
+        } else if (CameraPrefs.DOC_ACTIVITY.equals(projectType)) {
+            // Standalone Activity uses its unified tbl_project UUID as siteId.
+            // UploadWorker therefore uses /api/geocamera/upload and lets the API
+            // determine ACTIVITY from vw_geoklik_document_targets.
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_ACTIVITY);
+            cameraPrefs.clearActivityProjectId();
+            captureContextRepo.setCurrent(CameraPrefs.DOC_ACTIVITY, null);
         } else {
+            // Proven Infrastructure behavior remains unchanged.
             cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
             cameraPrefs.clearActivityProjectId();
             captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
@@ -416,7 +425,14 @@ public class SetSiteActivity extends ComponentActivity {
         cameraPrefs.saveSite(finalSiteId, false);
         if (foundLocal) {
             String label = projectRepo.getProjectDisplayLabel(finalSiteId);
-            String typeLabel = CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType) ? "Project Activity" : "Infrastructure";
+            String typeLabel;
+            if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(projectType)) {
+                typeLabel = "Project Activity";
+            } else if (CameraPrefs.DOC_ACTIVITY.equals(projectType)) {
+                typeLabel = "Activity";
+            } else {
+                typeLabel = "Infrastructure";
+            }
             Toast.makeText(this, (label == null || label.trim().isEmpty() ? "Project verified" : label) + "\n" + typeLabel, Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(this, "Code saved for offline use. Server verification will still apply during sync.", Toast.LENGTH_LONG).show();
@@ -435,6 +451,7 @@ public class SetSiteActivity extends ComponentActivity {
     private static String normalizeProjectType(String value) {
         String type = value == null ? "" : value.trim().toUpperCase(Locale.US);
         if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) return CameraPrefs.DOC_PROJECT_ACTIVITY;
+        if (CameraPrefs.DOC_ACTIVITY.equals(type)) return CameraPrefs.DOC_ACTIVITY;
         if (CameraPrefs.DOC_PERSONAL.equals(type)) return CameraPrefs.DOC_PERSONAL;
         if (CameraPrefs.DOC_INFRA.equals(type)) return CameraPrefs.DOC_INFRA;
         return type;
