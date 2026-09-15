@@ -4,15 +4,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="?attr/colorSurface">
+    android:background="@color/app_background_warm">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="52dp"
         android:background="?attr/colorPrimary"
         android:theme="@style/ThemeOverlay.GeoCamera.GalleryToolbar"
         app:titleTextColor="@android:color/white"
+        app:subtitleTextColor="#D9FFFFFF"
         app:navigationIconTint="@android:color/white"
         app:itemIconTint="@android:color/white"
         app:menu="@menu/menu_group_images" />
@@ -26,7 +28,7 @@
             android:id="@+id/rvImages"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="10dp"
+            android:padding="6dp"
             android:clipToPadding="false"
             android:scrollbars="vertical" />
 
@@ -36,64 +38,35 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingStart="36dp"
-            android:paddingEnd="36dp"
-            android:paddingBottom="32dp"
+            android:padding="28dp"
             android:visibility="gone">
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="92dp"
-                android:layout_height="92dp"
-                app:cardCornerRadius="46dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="?attr/colorSurfaceVariant">
-
-                <ImageView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_camera_alt_24"
-                    android:contentDescription="No photos"
-                    app:tint="?attr/colorPrimary" />
-            </com.google.android.material.card.MaterialCardView>
+            <ImageView
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:src="@drawable/ic_camera_alt_24"
+                android:contentDescription="No photos"
+                app:tint="?attr/colorPrimary" />
 
             <TextView
                 android:id="@+id/tvEmptyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
+                android:layout_marginTop="10dp"
                 android:text="No photos yet"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="19sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvEmptySubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:gravity="center"
-                android:lineSpacingExtra="2dp"
-                android:text="Start your first field capture. Photos from this inspection will appear here automatically."
+                android:text="Captured photos for this album will appear here."
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:paddingTop="7dp"
-                android:paddingBottom="7dp"
-                android:text="READY FOR FIRST CAPTURE"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06" />
-
+                android:textSize="12sp" />
         </LinearLayout>
-
     </FrameLayout>
-
 </LinearLayout>
