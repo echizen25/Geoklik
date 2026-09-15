@@ -30,18 +30,34 @@
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chipGroupType" android:layout_width="wrap_content" android:layout_height="wrap_content"
             app:singleSelection="true" app:selectionRequired="true" app:chipSpacingHorizontal="6dp">
+
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipAll" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
-                android:text="All" android:textSize="12sp" android:checked="true" />
+                android:id="@+id/chipAll" style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="48dp" android:layout_height="40dp" android:checked="true"
+                android:text="" android:contentDescription="All documentation targets"
+                app:chipIcon="@drawable/ic_filter_all_24" app:chipIconVisible="true" app:chipIconSize="20dp"
+                app:chipIconTint="@color/app_icon_muted" app:ensureMinTouchTargetSize="false" />
+
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipInfra" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
-                android:text="Infrastructure" android:textSize="12sp" />
+                android:id="@+id/chipInfra" style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="48dp" android:layout_height="40dp"
+                android:text="" android:contentDescription="Infrastructure"
+                app:chipIcon="@drawable/ic_filter_infrastructure_24" app:chipIconVisible="true" app:chipIconSize="20dp"
+                app:chipIconTint="@color/app_icon_muted" app:ensureMinTouchTargetSize="false" />
+
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipProject" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
-                android:text="Projects" android:textSize="12sp" />
+                android:id="@+id/chipProject" style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="48dp" android:layout_height="40dp"
+                android:text="" android:contentDescription="Projects"
+                app:chipIcon="@drawable/ic_filter_project_24" app:chipIconVisible="true" app:chipIconSize="20dp"
+                app:chipIconTint="@color/app_icon_muted" app:ensureMinTouchTargetSize="false" />
+
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipActivity" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="36dp"
-                android:text="Activities" android:textSize="12sp" />
+                android:id="@+id/chipActivity" style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="48dp" android:layout_height="40dp"
+                android:text="" android:contentDescription="Activities"
+                app:chipIcon="@drawable/ic_filter_activity_24" app:chipIconVisible="true" app:chipIconSize="20dp"
+                app:chipIconTint="@color/app_icon_muted" app:ensureMinTouchTargetSize="false" />
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 
