@@ -1,56 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginHorizontal="6dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginBottom="4dp"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="1dp"
-    app:cardBackgroundColor="@color/app_surface"
-    app:strokeColor="@color/app_border"
-    app:strokeWidth="1dp">
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginHorizontal="4dp"
+    android:layout_marginTop="4dp" android:layout_marginBottom="3dp" app:cardCornerRadius="13dp" app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/app_surface_variant" app:strokeColor="@color/app_brand_stroke_subtle" app:strokeWidth="1dp">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-            <TextView
-                android:id="@+id/tvProjectType"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:background="@drawable/bg_chip_outline_green"
-                android:paddingStart="8dp" android:paddingTop="3dp" android:paddingEnd="8dp" android:paddingBottom="3dp"
-                android:text="INFRASTRUCTURE" android:textColor="@color/brand_green_ui" android:textSize="10sp" android:textStyle="bold" android:letterSpacing="0.04" />
-
+            <TextView android:id="@+id/tvProjectType" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip_outline_green" android:paddingStart="7dp" android:paddingTop="2dp" android:paddingEnd="7dp" android:paddingBottom="2dp"
+                android:text="INFRASTRUCTURE" android:textColor="@color/brand_green_ui" android:textSize="9sp" android:textStyle="bold" android:letterSpacing="0.03" />
             <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
-
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCopyProjectCode" style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="38dp" android:layout_height="38dp" android:minWidth="0dp" android:minHeight="0dp"
-                android:insetLeft="0dp" android:insetRight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
-                android:text="" android:contentDescription="Copy project code"
-                app:icon="@drawable/ic_content_copy_24" app:iconPadding="0dp" app:iconTint="@color/brand_green_ui" app:rippleColor="@color/app_brand_ripple" />
-
+                android:layout_width="34dp" android:layout_height="34dp" android:minWidth="0dp" android:minHeight="0dp"
+                android:insetLeft="0dp" android:insetRight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="" android:contentDescription="Copy documentation code"
+                app:icon="@drawable/ic_content_copy_24" app:iconSize="18dp" app:iconPadding="0dp" app:iconTint="@color/brand_green_ui" app:rippleColor="@color/app_brand_ripple" />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnProjectQr" style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="38dp" android:layout_height="38dp" android:layout_marginStart="2dp" android:minWidth="0dp" android:minHeight="0dp"
-                android:insetLeft="0dp" android:insetRight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
-                android:text="" android:contentDescription="Generate project QR"
-                app:icon="@drawable/ic_qr_code_24" app:iconPadding="0dp" app:iconTint="@color/brand_green_ui" app:rippleColor="@color/app_brand_ripple" />
+                android:layout_width="34dp" android:layout_height="34dp" android:minWidth="0dp" android:minHeight="0dp"
+                android:insetLeft="0dp" android:insetRight="0dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="" android:contentDescription="Generate QR"
+                app:icon="@drawable/ic_qr_code_24" app:iconSize="18dp" app:iconPadding="0dp" app:iconTint="@color/brand_green_ui" app:rippleColor="@color/app_brand_ripple" />
         </LinearLayout>
 
-        <TextView android:id="@+id/tvProjectName" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
-            android:text="Project Name" android:textColor="@color/app_text_primary" android:textSize="15sp" android:textStyle="bold" android:maxLines="2" android:ellipsize="end" />
+        <TextView android:id="@+id/tvProjectName" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+            android:text="Project Name" android:textColor="@color/app_text_primary" android:textSize="14sp" android:textStyle="bold" android:maxLines="2" android:ellipsize="end" />
+        <TextView android:id="@+id/tvBeneficiary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="1dp"
+            android:text="Beneficiary / Division" android:textColor="@color/app_text_secondary" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" />
 
-        <TextView android:id="@+id/tvBeneficiary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-            android:text="Farmer Cooperative" android:textColor="@color/app_text_secondary" android:textSize="12sp" android:maxLines="1" android:ellipsize="end" />
-
-        <LinearLayout android:id="@+id/rowLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="7dp" android:orientation="horizontal" android:gravity="center_vertical">
-            <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_location_24" android:contentDescription="@null" app:tint="@color/app_icon_muted" />
-            <TextView android:id="@+id/tvLocation" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:layout_weight="1"
-                android:text="Science City of Muñoz, Nueva Ecija" android:textColor="@color/app_text_muted" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" />
-            <TextView android:id="@+id/tvCost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp"
-                android:text="₱ 0.00" android:textColor="@color/app_text_secondary" android:textSize="11sp" android:textStyle="bold" />
+        <LinearLayout android:id="@+id/rowLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageView android:layout_width="13dp" android:layout_height="13dp" android:src="@drawable/ic_location_24" android:contentDescription="@null" app:tint="@color/app_icon_muted" />
+            <TextView android:id="@+id/tvLocation" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1"
+                android:text="Location" android:textColor="@color/app_text_muted" android:textSize="10sp" android:maxLines="1" android:ellipsize="end" />
+            <TextView android:id="@+id/tvCost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp"
+                android:text="₱ 0.00" android:textColor="@color/app_text_secondary" android:textSize="10sp" android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
