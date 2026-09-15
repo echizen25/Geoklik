@@ -99,6 +99,7 @@ public class LibraryActivity extends BaseTopAppBarActivity {
             if (adapter == null || checkedIds == null || checkedIds.isEmpty()) return;
             int id = checkedIds.get(0);
             if (id == R.id.chipInfra) adapter.setTypeFilter("INFRA");
+            else if (id == R.id.chipProject) adapter.setTypeFilter("PROJECT");
             else if (id == R.id.chipActivity) adapter.setTypeFilter("ACTIVITY");
             else adapter.setTypeFilter("ALL");
             updateFilteredState();
