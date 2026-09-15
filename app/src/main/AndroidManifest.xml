@@ -10,15 +10,15 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Only if you truly use it -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
-
-    <!-- For Android 8 export -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    <!-- Android 8 and below: exporting photos to public Pictures -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
-    <!-- checking ng internet if available -->
+
+    <!-- Network availability for background sync -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:allowBackup="true"
         android:label="GeoKlik"
@@ -26,6 +26,16 @@
         android:roundIcon="@mipmap/icons_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GeoCamera">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <activity
             android:name=".presentation.firstlaunch.FirstLaunchActivity"
@@ -78,9 +88,7 @@
             android:windowSoftInputMode="stateHidden" />
         <activity android:name=".presentation.gallery.PreviewImagesActivity" />
         <activity android:name=".presentation.gallery.SiteDatesActivity" />
-
         <activity android:name=".presentation.gallery.GroupImagesActivity" />
-
 
     </application>
 
