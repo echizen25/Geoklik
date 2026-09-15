@@ -23,8 +23,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.zxing.BarcodeFormat;
@@ -42,6 +44,7 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
 
     private static final String FILTER_ALL = "ALL";
     private static final String FILTER_INFRA = "INFRA";
+    private static final String FILTER_PROJECT = "PROJECT";
     private static final String FILTER_ACTIVITY = "ACTIVITY";
 
     private final List<ProjectListItem> originalItems;
@@ -55,13 +58,12 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    public void refreshFromSource() {
-        applyFilters();
-    }
+    public void refreshFromSource() { applyFilters(); }
 
     public void setTypeFilter(String type) {
         String value = clean(type).toUpperCase(Locale.US);
-        typeFilter = FILTER_INFRA.equals(value) || FILTER_ACTIVITY.equals(value) ? value : FILTER_ALL;
+        typeFilter = FILTER_INFRA.equals(value) || FILTER_PROJECT.equals(value) || FILTER_ACTIVITY.equals(value)
+                ? value : FILTER_ALL;
         applyFilters();
     }
 
@@ -71,7 +73,6 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
         TextView tvProjectType, tvBeneficiary, tvProjectName, tvLocation, tvCost;
         View rowLocation;
         MaterialButton btnCopyProjectCode, btnProjectQr;
-
         VH(@NonNull View itemView) {
             super(itemView);
             tvProjectType = itemView.findViewById(R.id.tvProjectType);
@@ -98,6 +99,7 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
         String projectType = normalizeType(item.projectType);
         boolean standaloneActivity = "ACTIVITY".equals(projectType);
         boolean projectActivity = "PROJECT_ACTIVITY".equals(projectType);
+        boolean standaloneProject = "PROJECT".equals(projectType);
         boolean anyActivity = standaloneActivity || projectActivity;
         String divisionCode = clean(item.divisionCode);
 
@@ -109,10 +111,10 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
             h.tvProjectType.setText(divisionCode.isEmpty() ? "PROJECT ACTIVITY" : "PROJECT ACTIVITY • " + divisionCode);
             h.tvProjectType.setTextColor(Color.parseColor("#1D4ED8"));
             h.tvProjectType.setBackgroundResource(R.drawable.bg_chip_outline_blue);
-        } else if ("PROJECT".equals(projectType)) {
-            h.tvProjectType.setText("PROJECT");
-            h.tvProjectType.setTextColor(Color.parseColor("#0B5A3C"));
-            h.tvProjectType.setBackgroundResource(R.drawable.bg_chip_outline_green);
+        } else if (standaloneProject) {
+            h.tvProjectType.setText(divisionCode.isEmpty() ? "PROJECT" : "PROJECT • " + divisionCode);
+            h.tvProjectType.setTextColor(Color.parseColor("#1D4ED8"));
+            h.tvProjectType.setBackgroundResource(R.drawable.bg_chip_outline_blue);
         } else {
             h.tvProjectType.setText("INFRASTRUCTURE");
             h.tvProjectType.setTextColor(Color.parseColor("#0B5A3C"));
@@ -121,12 +123,13 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
 
         h.tvProjectName.setText(clean(item.projectName).isEmpty() ? "Untitled Project" : item.projectName);
 
-        String secondary = anyActivity ? divisionDisplay(item) : clean(item.beneficiary);
+        boolean divisionOwned = anyActivity || standaloneProject;
+        String secondary = divisionOwned ? divisionDisplay(item) : clean(item.beneficiary);
         if (secondary.isEmpty()) {
             h.tvBeneficiary.setVisibility(View.GONE);
         } else {
             h.tvBeneficiary.setVisibility(View.VISIBLE);
-            h.tvBeneficiary.setText(anyActivity ? "Division: " + secondary : secondary);
+            h.tvBeneficiary.setText(divisionOwned ? "Division: " + secondary : secondary);
         }
 
         String location = clean(item.location);
@@ -157,6 +160,7 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
         if (FILTER_ALL.equals(typeFilter)) return true;
         String type = normalizeType(item.projectType);
         if (FILTER_INFRA.equals(typeFilter)) return "INFRA".equals(type);
+        if (FILTER_PROJECT.equals(typeFilter)) return "PROJECT".equals(type);
         if (FILTER_ACTIVITY.equals(typeFilter)) return "ACTIVITY".equals(type) || "PROJECT_ACTIVITY".equals(type);
         return true;
     }
@@ -227,7 +231,8 @@ public class LibraryProjectAdapter extends RecyclerView.Adapter<LibraryProjectAd
             tvType.setText(label);
             tvType.setGravity(Gravity.CENTER);
             tvType.setTextSize(11);
-            tvType.setTextColor("PROJECT_ACTIVITY".equals(projectType) ? Color.parseColor("#1D4ED8") : Color.parseColor("#0B5A3C"));
+            tvType.setTextColor(("PROJECT_ACTIVITY".equals(projectType) || "PROJECT".equals(projectType))
+                    ? Color.parseColor("#1D4ED8") : Color.parseColor("#0B5A3C"));
             tvType.setPadding(dp(context, 8), dp(context, 4), dp(context, 8), 0);
             container.addView(tvType);
 
