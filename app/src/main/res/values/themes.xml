@@ -29,6 +29,7 @@
     <style name="ThemeOverlay.GeoCamera.GalleryToolbar" parent="ThemeOverlay.Material3.Dark.ActionBar">
         <item name="colorControlNormal">@android:color/white</item>
         <item name="android:colorControlNormal">@android:color/white</item>
+        <item name="popupTheme">@style/ThemeOverlay.GeoCamera.Popup</item>
     </style>
 
     <!-- Toolbar is dark green, but its overflow/popup content must stay on the app's
