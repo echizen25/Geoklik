@@ -21,7 +21,7 @@ import ph.gov.geocamera.presentation.site.SetSiteActivity;
 /**
  * Displays the capture classification derived from the selected target.
  *
- * INFRA / PROJECT_ACTIVITY are derived from the synced project master.
+ * INFRA / ACTIVITY / PROJECT_ACTIVITY are derived from the synced project master.
  * PERSONAL is an explicit local-only capture mode and must never be re-derived
  * from site/project lookup, because its local label/title are not project IDs.
  */
@@ -105,8 +105,8 @@ public class DocumentationModeChip extends MaterialButton {
     }
 
     /**
-     * Preserve explicit PERSONAL mode. Only project-backed selections are
-     * allowed to derive INFRA / PROJECT_ACTIVITY from tbl_projects.
+     * Preserve explicit PERSONAL mode. Project-backed selections derive their
+     * capture classification from the synchronized target master.
      */
     private String syncDerivedClassification() {
         String explicitType = cameraPrefs.getDocumentationType();
@@ -142,6 +142,15 @@ public class DocumentationModeChip extends MaterialButton {
             return CameraPrefs.DOC_PROJECT_ACTIVITY;
         }
 
+        if (CameraPrefs.DOC_ACTIVITY.equals(type)) {
+            cameraPrefs.saveDocumentationType(CameraPrefs.DOC_ACTIVITY);
+            cameraPrefs.clearActivityProjectId();
+            captureContextRepo.setCurrent(CameraPrefs.DOC_ACTIVITY, null);
+            return CameraPrefs.DOC_ACTIVITY;
+        }
+
+        // Preserve the proven Infrastructure behavior for INFRA and for older
+        // local records whose project type is unavailable.
         cameraPrefs.saveDocumentationType(CameraPrefs.DOC_INFRA);
         cameraPrefs.clearActivityProjectId();
         captureContextRepo.setCurrent(CameraPrefs.DOC_INFRA, null);
@@ -167,7 +176,8 @@ public class DocumentationModeChip extends MaterialButton {
         String code = projectRepo.getProjectCodeById(projectId);
         String label = compact(code == null || code.trim().isEmpty() ? projectId : code);
 
-        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) {
+        if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)
+                || CameraPrefs.DOC_ACTIVITY.equals(type)) {
             setText("ACTIVITY  •  " + label);
             setIconResource(R.drawable.ic_project_activity_24);
         } else {
