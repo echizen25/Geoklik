@@ -9,4 +9,10 @@ public class ProjectListItem {
     public String cost;
     public String dateAdded;
     public String dateModified;
+
+    // Local display metadata from tbl_projects. These fields keep the Library UI
+    // type-aware without changing the API or upload contracts.
+    public String projectType;
+    public String divisionCode;
+    public String divisionName;
 }

@@ -12,16 +12,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#FFFCF2"
+            android:background="@color/app_background_warm"
             app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-            <!-- HEADER BACKGROUND -->
-
-            <!-- HEADER BRAND BLOCK -->
             <ImageView
                 android:id="@+id/imgHeaderBg"
                 android:layout_width="0dp"
@@ -76,14 +72,12 @@
                     android:fontFamily="sans-serif"
                     android:gravity="center"
                     android:letterSpacing="0.05"
-                    android:text="Version 1.0.0"
+                    android:text="Version -"
                     android:textColor="#E3F6EC"
                     android:textSize="7sp"
                     android:textStyle="bold" />
-
             </LinearLayout>
 
-            <!-- FOOTER -->
             <ImageView
                 android:id="@+id/imgFooter"
                 android:layout_width="0dp"
@@ -96,7 +90,6 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:srcCompat="@drawable/footer" />
 
-            <!-- CENTER MENU AREA -->
             <LinearLayout
                 android:id="@+id/menuContainer"
                 android:layout_width="wrap_content"
@@ -109,73 +102,23 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintVertical_bias="0.42">
 
-                <!-- ROW 1 -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal">
 
-                    <LinearLayout
-                        android:layout_width="104dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <ImageButton
-                            android:id="@+id/btnCapture"
-                            android:layout_width="72dp"
-                            android:layout_height="72dp"
-                            android:adjustViewBounds="true"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="Capture"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/camera" />
-
-                        <TextView
-                            android:id="@+id/txtCapture"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center"
-                            android:text="CAPTURE"
-                            android:textColor="#2A4056"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
+                    <LinearLayout android:layout_width="104dp" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical">
+                        <ImageButton android:id="@+id/btnCapture" android:layout_width="72dp" android:layout_height="72dp" android:adjustViewBounds="true" android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:contentDescription="Capture" android:scaleType="fitCenter" android:src="@drawable/camera" />
+                        <TextView android:id="@+id/txtCapture" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="CAPTURE" android:textColor="@color/app_text_secondary" android:textSize="11sp" android:textStyle="bold" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:layout_width="104dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <ImageButton
-                            android:id="@+id/btnGallery"
-                            android:layout_width="72dp"
-                            android:layout_height="72dp"
-                            android:adjustViewBounds="true"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="Gallery"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/list" />
-
-                        <TextView
-                            android:id="@+id/txtGallery"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center"
-                            android:text="GALLERY"
-                            android:textColor="#2A4056"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
+                    <LinearLayout android:layout_width="104dp" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical">
+                        <ImageButton android:id="@+id/btnGallery" android:layout_width="72dp" android:layout_height="72dp" android:adjustViewBounds="true" android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:contentDescription="Gallery" android:scaleType="fitCenter" android:src="@drawable/list" />
+                        <TextView android:id="@+id/txtGallery" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="GALLERY" android:textColor="@color/app_text_secondary" android:textSize="11sp" android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- ROW 2 -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -183,67 +126,17 @@
                     android:gravity="center"
                     android:orientation="horizontal">
 
-                    <LinearLayout
-                        android:layout_width="104dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <ImageButton
-                            android:id="@+id/btnLibrary"
-                            android:layout_width="72dp"
-                            android:layout_height="72dp"
-                            android:adjustViewBounds="true"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="Library"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/library" />
-
-                        <TextView
-                            android:id="@+id/txtLibrary"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center"
-                            android:text="LIBRARY"
-                            android:textColor="#2A4056"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
+                    <LinearLayout android:layout_width="104dp" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical">
+                        <ImageButton android:id="@+id/btnLibrary" android:layout_width="72dp" android:layout_height="72dp" android:adjustViewBounds="true" android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:contentDescription="Library" android:scaleType="fitCenter" android:src="@drawable/library" />
+                        <TextView android:id="@+id/txtLibrary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="LIBRARY" android:textColor="@color/app_text_secondary" android:textSize="11sp" android:textStyle="bold" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:layout_width="104dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <ImageButton
-                            android:id="@+id/btnSettings"
-                            android:layout_width="72dp"
-                            android:layout_height="72dp"
-                            android:adjustViewBounds="true"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="Settings"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/settings" />
-
-                        <TextView
-                            android:id="@+id/txtSettings"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center"
-                            android:text="SETTINGS"
-                            android:textColor="#2A4056"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
+                    <LinearLayout android:layout_width="104dp" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical">
+                        <ImageButton android:id="@+id/btnSettings" android:layout_width="72dp" android:layout_height="72dp" android:adjustViewBounds="true" android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:contentDescription="Settings" android:scaleType="fitCenter" android:src="@drawable/settings" />
+                        <TextView android:id="@+id/txtSettings" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="SETTINGS" android:textColor="@color/app_text_secondary" android:textSize="11sp" android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
-
             </LinearLayout>
-
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -255,10 +148,9 @@
             android:translationZ="24dp"
             app:elevation="8dp"
             app:navigationIcon="@drawable/ic_menu_24"
-            app:navigationIconTint="#FFFFFF"
+            app:navigationIconTint="@android:color/white"
             app:title=""
-            app:titleTextColor="#FFFFFF" />
-
+            app:titleTextColor="@android:color/white" />
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <com.google.android.material.navigation.NavigationView
@@ -266,7 +158,7 @@
         android:layout_width="320dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#FFFCF2"
+        android:background="@color/app_surface"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/nav_header_home"
         app:itemBackground="@drawable/nav_item_bg"
@@ -275,5 +167,4 @@
         app:itemTextColor="@color/nav_item_text"
         app:itemVerticalPadding="10dp"
         app:menu="@menu/drawer_menu" />
-
 </androidx.drawerlayout.widget.DrawerLayout>

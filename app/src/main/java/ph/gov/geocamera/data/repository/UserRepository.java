@@ -9,19 +9,42 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import ph.gov.geocamera.core.utils.CameraPrefs;
 import ph.gov.geocamera.data.local.db.GeoDbHelper;
 
 public class UserRepository {
 
-    private final GeoDbHelper dbHelper;
+    public static final class UserProfile {
+        public String userId;
+        public String firstName;
+        public String middleName;
+        public String lastName;
+        public String designation;
+        public String project;
 
-    public UserRepository(Context context) {
-        dbHelper = new GeoDbHelper(context);
+        public String fullName() {
+            StringBuilder out = new StringBuilder();
+            appendPart(out, firstName);
+            appendPart(out, middleName);
+            appendPart(out, lastName);
+            return out.toString().trim();
+        }
+
+        private static void appendPart(StringBuilder out, String value) {
+            if (value == null || value.trim().isEmpty()) return;
+            if (out.length() > 0) out.append(' ');
+            out.append(value.trim());
+        }
     }
 
-    // -------------------------------------
-    // Insert User (for FirstLaunchActivity)
-    // -------------------------------------
+    private final GeoDbHelper dbHelper;
+    private final Context sourceContext;
+
+    public UserRepository(Context context) {
+        sourceContext = context;
+        dbHelper = new GeoDbHelper(context.getApplicationContext());
+    }
+
     public long insertUser(
             String userId,
             String fname,
@@ -35,7 +58,6 @@ public class UserRepository {
             String androidId,
             String uuid
     ) {
-
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
         ContentValues cv = new ContentValues();
@@ -52,12 +74,11 @@ public class UserRepository {
         cv.put("uuid", uuid);
         cv.put("timestamp", now());
 
-        return db.insert("tbl_users", null, cv);
+        long result = db.insert("tbl_users", null, cv);
+        db.close();
+        return result;
     }
 
-    // -------------------------------------
-    // Check if user exists
-    // -------------------------------------
     public boolean hasUser() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor c = db.rawQuery("SELECT COUNT(*) FROM tbl_users", null);
@@ -65,40 +86,125 @@ public class UserRepository {
         boolean has = false;
         if (c.moveToFirst()) has = c.getInt(0) > 0;
         c.close();
+        db.close();
         return has;
     }
 
-    // -------------------------------------
-    // Getters
-    // -------------------------------------
-    public String getFirstName() {
+    public UserProfile getProfile() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT fname FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
+        Cursor c = null;
+        try {
+            c = db.rawQuery(
+                    "SELECT userid, fname, mname, lname, designation, project " +
+                            "FROM tbl_users ORDER BY timestamp DESC LIMIT 1",
+                    null
+            );
+            if (!c.moveToFirst()) return null;
 
-        String val = null;
-        if (c.moveToFirst()) val = c.getString(0);
-        c.close();
-        return val;
+            UserProfile p = new UserProfile();
+            p.userId = valueAt(c, 0);
+            p.firstName = valueAt(c, 1);
+            p.middleName = valueAt(c, 2);
+            p.lastName = valueAt(c, 3);
+            p.designation = valueAt(c, 4);
+            p.project = valueAt(c, 5);
+            return p;
+        } finally {
+            if (c != null) c.close();
+            db.close();
+        }
     }
 
-    public String getProject() {
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT project FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
+    /** Updates only editable profile fields. Device identity fields are untouched. */
+    public boolean updateProfile(String firstName,
+                                 String middleName,
+                                 String lastName,
+                                 String designation,
+                                 String project) {
+        UserProfile current = getProfile();
+        if (current == null || current.userId == null || current.userId.trim().isEmpty()) {
+            return false;
+        }
 
-        String val = null;
-        if (c.moveToFirst()) val = c.getString(0);
-        c.close();
-        return val;
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        try {
+            ContentValues cv = new ContentValues();
+            cv.put("fname", clean(firstName));
+            cv.put("mname", clean(middleName));
+            cv.put("lname", clean(lastName));
+            cv.put("designation", clean(designation));
+            cv.put("project", clean(project));
+            cv.put("timestamp", now());
+
+            return db.update(
+                    GeoDbHelper.TABLE_USERS,
+                    cv,
+                    "userid = ?",
+                    new String[]{current.userId}
+            ) > 0;
+        } finally {
+            db.close();
+        }
+    }
+
+    public String getFirstName() {
+        UserProfile p = getProfile();
+        return p == null ? null : p.firstName;
+    }
+
+    public String getFullName() {
+        UserProfile p = getProfile();
+        return p == null ? null : p.fullName();
+    }
+
+    public String getDesignation() {
+        UserProfile p = getProfile();
+        return p == null ? null : p.designation;
+    }
+
+    /**
+     * Funding/program label used by the Camera overlay.
+     * PERSONAL and PROJECT_ACTIVITY override the stored profile project only for
+     * the active capture mode. The stored profile value itself is not overwritten.
+     */
+    public String getProject() {
+        if (sourceContext != null) {
+            try {
+                CameraPrefs prefs = new CameraPrefs(sourceContext);
+                String type = prefs.getDocumentationType();
+
+                if (CameraPrefs.DOC_PERSONAL.equals(type)) {
+                    return prefs.getPersonalOverlayLabel();
+                }
+
+                if (CameraPrefs.DOC_PROJECT_ACTIVITY.equals(type)) {
+                    return "PROJECT ACTIVITY";
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return getStoredProject();
+    }
+
+    /** Original profile project/funding value, unaffected by capture mode. */
+    public String getStoredProject() {
+        UserProfile p = getProfile();
+        return p == null ? null : p.project;
     }
 
     public String getUserId() {
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT userid FROM tbl_users ORDER BY timestamp DESC LIMIT 1", null);
+        UserProfile p = getProfile();
+        return p == null ? null : p.userId;
+    }
 
-        String val = null;
-        if (c.moveToFirst()) val = c.getString(0);
-        c.close();
-        return val;
+    private static String valueAt(Cursor c, int index) {
+        if (c == null || c.isNull(index)) return "";
+        String value = c.getString(index);
+        return value == null ? "" : value.trim();
+    }
+
+    private static String clean(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String now() {

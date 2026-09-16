@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F3F8F5"
+    android:background="@color/app_background"
     android:clickable="true"
     android:focusableInTouchMode="true">
 
@@ -19,314 +19,59 @@
         android:paddingTop="26dp"
         android:paddingBottom="20dp">
 
-        <LinearLayout
-            android:id="@+id/contentLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Header -->
-            <LinearLayout
-                android:id="@+id/headerBlock"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center_horizontal"
-                android:paddingTop="12dp"
-                android:paddingBottom="14dp">
-
-                <TextView
-                    android:id="@+id/tvAppBadge"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
-                    android:gravity="center"
-                    android:background="@drawable/camera"
-                    android:text="G"
-                    android:textColor="@android:color/white"
-                    android:textStyle="bold"
-                    android:textSize="24sp"
-                    android:includeFontPadding="false" />
-
-                <TextView
-                    android:id="@+id/tvWelcomeTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:gravity="center"
-                    android:text="Welcome to GeoKlik"
-                    android:textColor="#004B24"
-                    android:textStyle="bold"
-                    android:textSize="24sp"
-                    android:includeFontPadding="false" />
-
-                <TextView
-                    android:id="@+id/tvWelcomeSubtitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center"
-                    android:text="Set up your field profile for secure geotagging and photo ownership."
-                    android:textColor="#60756B"
-                    android:textSize="13sp"
-                    android:lineSpacingExtra="2dp" />
+        <LinearLayout android:id="@+id/contentLayout" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:id="@+id/headerBlock" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_horizontal" android:paddingTop="12dp" android:paddingBottom="14dp">
+                <TextView android:id="@+id/tvAppBadge" android:layout_width="54dp" android:layout_height="54dp" android:gravity="center" android:background="@drawable/camera" android:text="G" android:textColor="@android:color/white" android:textStyle="bold" android:textSize="24sp" android:includeFontPadding="false" />
+                <TextView android:id="@+id/tvWelcomeTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:gravity="center" android:text="Welcome to GeoKlik" android:textColor="@color/brand_green_ui" android:textStyle="bold" android:textSize="24sp" android:includeFontPadding="false" />
+                <TextView android:id="@+id/tvWelcomeSubtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:text="Set up your field profile for secure geotagging and photo ownership." android:textColor="@color/app_text_muted" android:textSize="13sp" android:lineSpacingExtra="2dp" />
             </LinearLayout>
 
-            <!-- Single modern form card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardForm"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="26dp"
-                app:cardElevation="2dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="#D8E9E0">
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                app:cardBackgroundColor="@color/app_surface" app:cardCornerRadius="26dp" app:cardElevation="2dp" app:strokeWidth="1dp" app:strokeColor="@color/app_border">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingStart="18dp"
-                    android:paddingEnd="18dp"
-                    android:paddingTop="18dp"
-                    android:paddingBottom="18dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="18dp" android:paddingEnd="18dp" android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Profile Information" android:textColor="@color/brand_green_ui" android:textStyle="bold" android:textSize="16sp" android:includeFontPadding="false" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Fields marked with basic identity details are used locally in GeoKlik records." android:textColor="@color/app_text_muted" android:textSize="12sp" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Profile Information"
-                        android:textColor="#004B24"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
-                        android:includeFontPadding="false" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Fields marked with basic identity details are used locally in GeoKlik records."
-                        android:textColor="#718078"
-                        android:textSize="12sp" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilFname"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="18dp"
-                        android:hint="First Name"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#004B24"
-                        app:hintTextColor="#004B24"
-                        app:startIconDrawable="@android:drawable/ic_menu_edit"
-                        app:startIconTint="#004B24">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etFname"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:singleLine="true"
-                            android:inputType="textPersonName|textCapWords"
-                            android:textSize="14sp" />
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilFname" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:hint="First Name" app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui" app:startIconDrawable="@android:drawable/ic_menu_edit" app:startIconTint="@color/brand_green_ui">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etFname" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:inputType="textPersonName|textCapWords" android:textColor="@color/app_text_primary" android:textColorHint="@color/app_text_muted" android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/tilMname"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="86dp"
-                            android:layout_height="wrap_content"
-                            android:hint="M.I."
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#004B24"
-                            app:hintTextColor="#004B24">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etMname"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:singleLine="true"
-                                android:maxLength="1"
-                                android:gravity="center"
-                                android:inputType="textCapCharacters"
-                                android:textSize="14sp" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                        <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilMname" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="86dp" android:layout_height="wrap_content" android:hint="M.I." app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui">
+                            <com.google.android.material.textfield.TextInputEditText android:id="@+id/etMname" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:maxLength="1" android:gravity="center" android:inputType="textCapCharacters" android:textColor="@color/app_text_primary" android:textSize="14sp" />
                         </com.google.android.material.textfield.TextInputLayout>
-
-                        <View
-                            android:layout_width="10dp"
-                            android:layout_height="1dp" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/tilLname"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="Last Name"
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#004B24"
-                            app:hintTextColor="#004B24">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etLname"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:singleLine="true"
-                                android:inputType="textPersonName|textCapWords"
-                                android:textSize="14sp" />
+                        <View android:layout_width="10dp" android:layout_height="1dp" />
+                        <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilLname" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Last Name" app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui">
+                            <com.google.android.material.textfield.TextInputEditText android:id="@+id/etLname" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:inputType="textPersonName|textCapWords" android:textColor="@color/app_text_primary" android:textSize="14sp" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilGender"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:hint="Gender"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#004B24"
-                        app:hintTextColor="#004B24">
-
-                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                            android:id="@+id/actGender"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:singleLine="true"
-                            android:textSize="14sp" />
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilGender" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:hint="Gender" app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui">
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView android:id="@+id/actGender" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="none" android:singleLine="true" android:textColor="@color/app_text_primary" android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilBdate"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:hint="Birthdate"
-                        app:endIconMode="custom"
-                        app:endIconDrawable="@android:drawable/ic_menu_my_calendar"
-                        app:endIconTint="#004B24"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#004B24"
-                        app:hintTextColor="#004B24">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etBdate"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:focusable="false"
-                            android:clickable="true"
-                            android:inputType="none"
-                            android:textSize="14sp" />
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilBdate" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:hint="Birthdate" app:endIconMode="custom" app:endIconDrawable="@android:drawable/ic_menu_my_calendar" app:endIconTint="@color/brand_green_ui" app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etBdate" android:layout_width="match_parent" android:layout_height="wrap_content" android:focusable="false" android:clickable="true" android:inputType="none" android:textColor="@color/app_text_primary" android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <TextView
-                        android:id="@+id/tvAgeHint"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="Registration requires users to be 18 years old and above."
-                        android:textColor="#7A8A82"
-                        android:textSize="11sp" />
+                    <TextView android:id="@+id/tvAgeHint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Registration requires users to be 18 years old and above." android:textColor="@color/app_text_faint" android:textSize="11sp" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="16dp" android:layout_marginBottom="16dp" android:background="@color/app_border" />
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginBottom="16dp"
-                        android:background="#E6EFEA" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilDesignation"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Designation"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#004B24"
-                        app:hintTextColor="#004B24">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etDesignation"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:singleLine="true"
-                            android:inputType="textCapWords"
-                            android:textSize="14sp" />
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilDesignation" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Designation" app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etDesignation" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:inputType="textCapWords" android:textColor="@color/app_text_primary" android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilProject"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:hint="Fund Source"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#004B24"
-                        app:hintTextColor="#004B24">
-
-                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                            android:id="@+id/actProject"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:singleLine="true"
-                            android:textSize="14sp" />
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/tilProject" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:hint="Fund Source" app:boxCornerRadiusTopStart="14dp" app:boxCornerRadiusTopEnd="14dp" app:boxCornerRadiusBottomStart="14dp" app:boxCornerRadiusBottomEnd="14dp" app:boxStrokeColor="@color/brand_green_ui" app:hintTextColor="@color/brand_green_ui">
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView android:id="@+id/actProject" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="none" android:singleLine="true" android:textColor="@color/app_text_primary" android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSave"
-                android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:layout_marginTop="18dp"
-                android:layout_marginBottom="12dp"
-                android:text="Continue"
-                android:textAllCaps="false"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"
-                android:backgroundTint="#004B24"
-                app:cornerRadius="18dp" />
-
-            <TextView
-                android:id="@+id/tvPrivacyNote"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="Your information is stored locally and used for GeoKlik records."
-                android:textColor="#7A8A82"
-                android:textSize="11sp" />
-
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnSave" android:layout_width="match_parent" android:layout_height="58dp" android:layout_marginTop="18dp" android:layout_marginBottom="12dp" android:text="Continue" android:textAllCaps="false" android:textStyle="bold" android:textColor="@android:color/white" android:backgroundTint="@color/brand_green" app:cornerRadius="18dp" />
+            <TextView android:id="@+id/tvPrivacyNote" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="Your information is stored locally and used for GeoKlik records." android:textColor="@color/app_text_faint" android:textSize="11sp" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
