@@ -682,6 +682,11 @@ public class GeoCameraActivity extends AppCompatActivity {
 
     private void resetCaptureLifecycle() {
         isCapturing = false;
+
+        // Exit ADD_DESCRIPTION/other busy states before reevaluating live GPS.
+        // Without this, updateCaptureAvailability() returns early and the shutter
+        // stays disabled after Discard until the camera activity is reopened.
+        setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
         updateCaptureAvailability();
     }
 
