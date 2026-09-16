@@ -23,8 +23,12 @@ public final class ProjectBackgroundSync {
     private static final String PREFS_PROJECT_SYNC = "project_sync_prefs";
     private static final String KEY_LAST_PROJECT_SYNC = "last_project_sync";
     private static final String KEY_GEOFENCE_CACHE_VERSION = "geofence_cache_version";
+    private static final String KEY_PROJECT_RECONCILE_VERSION = "project_reconcile_version";
 
     private static final int GEOFENCE_CACHE_VERSION = 2;
+    // Versioned independently from the normal 6-hour timestamp so an app update
+    // can force one authoritative cleanup of stale project rows already on device.
+    private static final int PROJECT_RECONCILE_VERSION = 1;
     private static final long PROJECT_SYNC_INTERVAL_MS = 6L * 60L * 60L * 1000L;
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -60,8 +64,13 @@ public final class ProjectBackgroundSync {
                 boolean intervalExpired = (now - lastSync) >= PROJECT_SYNC_INTERVAL_MS;
                 boolean needsProjectAreaBootstrap =
                         prefs.getInt(KEY_GEOFENCE_CACHE_VERSION, 0) < GEOFENCE_CACHE_VERSION;
+                boolean needsProjectReconciliation =
+                        prefs.getInt(KEY_PROJECT_RECONCILE_VERSION, 0) < PROJECT_RECONCILE_VERSION;
 
-                if (!force && hasLocalProjects && !intervalExpired && !needsProjectAreaBootstrap) {
+                // A new reconciliation version bypasses the normal 6-hour gate once.
+                // This cleans stale rows that were saved by older upsert-only builds.
+                if (!force && hasLocalProjects && !intervalExpired
+                        && !needsProjectAreaBootstrap && !needsProjectReconciliation) {
                     return;
                 }
 
@@ -90,6 +99,11 @@ public final class ProjectBackgroundSync {
                     if (adminAreaContractSeen) {
                         editor.putInt(KEY_GEOFENCE_CACHE_VERSION, GEOFENCE_CACHE_VERSION);
                     }
+                    // Do not mark reconciliation complete on legacy fallback. We want
+                    // the next eligible run to retry against the authoritative feed.
+                    if (authoritative) {
+                        editor.putInt(KEY_PROJECT_RECONCILE_VERSION, PROJECT_RECONCILE_VERSION);
+                    }
                     editor.apply();
                     updated = true;
                 }
@@ -108,6 +122,7 @@ public final class ProjectBackgroundSync {
                 .edit()
                 .remove(KEY_LAST_PROJECT_SYNC)
                 .remove(KEY_GEOFENCE_CACHE_VERSION)
+                .remove(KEY_PROJECT_RECONCILE_VERSION)
                 .apply();
     }
 }
