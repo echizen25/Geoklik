@@ -1,0 +1,147 @@
+name: Apply camera framing fix
+
+on:
+  push:
+    branches:
+      - fix/change-site-project-dropdown
+    paths:
+      - .github/workflows/apply-camera-framing-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/change-site-project-dropdown
+          fetch-depth: 0
+
+      - name: Patch GeoCameraActivity
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java')
+          text = path.read_text(encoding='utf-8')
+
+          old_duplicate = '''        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Possible Duplicate Photo")
+                    .setMessage("A photo for this site was already captured within "
+                            + Math.round(DUPLICATE_RADIUS_METERS)
+                            + " meters of your current location. Continue anyway?")
+                    .setNegativeButton("Cancel", (d, w) -> resetCaptureLifecycle())
+                    .setPositiveButton("Continue", (d, w) -> continueCaptureAfterDuplicateCheck(
+                            captureLoc, project, userId, motherFolder, siteId, sessionDate))
+                    .setOnCancelListener(d -> resetCaptureLifecycle())
+                    .show();
+            return;
+        }
+'''
+
+          new_duplicate = '''        // Nearby-photo duplicate protection is only meaningful for fixed infrastructure.
+        // Project Activity and Personal captures may legitimately contain many photos from
+        // the same spot, so do not interrupt those workflows with the 5-meter warning.
+        final String documentationType = cameraPrefs.getDocumentationType();
+        final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);
+
+        if (requireDuplicateCheck && imageRepo.hasNearbyPhoto(
+                siteId,
+                captureLoc.getLatitude(),
+                captureLoc.getLongitude(),
+                DUPLICATE_RADIUS_METERS)) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Possible Duplicate Photo")
+                    .setMessage("A photo for this site was already captured within "
+                            + Math.round(DUPLICATE_RADIUS_METERS)
+                            + " meters of your current location. Continue anyway?")
+                    .setNegativeButton("Cancel", (d, w) -> resetCaptureLifecycle())
+                    .setPositiveButton("Continue", (d, w) -> continueCaptureAfterDuplicateCheck(
+                            captureLoc, project, userId, motherFolder, siteId, sessionDate))
+                    .setOnCancelListener(d -> resetCaptureLifecycle())
+                    .show();
+            return;
+        }
+'''
+
+          old_camera = '''                previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
+                previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
+
+                imageCapture = new ImageCapture.Builder()
+                        .setTargetRotation(rotation)
+                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .setJpegQuality(92)
+                        .build();
+
+                provider.unbindAll();
+                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
+                        this,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        previewUseCase,
+                        imageCapture);
+'''
+
+          new_camera = '''                previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
+                previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
+
+                imageCapture = new ImageCapture.Builder()
+                        .setTargetRotation(rotation)
+                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .setJpegQuality(92)
+                        .build();
+
+                // Share the PreviewView viewport with ImageCapture so the saved JPEG uses
+                // the same visible framing/crop as the fillCenter preview. CameraControl
+                // zoom is then applied consistently to both use cases.
+                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
+                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder =
+                        new androidx.camera.core.UseCaseGroup.Builder()
+                                .addUseCase(previewUseCase)
+                                .addUseCase(imageCapture);
+                if (viewPort != null) {
+                    useCaseGroupBuilder.setViewPort(viewPort);
+                }
+                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();
+
+                provider.unbindAll();
+                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
+                        this,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        useCaseGroup);
+'''
+
+          if old_duplicate not in text:
+              raise SystemExit('Expected duplicate-check block was not found; refusing unsafe patch.')
+          if old_camera not in text:
+              raise SystemExit('Expected camera binding block was not found; refusing unsafe patch.')
+
+          text = text.replace(old_duplicate, new_duplicate, 1)
+          text = text.replace(old_camera, new_camera, 1)
+          path.write_text(text, encoding='utf-8')
+
+      - name: Verify targeted changes
+        shell: bash
+        run: |
+          grep -q 'requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+          grep -q 'previewView.getViewPort()' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+          grep -q 'useCaseGroupBuilder.setViewPort(viewPort)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+
+      - name: Compile app
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew compileDebugJavaWithJavac --no-daemon
+
+      - name: Commit patch and remove temporary workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/apply-camera-framing-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java .github/workflows/apply-camera-framing-fix.yml
+          git commit -m "Fix camera framing and duplicate capture rules"
+          git push origin HEAD:fix/change-site-project-dropdown
