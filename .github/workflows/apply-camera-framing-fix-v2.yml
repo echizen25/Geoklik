@@ -3,6 +3,8 @@ name: GeoKlik camera patch
 on:
   push:
     branches: [fix/change-site-project-dropdown]
+    paths:
+      - .github/workflows/apply-camera-framing-fix-v2.yml
 
 permissions:
   contents: write
@@ -12,13 +14,12 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: fix/change-site-project-dropdown
           fetch-depth: 0
 
-      - name: Apply targeted source changes
+      - name: Apply and verify source patch
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -36,19 +37,11 @@ jobs:
           s = s.replace(old, new, 1)
           p.write_text(s, encoding='utf-8')
           PY
-
-      - name: Verify patch
-        run: |
           grep -q 'requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
           grep -q 'previewView.getViewPort()' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
-          grep -q 'CameraSelector.DEFAULT_BACK_CAMERA,' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+          grep -q 'useCaseGroupBuilder.setViewPort(viewPort)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
 
-      - name: Compile Java
-        run: |
-          chmod +x gradlew
-          ./gradlew compileDebugJavaWithJavac --no-daemon
-
-      - name: Commit verified source patch
+      - name: Commit source patch and clean temporary workflows
         run: |
           rm -f .github/workflows/apply-camera-framing-fix.yml
           rm -f .github/workflows/apply-camera-framing-fix-v2.yml
