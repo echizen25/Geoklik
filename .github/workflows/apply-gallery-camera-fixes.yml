@@ -24,43 +24,30 @@ jobs:
           from pathlib import Path
           p = Path('app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java')
           s = p.read_text(encoding='utf-8')
-
-          old_dup = '''        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'''
-          new_dup = '''        // The 5-meter duplicate warning applies only to fixed Infrastructure captures.
-        // Project/Activity/Project Activity and Personal documentation may legitimately
-        // contain multiple photos from the same position.
+          old_dup = '        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'
+          new_dup = '''        // Only Infrastructure captures use the 5-meter duplicate warning.
         final String documentationType = cameraPrefs.getDocumentationType();
         final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);
 
         if (requireDuplicateCheck && imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'''
-          if old_dup not in s:
-              raise SystemExit('duplicate-check target not found')
+          if old_dup not in s: raise SystemExit('duplicate target not found')
           s = s.replace(old_dup, new_dup, 1)
-
-          old_reset = '''    private void resetCaptureLifecycle() {
-        isCapturing = false;
-        updateCaptureAvailability();
-    }'''
+          old_reset = '    private void resetCaptureLifecycle() {\n        isCapturing = false;\n        updateCaptureAvailability();\n    }'
           new_reset = '''    private void resetCaptureLifecycle() {
         isCapturing = false;
-
         // Exit ADD_DESCRIPTION/other busy states before reevaluating live GPS.
-        // Otherwise a discarded photo leaves the shutter locked until reopening camera.
         setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
         updateCaptureAvailability();
     }'''
-          if old_reset not in s:
-              raise SystemExit('capture-reset target not found')
+          if old_reset not in s: raise SystemExit('reset target not found')
           s = s.replace(old_reset, new_reset, 1)
-
           old_bind = '''                provider.unbindAll();
                 androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
                         this,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         previewUseCase,
                         imageCapture);'''
-          new_bind = '''                // Use one viewport for preview and ImageCapture so the saved JPEG
-                // follows the crop/framing (including zoom) visible in PreviewView.
+          new_bind = '''                // Share PreviewView crop/framing with still capture.
                 androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
                 androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder = new androidx.camera.core.UseCaseGroup.Builder()
                         .addUseCase(previewUseCase)
@@ -73,17 +60,12 @@ jobs:
                         this,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         useCaseGroup);'''
-          if old_bind not in s:
-              raise SystemExit('camera-binding target not found')
+          if old_bind not in s: raise SystemExit('binding target not found')
           s = s.replace(old_bind, new_bind, 1)
-
           p.write_text(s, encoding='utf-8')
           PY
-
-          grep -q 'final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
-          grep -q 'setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+          grep -q 'requireDuplicateCheck = CameraPrefs.DOC_INFRA' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
           grep -q 'previewView.getViewPort()' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
-          grep -q 'useCaseGroup)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
 
       - name: Commit source and remove temporary workflow
         run: |
