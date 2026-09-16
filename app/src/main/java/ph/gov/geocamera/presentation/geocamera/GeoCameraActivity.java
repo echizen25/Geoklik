@@ -71,7 +71,8 @@ import ph.gov.geocamera.data.repository.UserRepository;
 import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.site.SetSiteActivity;
 
-public class GeoCameraActivity extends AppCompatActivity {
+public class GeoCameraActivity extends AppCompatActivity
+        implements CameraGestureController.LensSwitchHandler {
 
     private static final String QR_HMAC_SECRET = "CHANGE_ME_TO_A_LONG_RANDOM_SECRET";
     private static final int QR_VERSION = 1;
@@ -138,6 +139,10 @@ public class GeoCameraActivity extends AppCompatActivity {
     private int stableFixCount = 0;
     private Preview previewUseCase;
     private volatile boolean isCapturing = false;
+    private ProcessCameraProvider cameraProvider;
+    private CameraSelector wideCameraSelector;
+    private float wideEffectiveRatio = 1.0f;
+    private boolean usingWideLens = false;
 
     private int lastRotation = Surface.ROTATION_0;
     private boolean allowIndoorFallback = false;
@@ -693,44 +698,138 @@ public class GeoCameraActivity extends AppCompatActivity {
         if (cameraStateManager != null) cameraStateManager.apply(state);
     }
 
+    @androidx.camera.camera2.interop.ExperimentalCamera2Interop
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(this);
         future.addListener(() -> {
             try {
-                ProcessCameraProvider provider = future.get();
-                int rotation = (previewView != null && previewView.getDisplay() != null)
-                        ? previewView.getDisplay().getRotation() : Surface.ROTATION_0;
-                lastRotation = rotation;
-
-                previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
-                previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
-
-                imageCapture = new ImageCapture.Builder()
-                        .setTargetRotation(rotation)
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                        .setJpegQuality(92)
-                        .build();
-
-                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
-                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder = new androidx.camera.core.UseCaseGroup.Builder()
-                        .addUseCase(previewUseCase)
-                        .addUseCase(imageCapture);
-                if (viewPort != null) useCaseGroupBuilder.setViewPort(viewPort);
-                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();
-
-                provider.unbindAll();
-                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
-                        this,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        useCaseGroup);
-                if (cameraGestureController != null) {
-                    cameraGestureController.attachCamera(boundCamera);
-                }
+                cameraProvider = future.get();
+                detectUltrawideCamera(cameraProvider);
+                bindSelectedCamera(false);
             } catch (Exception e) {
                 e.printStackTrace();
                 finishCaptureError("Camera failed to start.");
             }
         }, mainExecutor);
+    }
+
+    @androidx.camera.camera2.interop.ExperimentalCamera2Interop
+    private void detectUltrawideCamera(ProcessCameraProvider provider) {
+        wideCameraSelector = null;
+        wideEffectiveRatio = 1.0f;
+        try {
+            java.util.List<androidx.camera.core.CameraInfo> backInfos =
+                    CameraSelector.DEFAULT_BACK_CAMERA.filter(provider.getAvailableCameraInfos());
+            if (backInfos.isEmpty()) return;
+
+            androidx.camera.core.CameraInfo mainInfo = backInfos.get(0);
+            float mainFocal = shortestFocalLength(mainInfo);
+            if (mainFocal <= 0f) return;
+
+            androidx.camera.core.CameraInfo widestInfo = null;
+            float widestFocal = mainFocal;
+            for (androidx.camera.core.CameraInfo info : provider.getAvailableCameraInfos()) {
+                if (info.getLensFacing() != CameraSelector.LENS_FACING_BACK) continue;
+                float focal = shortestFocalLength(info);
+                if (focal > 0f && focal < widestFocal * 0.90f) {
+                    widestFocal = focal;
+                    widestInfo = info;
+                }
+            }
+            if (widestInfo == null) return;
+
+            final String wideId = androidx.camera.camera2.interop.Camera2CameraInfo
+                    .from(widestInfo).getCameraId();
+            wideCameraSelector = new CameraSelector.Builder()
+                    .addCameraFilter(cameraInfos -> {
+                        java.util.List<androidx.camera.core.CameraInfo> result = new java.util.ArrayList<>();
+                        for (androidx.camera.core.CameraInfo info : cameraInfos) {
+                            try {
+                                String id = androidx.camera.camera2.interop.Camera2CameraInfo
+                                        .from(info).getCameraId();
+                                if (wideId.equals(id)) result.add(info);
+                            } catch (Exception ignored) {}
+                        }
+                        return result;
+                    }).build();
+            wideEffectiveRatio = Math.max(0.3f, Math.min(0.95f, widestFocal / mainFocal));
+        } catch (Exception ignored) {
+            wideCameraSelector = null;
+            wideEffectiveRatio = 1.0f;
+        }
+    }
+
+    @androidx.camera.camera2.interop.ExperimentalCamera2Interop
+    private float shortestFocalLength(androidx.camera.core.CameraInfo info) {
+        try {
+            float[] focalLengths = androidx.camera.camera2.interop.Camera2CameraInfo.from(info)
+                    .getCameraCharacteristic(android.hardware.camera2.CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+            if (focalLengths == null || focalLengths.length == 0) return -1f;
+            float min = Float.MAX_VALUE;
+            for (float focal : focalLengths) if (focal > 0f && focal < min) min = focal;
+            return min == Float.MAX_VALUE ? -1f : min;
+        } catch (Exception ignored) {
+            return -1f;
+        }
+    }
+
+    private void bindSelectedCamera(boolean useWide) {
+        ProcessCameraProvider provider = cameraProvider;
+        if (provider == null) return;
+        if (useWide && wideCameraSelector == null) useWide = false;
+
+        try {
+            int rotation = (previewView != null && previewView.getDisplay() != null)
+                    ? previewView.getDisplay().getRotation() : Surface.ROTATION_0;
+            lastRotation = rotation;
+
+            previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
+            previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
+            imageCapture = new ImageCapture.Builder()
+                    .setTargetRotation(rotation)
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .setJpegQuality(92)
+                    .build();
+
+            androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
+            androidx.camera.core.UseCaseGroup.Builder groupBuilder =
+                    new androidx.camera.core.UseCaseGroup.Builder()
+                            .addUseCase(previewUseCase).addUseCase(imageCapture);
+            if (viewPort != null) groupBuilder.setViewPort(viewPort);
+
+            CameraSelector selector = useWide ? wideCameraSelector : CameraSelector.DEFAULT_BACK_CAMERA;
+            provider.unbindAll();
+            androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
+                    this, selector, groupBuilder.build());
+            usingWideLens = useWide;
+            if (cameraGestureController != null) {
+                cameraGestureController.attachCamera(boundCamera,
+                        useWide ? wideEffectiveRatio : 1.0f,
+                        wideCameraSelector != null, useWide);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (useWide) {
+                wideCameraSelector = null;
+                bindSelectedCamera(false);
+            } else {
+                finishCaptureError("Camera failed to start.");
+            }
+        }
+    }
+
+    @Override
+    public void requestWideLens() {
+        if (!isCapturing && !usingWideLens && wideCameraSelector != null) {
+            runOnUiThread(() -> bindSelectedCamera(true));
+        }
+    }
+
+    @Override
+    public void requestMainLens() {
+        if (!isCapturing && usingWideLens) {
+            runOnUiThread(() -> bindSelectedCamera(false));
+        }
     }
 
     private final GnssStatus.Callback gnssCallback = new GnssStatus.Callback() {

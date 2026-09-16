@@ -23,11 +23,12 @@ public final class ProjectBackgroundSync {
     private static final String PREFS_PROJECT_SYNC = "project_sync_prefs";
     private static final String KEY_LAST_PROJECT_SYNC = "last_project_sync";
     private static final String KEY_GEOFENCE_CACHE_VERSION = "geofence_cache_version";
+    private static final String KEY_PROJECT_RECONCILE_VERSION = "project_reconcile_version";
 
-    // v2 adds the server-provided INFRA mun_code + brgy_code metadata. Reusing
-    // the existing bootstrap key forces one refresh for users upgrading from the
-    // earlier radius prototype, even if their project list was synced recently.
     private static final int GEOFENCE_CACHE_VERSION = 2;
+    // Versioned independently from the normal 6-hour timestamp so an app update
+    // can force one authoritative cleanup of stale project rows already on device.
+    private static final int PROJECT_RECONCILE_VERSION = 1;
     private static final long PROJECT_SYNC_INTERVAL_MS = 6L * 60L * 60L * 1000L;
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -63,22 +64,28 @@ public final class ProjectBackgroundSync {
                 boolean intervalExpired = (now - lastSync) >= PROJECT_SYNC_INTERVAL_MS;
                 boolean needsProjectAreaBootstrap =
                         prefs.getInt(KEY_GEOFENCE_CACHE_VERSION, 0) < GEOFENCE_CACHE_VERSION;
+                boolean needsProjectReconciliation =
+                        prefs.getInt(KEY_PROJECT_RECONCILE_VERSION, 0) < PROJECT_RECONCILE_VERSION;
 
-                if (!force && hasLocalProjects && !intervalExpired && !needsProjectAreaBootstrap) {
+                // A new reconciliation version bypasses the normal 6-hour gate once.
+                // This cleans stale rows that were saved by older upsert-only builds.
+                if (!force && hasLocalProjects && !intervalExpired
+                        && !needsProjectAreaBootstrap && !needsProjectReconciliation) {
                     return;
                 }
 
                 ProjectApiService apiService = new ProjectApiService();
                 List<ApiProjectItem> items = apiService.fetchProjects();
+                boolean authoritative = apiService.wasLastFetchAuthoritative();
 
-                if (items != null && !items.isEmpty()) {
-                    repo.saveProjectsFromApi(items);
+                if (items != null) {
+                    // Only the complete /capture-targets response may remove stale rows.
+                    // If the API fell back to legacy /projects, keep upsert-only behavior
+                    // because that endpoint does not contain Project/Activity targets.
+                    repo.saveProjectsFromApi(items, authoritative);
                     geofenceRepo.saveFromApi(items); // legacy radius cache retained only for compatibility
                     adminAreaRepo.saveFromApi(items);
 
-                    // Do not mark v2 complete merely because an older server still
-                    // exposes radius metadata. We specifically need the new
-                    // munCode/brgyCode contract for Infrastructure authorization.
                     boolean adminAreaContractSeen = false;
                     for (ApiProjectItem item : items) {
                         if (item != null && item.adminAreaMetadataAvailable) {
@@ -92,11 +99,16 @@ public final class ProjectBackgroundSync {
                     if (adminAreaContractSeen) {
                         editor.putInt(KEY_GEOFENCE_CACHE_VERSION, GEOFENCE_CACHE_VERSION);
                     }
+                    // Do not mark reconciliation complete on legacy fallback. We want
+                    // the next eligible run to retry against the authoritative feed.
+                    if (authoritative) {
+                        editor.putInt(KEY_PROJECT_RECONCILE_VERSION, PROJECT_RECONCILE_VERSION);
+                    }
                     editor.apply();
                     updated = true;
                 }
             } catch (Exception ignored) {
-                // Silent background sync only.
+                // Silent background sync only. A failed fetch never prunes local data.
             } finally {
                 RUNNING.set(false);
                 if (callback != null) callback.onFinished(updated);
@@ -110,6 +122,7 @@ public final class ProjectBackgroundSync {
                 .edit()
                 .remove(KEY_LAST_PROJECT_SYNC)
                 .remove(KEY_GEOFENCE_CACHE_VERSION)
+                .remove(KEY_PROJECT_RECONCILE_VERSION)
                 .apply();
     }
 }
