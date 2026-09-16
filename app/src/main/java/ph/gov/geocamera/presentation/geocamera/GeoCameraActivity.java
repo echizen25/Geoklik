@@ -729,8 +729,7 @@ public class GeoCameraActivity extends AppCompatActivity
             androidx.camera.core.CameraInfo widestInfo = null;
             float widestFocal = mainFocal;
             for (androidx.camera.core.CameraInfo info : provider.getAvailableCameraInfos()) {
-                if (info.getLensFacing() == null ||
-                        info.getLensFacing() != CameraSelector.LENS_FACING_BACK) continue;
+                if (info.getLensFacing() != CameraSelector.LENS_FACING_BACK) continue;
                 float focal = shortestFocalLength(info);
                 if (focal > 0f && focal < widestFocal * 0.90f) {
                     widestFocal = focal;
