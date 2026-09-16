@@ -533,7 +533,10 @@ public class GeoCameraActivity extends AppCompatActivity {
         final String siteId = (activeSiteId == null) ? "UNCAT" : activeSiteId;
         final String sessionDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
 
-        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {
+        final String documentationType = cameraPrefs.getDocumentationType();
+        final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);
+
+        if (requireDuplicateCheck && imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {
             new MaterialAlertDialogBuilder(this)
                     .setTitle("Possible Duplicate Photo")
                     .setMessage("A photo for this site was already captured within "
@@ -677,6 +680,7 @@ public class GeoCameraActivity extends AppCompatActivity {
 
     private void resetCaptureLifecycle() {
         isCapturing = false;
+        setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
         updateCaptureAvailability();
     }
 
@@ -707,12 +711,18 @@ public class GeoCameraActivity extends AppCompatActivity {
                         .setJpegQuality(92)
                         .build();
 
+                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
+                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder = new androidx.camera.core.UseCaseGroup.Builder()
+                        .addUseCase(previewUseCase)
+                        .addUseCase(imageCapture);
+                if (viewPort != null) useCaseGroupBuilder.setViewPort(viewPort);
+                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();
+
                 provider.unbindAll();
                 androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
                         this,
                         CameraSelector.DEFAULT_BACK_CAMERA,
-                        previewUseCase,
-                        imageCapture);
+                        useCaseGroup);
                 if (cameraGestureController != null) {
                     cameraGestureController.attachCamera(boundCamera);
                 }
