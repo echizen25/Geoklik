@@ -21,107 +21,24 @@ jobs:
           fetch-depth: 0
 
       - name: Patch GeoCameraActivity
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
-
           path = Path('app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java')
           text = path.read_text(encoding='utf-8')
-
-          old_duplicate = '''        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle("Possible Duplicate Photo")
-                    .setMessage("A photo for this site was already captured within "
-                            + Math.round(DUPLICATE_RADIUS_METERS)
-                            + " meters of your current location. Continue anyway?")
-                    .setNegativeButton("Cancel", (d, w) -> resetCaptureLifecycle())
-                    .setPositiveButton("Continue", (d, w) -> continueCaptureAfterDuplicateCheck(
-                            captureLoc, project, userId, motherFolder, siteId, sessionDate))
-                    .setOnCancelListener(d -> resetCaptureLifecycle())
-                    .show();
-            return;
-        }
-'''
-
-          new_duplicate = '''        // Nearby-photo duplicate protection is only meaningful for fixed infrastructure.
-        // Project Activity and Personal captures may legitimately contain many photos from
-        // the same spot, so do not interrupt those workflows with the 5-meter warning.
-        final String documentationType = cameraPrefs.getDocumentationType();
-        final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);
-
-        if (requireDuplicateCheck && imageRepo.hasNearbyPhoto(
-                siteId,
-                captureLoc.getLatitude(),
-                captureLoc.getLongitude(),
-                DUPLICATE_RADIUS_METERS)) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle("Possible Duplicate Photo")
-                    .setMessage("A photo for this site was already captured within "
-                            + Math.round(DUPLICATE_RADIUS_METERS)
-                            + " meters of your current location. Continue anyway?")
-                    .setNegativeButton("Cancel", (d, w) -> resetCaptureLifecycle())
-                    .setPositiveButton("Continue", (d, w) -> continueCaptureAfterDuplicateCheck(
-                            captureLoc, project, userId, motherFolder, siteId, sessionDate))
-                    .setOnCancelListener(d -> resetCaptureLifecycle())
-                    .show();
-            return;
-        }
-'''
-
-          old_camera = '''                previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
-                previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
-
-                imageCapture = new ImageCapture.Builder()
-                        .setTargetRotation(rotation)
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                        .setJpegQuality(92)
-                        .build();
-
-                provider.unbindAll();
-                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
-                        this,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        previewUseCase,
-                        imageCapture);
-'''
-
-          new_camera = '''                previewUseCase = new Preview.Builder().setTargetRotation(rotation).build();
-                previewUseCase.setSurfaceProvider(previewView.getSurfaceProvider());
-
-                imageCapture = new ImageCapture.Builder()
-                        .setTargetRotation(rotation)
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                        .setJpegQuality(92)
-                        .build();
-
-                // Share the PreviewView viewport with ImageCapture so the saved JPEG uses
-                // the same visible framing/crop as the fillCenter preview. CameraControl
-                // zoom is then applied consistently to both use cases.
-                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
-                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder =
-                        new androidx.camera.core.UseCaseGroup.Builder()
-                                .addUseCase(previewUseCase)
-                                .addUseCase(imageCapture);
-                if (viewPort != null) {
-                    useCaseGroupBuilder.setViewPort(viewPort);
-                }
-                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();
-
-                provider.unbindAll();
-                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
-                        this,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        useCaseGroup);
-'''
-
-          if old_duplicate not in text:
-              raise SystemExit('Expected duplicate-check block was not found; refusing unsafe patch.')
-          if old_camera not in text:
-              raise SystemExit('Expected camera binding block was not found; refusing unsafe patch.')
-
-          text = text.replace(old_duplicate, new_duplicate, 1)
-          text = text.replace(old_camera, new_camera, 1)
+          old_dup = '        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'
+          new_dup = '        // Only fixed Infrastructure captures need the 5-meter duplicate warning.\n        // Activity and Personal captures may legitimately contain many photos from one spot.\n        final String documentationType = cameraPrefs.getDocumentationType();\n        final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);\n\n        if (requireDuplicateCheck && imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'
+          if old_dup not in text:
+              raise SystemExit('Duplicate-check target not found; refusing unsafe patch')
+          text = text.replace(old_dup, new_dup, 1)
+          marker = '                provider.unbindAll();\n                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(\n                        this,\n                        CameraSelector.DEFAULT_BACK_CAMERA,\n                        previewUseCase,\n                        imageCapture);'
+          replacement = '                // Use the PreviewView viewport for both Preview and ImageCapture so the\n                // saved JPEG matches the visible fillCenter framing and CameraControl zoom.\n                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();\n                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder =\n                        new androidx.camera.core.UseCaseGroup.Builder()\n                                .addUseCase(previewUseCase)\n                                .addUseCase(imageCapture);\n                if (viewPort != null) {\n                    useCaseGroupBuilder.setViewPort(viewPort);\n                }\n                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();\n\n                provider.unbindAll();\n                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(\n                        this,\n                        CameraSelector.DEFAULT_BACK_CAMERA,\n                        useCaseGroup);'
+          if marker not in text:
+              raise SystemExit('Camera binding target not found; refusing unsafe patch')
+          text = text.replace(marker, replacement, 1)
           path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Verify targeted changes
         shell: bash
