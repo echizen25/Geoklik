@@ -24,9 +24,6 @@ public final class ProjectBackgroundSync {
     private static final String KEY_LAST_PROJECT_SYNC = "last_project_sync";
     private static final String KEY_GEOFENCE_CACHE_VERSION = "geofence_cache_version";
 
-    // v2 adds the server-provided INFRA mun_code + brgy_code metadata. Reusing
-    // the existing bootstrap key forces one refresh for users upgrading from the
-    // earlier radius prototype, even if their project list was synced recently.
     private static final int GEOFENCE_CACHE_VERSION = 2;
     private static final long PROJECT_SYNC_INTERVAL_MS = 6L * 60L * 60L * 1000L;
 
@@ -70,15 +67,16 @@ public final class ProjectBackgroundSync {
 
                 ProjectApiService apiService = new ProjectApiService();
                 List<ApiProjectItem> items = apiService.fetchProjects();
+                boolean authoritative = apiService.wasLastFetchAuthoritative();
 
-                if (items != null && !items.isEmpty()) {
-                    repo.saveProjectsFromApi(items);
+                if (items != null) {
+                    // Only the complete /capture-targets response may remove stale rows.
+                    // If the API fell back to legacy /projects, keep upsert-only behavior
+                    // because that endpoint does not contain Project/Activity targets.
+                    repo.saveProjectsFromApi(items, authoritative);
                     geofenceRepo.saveFromApi(items); // legacy radius cache retained only for compatibility
                     adminAreaRepo.saveFromApi(items);
 
-                    // Do not mark v2 complete merely because an older server still
-                    // exposes radius metadata. We specifically need the new
-                    // munCode/brgyCode contract for Infrastructure authorization.
                     boolean adminAreaContractSeen = false;
                     for (ApiProjectItem item : items) {
                         if (item != null && item.adminAreaMetadataAvailable) {
@@ -96,7 +94,7 @@ public final class ProjectBackgroundSync {
                     updated = true;
                 }
             } catch (Exception ignored) {
-                // Silent background sync only.
+                // Silent background sync only. A failed fetch never prunes local data.
             } finally {
                 RUNNING.set(false);
                 if (callback != null) callback.onFinished(updated);
