@@ -1,0 +1,54 @@
+name: Fix discard capture reset
+
+on:
+  push:
+    branches: [fix/change-site-project-dropdown]
+    paths: [.github/workflows/fix-discard-capture-reset.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/change-site-project-dropdown
+          fetch-depth: 0
+      - name: Patch and verify lifecycle reset
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java')
+          s = p.read_text(encoding='utf-8')
+          old = '''    private void resetCaptureLifecycle() {
+        isCapturing = false;
+        updateCaptureAvailability();
+    }
+'''
+          new = '''    private void resetCaptureLifecycle() {
+        isCapturing = false;
+
+        // Leave any busy capture state (especially ADD_DESCRIPTION after Discard)
+        // before reevaluating the current live GPS fix. Otherwise
+        // updateCaptureAvailability() exits early because isBusy() is still true,
+        // leaving the shutter disabled until the activity is reopened.
+        setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);
+        updateCaptureAvailability();
+    }
+'''
+          if old not in s:
+              raise SystemExit('resetCaptureLifecycle target not found; refusing unsafe patch')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          grep -q 'setCaptureState(CameraStateManager.State.WAITING_FOR_GPS)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+      - name: Commit source and remove temporary workflow
+        run: |
+          rm -f .github/workflows/fix-discard-capture-reset.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix capture reset after discarded photo'
+          git push origin HEAD:fix/change-site-project-dropdown
