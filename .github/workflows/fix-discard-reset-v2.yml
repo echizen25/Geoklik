@@ -1,0 +1,43 @@
+name: GeoKlik discard reset patch
+
+on:
+  push:
+    branches: [fix/change-site-project-dropdown]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-discard:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/change-site-project-dropdown
+          fetch-depth: 0
+
+      - name: Apply and verify reset patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java')
+          s = p.read_text(encoding='utf-8')
+          old = '    private void resetCaptureLifecycle() {\n        isCapturing = false;\n        updateCaptureAvailability();\n    }'
+          new = '    private void resetCaptureLifecycle() {\n        isCapturing = false;\n\n        // Exit ADD_DESCRIPTION/other busy states before reevaluating live GPS.\n        // Without this, updateCaptureAvailability() returns early and the shutter\n        // stays disabled after Discard until the camera activity is reopened.\n        setCaptureState(CameraStateManager.State.WAITING_FOR_GPS);\n        updateCaptureAvailability();\n    }'
+          if old not in s:
+              raise SystemExit('reset target not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+          grep -q 'Exit ADD_DESCRIPTION/other busy states' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+
+      - name: Commit patch and clean temporary workflows
+        run: |
+          rm -f .github/workflows/fix-discard-capture-reset.yml
+          rm -f .github/workflows/fix-discard-reset-v2.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix capture reset after discarded photo'
+          git push origin HEAD:fix/change-site-project-dropdown
