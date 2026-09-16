@@ -1,0 +1,59 @@
+name: GeoKlik camera patch
+
+on:
+  push:
+    branches: [fix/change-site-project-dropdown]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-camera:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/change-site-project-dropdown
+          fetch-depth: 0
+
+      - name: Apply targeted source changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java')
+          s = p.read_text(encoding='utf-8')
+          old = '        if (imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'
+          new = '        // Only fixed Infrastructure captures need the 5-meter duplicate warning.\n        // Activity and Personal captures may legitimately contain many photos from one spot.\n        final String documentationType = cameraPrefs.getDocumentationType();\n        final boolean requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType);\n\n        if (requireDuplicateCheck && imageRepo.hasNearbyPhoto(siteId, captureLoc.getLatitude(), captureLoc.getLongitude(), DUPLICATE_RADIUS_METERS)) {'
+          if old not in s:
+              raise SystemExit('duplicate target not found')
+          s = s.replace(old, new, 1)
+          old = '                provider.unbindAll();\n                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(\n                        this,\n                        CameraSelector.DEFAULT_BACK_CAMERA,\n                        previewUseCase,\n                        imageCapture);'
+          new = '                // Share PreviewView crop/framing with still capture.\n                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();\n                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder = new androidx.camera.core.UseCaseGroup.Builder()\n                        .addUseCase(previewUseCase)\n                        .addUseCase(imageCapture);\n                if (viewPort != null) useCaseGroupBuilder.setViewPort(viewPort);\n                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();\n\n                provider.unbindAll();\n                androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(\n                        this,\n                        CameraSelector.DEFAULT_BACK_CAMERA,\n                        useCaseGroup);'
+          if old not in s:
+              raise SystemExit('camera target not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Verify patch
+        run: |
+          grep -q 'requireDuplicateCheck = CameraPrefs.DOC_INFRA.equals(documentationType)' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+          grep -q 'previewView.getViewPort()' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+          grep -q 'CameraSelector.DEFAULT_BACK_CAMERA,' app/src/main/java/ph/gov/geocamera/presentation/geocamera/GeoCameraActivity.java
+
+      - name: Compile Java
+        run: |
+          chmod +x gradlew
+          ./gradlew compileDebugJavaWithJavac --no-daemon
+
+      - name: Commit verified source patch
+        run: |
+          rm -f .github/workflows/apply-camera-framing-fix.yml
+          rm -f .github/workflows/apply-camera-framing-fix-v2.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix camera framing and duplicate capture rules'
+          git push origin HEAD:fix/change-site-project-dropdown
