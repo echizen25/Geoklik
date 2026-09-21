@@ -791,16 +791,13 @@ public class GeoCameraActivity extends AppCompatActivity
                     .setJpegQuality(92)
                     .build();
 
-            androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
-            androidx.camera.core.UseCaseGroup.Builder groupBuilder =
-                    new androidx.camera.core.UseCaseGroup.Builder()
-                            .addUseCase(previewUseCase).addUseCase(imageCapture);
-            if (viewPort != null) groupBuilder.setViewPort(viewPort);
-
             CameraSelector selector = useWide ? wideCameraSelector : CameraSelector.DEFAULT_BACK_CAMERA;
             provider.unbindAll();
+            // Bind capture directly instead of applying PreviewView's viewport crop to
+            // the JPEG. On some devices that crop/aspect transform makes normal-lens
+            // captures appear unnaturally wide or horizontally distorted.
             androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
-                    this, selector, groupBuilder.build());
+                    this, selector, previewUseCase, imageCapture);
             usingWideLens = useWide;
             if (cameraGestureController != null) {
                 cameraGestureController.attachCamera(boundCamera,
