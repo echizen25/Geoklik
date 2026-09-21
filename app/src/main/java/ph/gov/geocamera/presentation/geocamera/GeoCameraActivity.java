@@ -531,11 +531,17 @@ public class GeoCameraActivity extends AppCompatActivity
         isCapturing = true;
         setCaptureState(CameraStateManager.State.CHECKING_DUPLICATE);
 
-        final String project = safe(userRepo.getProject(), "PROJECT");
+        final boolean personalCapture =
+                CameraPrefs.DOC_PERSONAL.equals(cameraPrefs.getDocumentationType());
+        final String project = personalCapture
+                ? cameraPrefs.getPersonalOverlayLabel()
+                : safe(userRepo.getProject(), "PROJECT");
         final String userId = safe(userRepo.getUserId(), "UNKNOWN");
         final String year = new SimpleDateFormat("yyyy", Locale.US).format(new Date());
         final String motherFolder = project + "_" + year;
-        final String siteId = (activeSiteId == null) ? "UNCAT" : activeSiteId;
+        final String siteId = personalCapture
+                ? cameraPrefs.getPersonalOverlayTitle()
+                : ((activeSiteId == null) ? "UNCAT" : activeSiteId);
         final String sessionDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
 
         final String documentationType = cameraPrefs.getDocumentationType();
@@ -1187,9 +1193,14 @@ public class GeoCameraActivity extends AppCompatActivity
     }
 
     private void updateOverlayTexts() {
-        String project = safe(userRepo.getProject(), "PROJECT");
+        boolean personal = CameraPrefs.DOC_PERSONAL.equals(cameraPrefs.getDocumentationType());
+        String project = personal
+                ? cameraPrefs.getPersonalOverlayLabel()
+                : safe(userRepo.getProject(), "PROJECT");
         String siteLabel;
-        if (activeSiteId == null) {
+        if (personal) {
+            siteLabel = cameraPrefs.getPersonalOverlayTitle();
+        } else if (activeSiteId == null) {
             siteLabel = "UNCAT";
         } else {
             String coda = projectRepo.getProjectCodaById(activeSiteId);
