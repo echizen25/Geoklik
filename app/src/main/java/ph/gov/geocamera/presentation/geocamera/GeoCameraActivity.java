@@ -711,18 +711,15 @@ public class GeoCameraActivity extends AppCompatActivity {
                         .setJpegQuality(92)
                         .build();
 
-                androidx.camera.core.ViewPort viewPort = previewView.getViewPort();
-                androidx.camera.core.UseCaseGroup.Builder useCaseGroupBuilder = new androidx.camera.core.UseCaseGroup.Builder()
-                        .addUseCase(previewUseCase)
-                        .addUseCase(imageCapture);
-                if (viewPort != null) useCaseGroupBuilder.setViewPort(viewPort);
-                androidx.camera.core.UseCaseGroup useCaseGroup = useCaseGroupBuilder.build();
-
+                // Bind Preview and ImageCapture directly. Applying PreviewView's viewport
+                // to ImageCapture can force a device-specific crop/aspect transform that
+                // makes the saved JPEG look unnaturally wide or distorted.
                 provider.unbindAll();
                 androidx.camera.core.Camera boundCamera = provider.bindToLifecycle(
                         this,
                         CameraSelector.DEFAULT_BACK_CAMERA,
-                        useCaseGroup);
+                        previewUseCase,
+                        imageCapture);
                 if (cameraGestureController != null) {
                     cameraGestureController.attachCamera(boundCamera);
                 }
