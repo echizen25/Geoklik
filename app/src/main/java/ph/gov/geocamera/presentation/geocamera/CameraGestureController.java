@@ -16,6 +16,8 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop;
 import androidx.camera.core.Camera;
 import androidx.camera.core.FocusMeteringAction;
 import androidx.camera.core.FocusMeteringResult;
@@ -121,6 +123,7 @@ public final class CameraGestureController {
         attachCamera(camera, NORMAL_ZOOM_RATIO, false, false);
     }
 
+    @OptIn(markerClass = ExperimentalCamera2Interop.class)
     public void attachCamera(@NonNull Camera camera, float effectiveBaseRatio,
                              boolean wideLensAvailable, boolean usingWideLens) {
         this.camera = camera;

@@ -70,7 +70,7 @@ import ph.gov.geocamera.data.repository.SiteRepository;
 import ph.gov.geocamera.data.repository.UserRepository;
 import ph.gov.geocamera.data.sync.SyncScheduler;
 import ph.gov.geocamera.presentation.site.SetSiteActivity;
-
+@androidx.camera.camera2.interop.ExperimentalCamera2Interop
 public class GeoCameraActivity extends AppCompatActivity
         implements CameraGestureController.LensSwitchHandler {
 
