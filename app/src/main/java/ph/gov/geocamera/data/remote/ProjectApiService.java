@@ -21,6 +21,8 @@ public class ProjectApiService {
     private static final String LEGACY_PROJECTS_URL =
             "https://geoklik.philmech.gov.ph/api/projects";
 
+    private boolean lastFetchAuthoritative = false;
+
     /**
      * Fetch the unified capture target list. If the newly deployed endpoint is
      * temporarily unavailable, fall back to the original /projects endpoint so
@@ -28,11 +30,19 @@ public class ProjectApiService {
      */
     public List<ApiProjectItem> fetchProjects() throws Exception {
         try {
-            return fetchFromUrl(CAPTURE_TARGETS_URL, false);
+            List<ApiProjectItem> items = fetchFromUrl(CAPTURE_TARGETS_URL, false);
+            lastFetchAuthoritative = true;
+            return items;
         } catch (Exception primaryError) {
             Log.w(TAG, "capture-targets unavailable; falling back to /projects", primaryError);
+            lastFetchAuthoritative = false;
             return fetchFromUrl(LEGACY_PROJECTS_URL, true);
         }
+    }
+
+    /** True only when the last successful response came from the complete /capture-targets feed. */
+    public boolean wasLastFetchAuthoritative() {
+        return lastFetchAuthoritative;
     }
 
     private List<ApiProjectItem> fetchFromUrl(String requestUrl, boolean legacyInfraOnly)
@@ -74,8 +84,6 @@ public class ProjectApiService {
 
                 ApiProjectItem item = new ApiProjectItem();
 
-                // New capture-targets returns projectId. Legacy /projects also
-                // keeps project_id, so accept either shape during rollout.
                 item.projectId = firstNonBlank(
                         o.optString("projectId", ""),
                         o.optString("project_id", "")
@@ -91,7 +99,6 @@ public class ProjectApiService {
                     item.projectType = "INFRA";
                 }
                 if (item.projectType.isEmpty()) {
-                    // Safe compatibility default for an older server response.
                     item.projectType = "INFRA";
                 }
 
@@ -103,14 +110,11 @@ public class ProjectApiService {
                 item.dateFrom = nullableString(o, "dateFrom");
                 item.dateTo = nullableString(o, "dateTo");
 
-                // INFRA administrative-area metadata. It is intentionally absent
-                // from the legacy /projects contract and null for Project Activity.
                 item.adminAreaMetadataAvailable = !legacyInfraOnly
                         && (o.has("munCode") || o.has("brgyCode"));
                 item.municipalityCode = nullableString(o, "munCode");
                 item.barangayCode = nullableString(o, "brgyCode");
 
-                // Older optional radius fields remain parseable for compatibility.
                 item.geofenceMetadataAvailable = !legacyInfraOnly
                         && (o.has("geofenceLatitude")
                         || o.has("geofenceLongitude")

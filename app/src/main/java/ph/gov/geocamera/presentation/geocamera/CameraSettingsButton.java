@@ -10,7 +10,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
 import androidx.appcompat.widget.AppCompatImageButton;
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 
@@ -76,6 +78,7 @@ public class CameraSettingsButton extends AppCompatImageButton {
         });
     }
 
+    @OptIn(markerClass = ExperimentalCamera2Interop.class)
     private void showCameraSettings() {
         final String[] items = new String[]{
                 "Change Project / Site",

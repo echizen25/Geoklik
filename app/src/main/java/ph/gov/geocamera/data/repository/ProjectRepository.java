@@ -23,7 +23,24 @@ public class ProjectRepository {
         dbHelper = new GeoDbHelper(context);
     }
 
+    /**
+     * Backward-compatible upsert-only entry point. Callers that cannot guarantee
+     * a complete authoritative server list must not prune local rows.
+     */
     public void saveProjectsFromApi(List<ApiProjectItem> items) {
+        saveProjectsFromApi(items, false);
+    }
+
+    /**
+     * Saves the server list and, only for an authoritative /capture-targets response,
+     * removes local project rows that no longer exist on the server.
+     *
+     * Projects with pending/failed local captures are retained so deleting a project
+     * on the server cannot orphan field work that still needs to upload. Already
+     * synced photos may keep their site/image history; the stale project itself is
+     * removed from tbl_projects so it disappears from project selectors.
+     */
+    public void saveProjectsFromApi(List<ApiProjectItem> items, boolean reconcileMissing) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
         try {
@@ -41,8 +58,6 @@ public class ProjectRepository {
                     cv.put("beneficiary", safeNull(p.beneficiary));
                     cv.put("location", safeNull(p.location));
                     cv.put("cost", p.cost);
-                    // Preserve the authoritative capture type from /capture-targets.
-                    // Older behavior collapsed ACTIVITY and PROJECT into INFRA.
                     cv.put("project_type", normalizeProjectType(p.projectType));
                     cv.put("division_id", safeNull(p.divisionId));
                     cv.put("division_code", safeNull(p.divisionCode));
@@ -61,11 +76,53 @@ public class ProjectRepository {
                     );
                 }
             }
+
+            if (reconcileMissing && items != null) {
+                reconcileMissingProjects(db, items);
+            }
+
             db.setTransactionSuccessful();
         } finally {
             db.endTransaction();
             db.close();
         }
+    }
+
+    private void reconcileMissingProjects(SQLiteDatabase db, List<ApiProjectItem> serverItems) {
+        db.execSQL("CREATE TEMP TABLE IF NOT EXISTS tmp_server_project_ids (projectid TEXT PRIMARY KEY COLLATE NOCASE)");
+        db.execSQL("DELETE FROM tmp_server_project_ids");
+
+        for (ApiProjectItem item : serverItems) {
+            if (item == null) continue;
+            String id = normalize(item.projectId);
+            if (id.isEmpty()) continue;
+            ContentValues values = new ContentValues();
+            values.put("projectid", id);
+            db.insertWithOnConflict("tmp_server_project_ids", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        }
+
+        // status 1 = successfully synced. Any other status may still need local work,
+        // so keep its project row even if an administrator deleted it on the server.
+        String pendingDirectCapture =
+                "EXISTS (SELECT 1 FROM tbl_imagemeta im " +
+                "WHERE im.status <> 1 " +
+                "AND trim(COALESCE(im.activity_project_id,'')) = trim(tbl_projects.projectid) COLLATE NOCASE)";
+
+        String pendingInfraCapture =
+                "EXISTS (SELECT 1 FROM tbl_site s " +
+                "JOIN tbl_imagemeta im ON trim(COALESCE(im.siteid,'')) = trim(COALESCE(s.siteid,'')) COLLATE NOCASE " +
+                "WHERE im.status <> 1 " +
+                "AND trim(COALESCE(s.projectid,'')) = trim(tbl_projects.projectid) COLLATE NOCASE)";
+
+        db.execSQL(
+                "DELETE FROM tbl_projects " +
+                "WHERE NOT EXISTS (SELECT 1 FROM tmp_server_project_ids srv " +
+                "                  WHERE trim(srv.projectid) = trim(tbl_projects.projectid) COLLATE NOCASE) " +
+                "AND NOT " + pendingDirectCapture + " " +
+                "AND NOT " + pendingInfraCapture
+        );
+
+        db.execSQL("DROP TABLE IF EXISTS tmp_server_project_ids");
     }
 
     public List<ProjectListItem> getProjectList() {
@@ -369,7 +426,6 @@ public class ProjectRepository {
         if ("ACTIVITY".equals(type)) return "ACTIVITY";
         if ("PROJECT".equals(type)) return "PROJECT";
         if ("INFRA".equals(type) || "INFRASTRUCTURE".equals(type)) return "INFRA";
-        // Keep backward compatibility for old/missing project_type values.
         return "INFRA";
     }
 

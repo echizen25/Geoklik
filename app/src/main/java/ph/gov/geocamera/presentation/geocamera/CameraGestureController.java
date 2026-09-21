@@ -16,6 +16,8 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop;
 import androidx.camera.core.Camera;
 import androidx.camera.core.FocusMeteringAction;
 import androidx.camera.core.FocusMeteringResult;
@@ -37,6 +39,11 @@ import java.util.concurrent.TimeUnit;
  */
 public final class CameraGestureController {
 
+    public interface LensSwitchHandler {
+        void requestWideLens();
+        void requestMainLens();
+    }
+
     private static final long FOCUS_FADE_DELAY_MS = 650L;
     private static final float NORMAL_ZOOM_RATIO = 1.0f;
 
@@ -49,10 +56,16 @@ public final class CameraGestureController {
 
     private Camera camera;
     private boolean scaling;
+    private final LensSwitchHandler lensSwitchHandler;
+    private float effectiveBaseRatio = NORMAL_ZOOM_RATIO;
+    private boolean wideLensAvailable = false;
+    private boolean usingWideLens = false;
 
     public CameraGestureController(@NonNull Activity activity, @NonNull PreviewView previewView) {
         this.activity = activity;
         this.previewView = previewView;
+        this.lensSwitchHandler = activity instanceof LensSwitchHandler
+                ? (LensSwitchHandler) activity : null;
 
         FrameLayout root = findRootFrame(previewView);
         zoomIndicator = createZoomIndicator();
@@ -107,7 +120,16 @@ public final class CameraGestureController {
     }
 
     public void attachCamera(@NonNull Camera camera) {
+        attachCamera(camera, NORMAL_ZOOM_RATIO, false, false);
+    }
+
+    @OptIn(markerClass = ExperimentalCamera2Interop.class)
+    public void attachCamera(@NonNull Camera camera, float effectiveBaseRatio,
+                             boolean wideLensAvailable, boolean usingWideLens) {
         this.camera = camera;
+        this.effectiveBaseRatio = Math.max(0.1f, effectiveBaseRatio);
+        this.wideLensAvailable = wideLensAvailable;
+        this.usingWideLens = usingWideLens;
 
         CameraFlashController.attach(activity, camera);
 
@@ -128,9 +150,25 @@ public final class CameraGestureController {
         ZoomState state = currentCamera.getCameraInfo().getZoomState().getValue();
         if (state == null) return;
 
-        float target = state.getZoomRatio() * scaleFactor;
-        target = Math.max(state.getMinZoomRatio(), Math.min(state.getMaxZoomRatio(), target));
-        currentCamera.getCameraControl().setZoomRatio(target);
+        float currentEffective = state.getZoomRatio() * effectiveBaseRatio;
+        float targetEffective = currentEffective * scaleFactor;
+
+        // Crossing below 1x from the main camera switches to the real ultrawide lens.
+        if (!usingWideLens && wideLensAvailable && targetEffective < NORMAL_ZOOM_RATIO - 0.02f) {
+            if (lensSwitchHandler != null) lensSwitchHandler.requestWideLens();
+            return;
+        }
+
+        // Crossing back to 1x while on ultrawide restores the main rear lens.
+        if (usingWideLens && targetEffective >= NORMAL_ZOOM_RATIO - 0.02f) {
+            if (lensSwitchHandler != null) lensSwitchHandler.requestMainLens();
+            return;
+        }
+
+        float targetPhysical = targetEffective / effectiveBaseRatio;
+        targetPhysical = Math.max(state.getMinZoomRatio(),
+                Math.min(state.getMaxZoomRatio(), targetPhysical));
+        currentCamera.getCameraControl().setZoomRatio(targetPhysical);
     }
 
     private void toggleWideZoom() {
@@ -140,18 +178,13 @@ public final class CameraGestureController {
         ZoomState state = currentCamera.getCameraInfo().getZoomState().getValue();
         if (state == null) return;
 
-        float minZoom = state.getMinZoomRatio();
-        float current = state.getZoomRatio();
-
-        if (minZoom >= NORMAL_ZOOM_RATIO - 0.01f) {
+        if (usingWideLens) {
+            if (lensSwitchHandler != null) lensSwitchHandler.requestMainLens();
+        } else if (wideLensAvailable) {
+            if (lensSwitchHandler != null) lensSwitchHandler.requestWideLens();
+        } else {
             currentCamera.getCameraControl().setZoomRatio(NORMAL_ZOOM_RATIO);
-            return;
         }
-
-        float target = current < NORMAL_ZOOM_RATIO - 0.05f
-                ? NORMAL_ZOOM_RATIO
-                : minZoom;
-        currentCamera.getCameraControl().setZoomRatio(target);
     }
 
     private void focusAt(float x, float y) {
@@ -187,15 +220,15 @@ public final class CameraGestureController {
     private void renderZoomState(ZoomState state) {
         if (state == null) return;
 
-        zoomIndicator.setText(formatZoom(state.getZoomRatio()));
+        float effectiveRatio = state.getZoomRatio() * effectiveBaseRatio;
+        zoomIndicator.setText(formatZoom(effectiveRatio));
         zoomIndicator.setVisibility(View.VISIBLE);
 
-        boolean hasWide = state.getMinZoomRatio() < NORMAL_ZOOM_RATIO - 0.01f;
-        zoomIndicator.setClickable(hasWide);
-        zoomIndicator.setFocusable(hasWide);
-        zoomIndicator.setAlpha(hasWide ? 1f : 0.88f);
-        zoomIndicator.setContentDescription(hasWide
-                ? "Zoom. Tap to switch between wide and 1x."
+        zoomIndicator.setClickable(wideLensAvailable);
+        zoomIndicator.setFocusable(wideLensAvailable);
+        zoomIndicator.setAlpha(wideLensAvailable ? 1f : 0.88f);
+        zoomIndicator.setContentDescription(wideLensAvailable
+                ? "Zoom. Pinch below 1x for ultrawide, or tap to switch lens."
                 : "Zoom. Pinch to zoom.");
     }
 
