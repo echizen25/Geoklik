@@ -1,0 +1,1 @@
+Source reference: Mozilla CA root store converted to PEM format. Refresh from https://curl.se/docs/caextract.html when updating this fallback.
