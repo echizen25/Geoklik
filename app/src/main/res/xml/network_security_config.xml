@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!--
-        Keep HTTPS certificate validation enabled. GeoKlik normally trusts the
-        Android system CA store. For the production GeoKlik host only, also
-        allow certificates explicitly installed and trusted by the device user
-        or organization. This helps Android 7+ devices where user-installed CAs
-        are not trusted by apps by default.
+        Keep normal HTTPS validation enabled for all traffic.
 
-        This is intentionally NOT a trust-all configuration: hostname and
-        certificate-chain validation remain enforced.
+        For geoklik.philmech.gov.ph only, add a bundled modern Mozilla CA root
+        store to the Android system/user trust anchors. This is intended for
+        older Android devices whose built-in CA store may be stale.
+
+        This is NOT a trust-all configuration. Android still validates the
+        certificate chain and hostname, and cleartext HTTP remains disabled.
     -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
@@ -21,6 +21,7 @@
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
+            <certificates src="@raw/modern_ca_bundle" />
         </trust-anchors>
     </domain-config>
 </network-security-config>
