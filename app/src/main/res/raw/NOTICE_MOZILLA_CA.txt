@@ -1,0 +1,1 @@
+The bundled fallback trust store is based on Mozilla's CA certificate store (MPL 2.0). It is used only as an additional trust-anchor source for the GeoKlik production HTTPS host on Android devices with stale system CA stores.
