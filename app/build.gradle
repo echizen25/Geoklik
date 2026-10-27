@@ -9,6 +9,13 @@ plugins {
 def phAdminAssetsDir = layout.buildDirectory.dir("generated/phAdminAssets")
 def phAdminDataUrl = "https://raw.githubusercontent.com/open-admin-data/philippines-administrative-divisions/main/data/all-flat.csv"
 
+// Modern public CA roots for Android devices with an outdated system trust store.
+// Source: Mozilla CA store converted to PEM by curl (MPL 2.0).
+// This bundle is only referenced by the GeoKlik production domain through
+// res/xml/network_security_config.xml; it does NOT disable hostname or chain validation.
+def modernCaResDir = layout.buildDirectory.dir("generated/modernCaRes")
+def modernCaBundleUrl = "https://curl.se/ca/cacert.pem"
+
 tasks.register("preparePhAdminData") {
     def outputDir = phAdminAssetsDir.get().asFile
     def outputFile = new File(outputDir, "ph_admin_all_flat.csv")
@@ -35,6 +42,55 @@ tasks.register("preparePhAdminData") {
     }
 }
 
+tasks.register("prepareModernCaBundle") {
+    def outputDir = modernCaResDir.get().asFile
+    def rawDir = new File(outputDir, "raw")
+    def outputFile = new File(rawDir, "modern_ca_bundle.pem")
+    outputs.file(outputFile)
+
+    doLast {
+        rawDir.mkdirs()
+
+        // Reuse a previously generated valid bundle when available.
+        if (outputFile.exists()
+                && outputFile.length() > 100000
+                && outputFile.getText("UTF-8").contains("-----BEGIN CERTIFICATE-----")) {
+            return
+        }
+
+        try {
+            logger.lifecycle("GeoKlik: preparing modern Mozilla CA bundle for HTTPS compatibility...")
+            File tempFile = new File(rawDir, "modern_ca_bundle.pem.tmp")
+            if (tempFile.exists()) tempFile.delete()
+
+            new URL(modernCaBundleUrl).withInputStream { input ->
+                tempFile.withOutputStream { output -> output << input }
+            }
+
+            String pem = tempFile.getText("UTF-8")
+            if (tempFile.length() < 100000
+                    || !pem.contains("-----BEGIN CERTIFICATE-----")
+                    || !pem.contains("-----END CERTIFICATE-----")) {
+                tempFile.delete()
+                throw new GradleException("Downloaded CA bundle is incomplete or invalid")
+            }
+
+            if (outputFile.exists()) outputFile.delete()
+            if (!tempFile.renameTo(outputFile)) {
+                outputFile.bytes = tempFile.bytes
+                tempFile.delete()
+            }
+        } catch (Exception ex) {
+            if (outputFile.exists()) outputFile.delete()
+            throw new GradleException(
+                    "GeoKlik: unable to prepare the modern CA bundle required for secure HTTPS compatibility. " +
+                            "Check the build machine internet connection and retry. Cause: ${ex.message}",
+                    ex
+            )
+        }
+    }
+}
+
 android {
     namespace = "ph.gov.geocamera"
     compileSdk = 36
@@ -49,12 +105,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Use a concrete File here instead of passing a Provider into the legacy
-    // SourceSet API. Newer AGP versions reject Provider instances in srcDir().
-    // preBuild below carries the generation dependency explicitly.
+    // Use concrete File paths instead of passing Providers into the legacy
+    // SourceSet API. preBuild below carries generation dependencies explicitly.
     sourceSets {
         main {
             assets.srcDir(phAdminAssetsDir.get().asFile)
+            res.srcDir(modernCaResDir.get().asFile)
         }
     }
 
@@ -77,6 +133,7 @@ android {
 
 tasks.named("preBuild").configure {
     dependsOn("preparePhAdminData")
+    dependsOn("prepareModernCaBundle")
 }
 
 dependencies {
