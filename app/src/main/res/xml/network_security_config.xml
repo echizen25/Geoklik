@@ -3,9 +3,10 @@
     <!--
         Keep normal HTTPS validation enabled for all traffic.
 
-        For geoklik.philmech.gov.ph only, add a bundled modern Mozilla CA root
-        store to the Android system/user trust anchors. This is intended for
-        older Android devices whose built-in CA store may be stale.
+        For geoklik.philmech.gov.ph only, trust the exact GlobalSign
+        OrganizationSSL intermediate currently issuing the *.philmech.gov.ph
+        certificate. This compensates for devices/servers that cannot build the
+        full chain to GlobalSign Root R46 on their own.
 
         This is NOT a trust-all configuration. Android still validates the
         certificate chain and hostname, and cleartext HTTP remains disabled.
@@ -21,6 +22,7 @@
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
+            <certificates src="@raw/globalsign_gcc_r46_ov_tls_ca_2025" />
             <certificates src="@raw/modern_ca_bundle" />
         </trust-anchors>
     </domain-config>
